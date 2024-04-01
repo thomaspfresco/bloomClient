@@ -1,3 +1,3 @@
 # BLOOM Client
 
-React + Vite
+React + Vite (JavaScript)
