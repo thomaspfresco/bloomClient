@@ -1,6 +1,8 @@
 import {BrowserRouter, Routes, Route} from 'react-router-dom'
 import Home from './Pages/home'
-import Explore from './Pages/explore'
+import Compose from './Pages/compose'
+import About from './Pages/about'
+import Help from './Pages/help'
 import NoPage from './Pages/noPage'
 
 import './App.css';
@@ -14,7 +16,9 @@ function App() {
     <BrowserRouter>
     <Routes>
       <Route index element={<Home/>}/>
-      <Route path="/explore" element={<Explore/>}/>
+      <Route path="/compose" element={<Compose/>}/>
+      <Route path="/about" element={<About/>}/>
+      <Route path="/help" element={<Help/>}/>
       <Route path="*" element={<NoPage/>}/>
     </Routes>
   </BrowserRouter>

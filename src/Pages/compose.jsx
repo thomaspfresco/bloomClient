@@ -4,13 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
 import Loading from '../Components/Loading';
-import sketch from '../StyleP5/styleExplore';
+import sketch from '../P5/compose';
 import p5 from 'p5';
 import * as Tone from 'tone';
 
 import axios from 'axios';
 
-function Explore() {
+function Compose() {
 
   const [dataOla, setDataOla] = useState('');
   const [dataAdeus, setDataAdeus] = useState('');
@@ -33,23 +33,23 @@ function Explore() {
     }, 200); // Adjust the delay as needed
   };*/
 
-  const saveProject = async (project) => {
+  const saveSession = async (session) => {
 
     const token = window.localStorage.getItem("token");
 
     try {
-      const response = await axios.post(window.serverLink+'/save', project, {
+      const response = await axios.post(window.serverLink+'/save', session, {
         params: {
           token: token
         }
       });
       console.log(response.data);
     } catch (error) {
-      console.error('Error saving project:', error);
+      console.error('Error saving session:', error);
     }
   };
 
-  const loadProject = async () => {
+  const loadSession = async () => {
     setLoading(true); 
     try {
 
@@ -62,10 +62,10 @@ function Explore() {
       });
 
       setLoading(false);
-      return response.data.project;
+      return response.data.session;
       
     } catch (error) {
-      console.error('Error loading project:', error);
+      console.error('Error loading session:', error);
     }
   };
 
@@ -79,11 +79,17 @@ function Explore() {
     setIsMobileDevice(isMobile);
     if (isMobileDevice) navigate("/");
   }, [isMobileDevice]); // This effect runs once on component mount
+
+  /*useEffect(() => {
+    const handleBeforeUnload = (event) => { saveProject(p5InstanceRef.current.project); };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => { window.removeEventListener('beforeunload', handleBeforeUnload); };
+  }, []);*/
   
   useEffect(() => {
-    loadProject().then((proj) => {
+    loadSession().then((sesh) => {
       if (!loading && !p5InstanceRef.current) {
-        p5InstanceRef.current = new p5(sketch(saveProject,proj), p5ContainerRef.current);
+        p5InstanceRef.current = new p5(sketch(saveSession,sesh), p5ContainerRef.current);
       }
     }).catch((error) => {
       console.error('Error:', error);
@@ -91,28 +97,32 @@ function Explore() {
   }, []); // Only run this effect when loading changes
 
   useEffect(() => {
+    // Function to handle resizing
     const handleResize = () => {
       if (p5InstanceRef.current) {
-        // Update canvas size on window resize
-        const { clientWidth, clientHeight } = p5ContainerRef.current;
-        p5InstanceRef.current.resizeCanvas(clientWidth, clientHeight);
-        if (p5InstanceRef.current && p5InstanceRef.current.getResponsive) p5InstanceRef.current.getResponsive();
+        // Update canvas size to match window size
+        const { innerWidth, innerHeight } = window;
+        p5InstanceRef.current.resizeCanvas(innerWidth, innerHeight);
+        // If you have a method for responsiveness, you can call it here
+        // For example: p5InstanceRef.current.getResponsive();
       }
     };
 
     window.addEventListener('resize', handleResize);
-
+    handleResize();
+  
+    // Cleanup function to remove event listener when component unmounts
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, []); // Empty dependency array to run effect only once on mount
 
   return (
     <div className="canvas">
       {loading ? <Loading /> : null}
-      <div ref={p5ContainerRef}></div> {/* This is where the p5.js canvas will be rendered */}
+      <div ref={p5ContainerRef}></div> {}
     </div>
   );
 }
 
-export default Explore;
+export default Compose;
