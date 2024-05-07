@@ -213,7 +213,6 @@ const sketch = (saveSession, sesh) => (p) => {
           let name = "myloop"+(this.loops.length+1);
           this.loops.push(new Loop(this.loops.length, name, 4, 120));
           this.manageTabs(this.loops[this.loops.length-1]);
-          this.activeTab.active = true;
           p.mouseIsPressed = false;
         }
       }
@@ -413,6 +412,7 @@ const sketch = (saveSession, sesh) => (p) => {
       else if (this.tabs.length === this.maxTabs && !this.tabs.includes(loop)) {
         this.tabs.shift();
         this.tabs.push(loop);
+        this.activeTab = loop;
         //this.tabsTargetX.push(this.tabsTargetX[this.tabsTargetX.length-1]);
         //this.tabsTargetX.shift();
       }
