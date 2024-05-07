@@ -25,8 +25,13 @@ let zoff = 0;
 let noiseMax = 1;
 
 var particles = new Array(50);
-var totalFrames = 240;
+var totalFrames = 300;
 let counter = 0;
+
+let previewOpa = 0;
+let drawerOpa = 0;
+let previewDelay = 350;
+let previewInstant = 0;
 
 let maxWeightLines = 2;
 let maxBars = 16;
@@ -44,7 +49,7 @@ let session;
 
 let loopSearch = '';
 let structSearch = '';
-let maxNameLength = 10;
+let maxNameLength = 15;
 
 document.addEventListener('DOMContentLoaded', function() {
   // Variable to store typing status
@@ -116,7 +121,6 @@ const sketch = (saveSession, sesh) => (p) => {
 
   function initLoadedSesh() {
     session = new Session();
-    session.view = sesh.view;
     for (let i = 0; i < sesh.loops.length; i++) {
       let loop = new Loop(sesh.loops[i].id, sesh.loops[i].name, sesh.loops[i].nBars, sesh.loops[i].tempo);
       for (let j = 0; j < sesh.loops[i].tracks.length; j++) {
@@ -133,21 +137,11 @@ const sketch = (saveSession, sesh) => (p) => {
     }
   }
 
-  /*function getResponsive() {
-    marginX = p.windowWidth/maxSteps;
-    iconSize = p.windowHeight/15;
-    iconCorners = p.windowHeight/100;
-
-    currentLoop.updateIconPos();
-  }
-  p.getResponsive = getResponsive;*/
-
   //================================================================================================
 
   class Session {
 
     constructor() {
-      this.view = -1; //-1:bloom
       this.loops = [];
       this.structs = [];
       this.tabs = [];
@@ -155,10 +149,14 @@ const sketch = (saveSession, sesh) => (p) => {
       this.maxTabs = 4;
       this.tabsY = p.windowHeight / 30;
       this.activeTab = null;
+      this.bloomX = p.windowWidth / 2;
+      this.bloomTargetX = p.windowWidth / 2;
       this.tabsX = [];
+      this.tabsTargetX = [];
 
       for (let i = 0; i < this.maxTabs; i++) {
         this.tabsX.push(p.windowWidth / 2);
+        this.tabsTargetX.push(p.windowWidth / 2);
       }
 
       this.drawerInstant = 0;
@@ -205,6 +203,23 @@ const sketch = (saveSession, sesh) => (p) => {
       p.fill(255, 255, 255, this.loopsOpa);
       p.text("LOOPS", p.windowHeight / 30 - this.loopsOffset, p.windowHeight / 30);
 
+      //loop plus
+      if (p.mouseX > p.windowHeight/30 && p.mouseX < p.windowHeight/30+p.windowHeight/30 && p.mouseY > p.windowHeight-p.windowHeight/30-p.windowHeight/30 && p.mouseY < p.windowHeight-p.windowHeight/30) {
+        p.tint(255, this.loopsOpa);
+        document.body.style.cursor = 'pointer';
+
+        //create loop
+        if (p.mouseIsPressed) {
+          let name = "myloop"+(this.loops.length+1);
+          this.loops.push(new Loop(this.loops.length, name, 4, 120));
+          this.manageTabs(this.loops[this.loops.length-1]);
+          this.activeTab.active = true;
+          p.mouseIsPressed = false;
+        }
+      }
+      else p.tint(255, this.loopsOpa/3);
+      p.image(plus, p.windowHeight/30+p.windowHeight/30/2 - this.loopsOffset, p.windowHeight-p.windowHeight/30-p.windowHeight/30/2, p.windowHeight / 30, p.windowHeight / 30);
+
       //struct drawer
       p.textAlign(p.RIGHT, p.TOP);
       p.fill(255, 255, 255, this.structsOpa);
@@ -220,9 +235,14 @@ const sketch = (saveSession, sesh) => (p) => {
             for (let i = 0; i < this.loops.length; i++) {
               for (let j = 0; j < this.loops[i].tracks.length; j++) {
                   this.loops[i].tracks[j].particlesDrawerX.fill(-p.windowWidth/5);
+                  //this.loops[i].tracks[j].particlesPreviewX = this.loops[i].tracks[j].targetXpreview.concat();
+                  //this.loops[i].tracks[j].particlesPreviewY = this.loops[i].tracks[j].targetYpreview.concat();
               }
             }
           }
+          previewOpa = 0;
+          drawerOpa = 0;
+          previewInstant = p.millis();
           this.loopDrawer = true;
         }
         else if (p.mouseX > p.windowWidth - p.windowWidth / 50) this.structDrawer = true;
@@ -248,13 +268,6 @@ const sketch = (saveSession, sesh) => (p) => {
         p.textAlign(p.RIGHT, p.TOP);
         if (loopSearch === "") p.text("Type something...", p.windowWidth - p.windowHeight / 30, p.windowHeight / 30);
         else p.text(loopSearch, p.windowWidth - p.windowHeight / 30, p.windowHeight / 30);
-
-        //slight movement
-        let mouseOffsetY = p.map(p.mouseY, p.windowHeight / 2 - p.windowHeight / 1.3 / 2 + p.windowHeight / 60, p.windowHeight / 2 + p.windowHeight / 1.3 / 2 + p.windowHeight / 60, -p.windowHeight / 100, p.windowHeight / 100);
-
-        //limiting
-        if (mouseOffsetY < -p.windowHeight / 100) mouseOffsetY = -p.windowHeight / 100;
-        else if (mouseOffsetY > p.windowHeight / 100) mouseOffsetY = p.windowHeight / 100;
 
         //draw colapsed loops
         if (this.loops.length === 0) {
@@ -298,32 +311,54 @@ const sketch = (saveSession, sesh) => (p) => {
                 this.loops[i].drawInDrawer(mouseOffsetX + p.windowHeight / 30 + loopSize, p.windowHeight / 2 - totalDist / 2 + dist*i, loopSize+sizeOffset);
               }
 
-              //text info
+              //text info and preview
               if (p.mouseY > p.windowHeight / 2 - totalDist/2 + dist * i - dist / 2 && p.mouseY < p.windowHeight / 2 - totalDist/2 + dist * i + dist / 2) {
+                
+                if (this.loops[i].hover === false) {
+                  this.loops[i].hover = true;
+                  drawerOpa = 0;
+                  previewOpa = 0;
+                  previewInstant = p.millis();
+                }
+                
+                if (drawerOpa + this.drawersDarkInc > 255) drawerOpa = 255;
+                else drawerOpa += this.drawersDarkInc;
+
+                if (p.millis() - previewInstant > previewDelay) {
+                  if (previewOpa + this.drawersDarkInc/2 > 255) previewOpa = 255;
+                  else previewOpa += this.drawersDarkInc/2;
+                }
+
+                document.body.style.cursor = 'pointer';
                 p.noStroke();
-                p.fill(255, 255, 255);
+                p.fill(255, 255, 255, drawerOpa);
                 p.textSize(p.windowHeight / 35);
                 p.textAlign(p.LEFT, p.CENTER);
+                p.textFont(fontMedium);
                 p.text(this.loops[i].name, +mouseOffsetX + p.windowHeight / 30 + loopSize*4, p.windowHeight / 2 - totalDist/2 + dist * i-p.windowHeight / 60);
-                p.fill(255, 255, 255,255/2);
+                p.fill(255, 255, 255,drawerOpa/2);
                 p.textSize(p.windowHeight / 50);
+                p.textFont(fontLight);
                 p.text(this.loops[i].tempo+" BPM, "+this.loops[i].key, +mouseOffsetX + p.windowHeight / 30 + loopSize*4, p.windowHeight / 2 - totalDist/2 + dist * i+p.windowHeight /60);
+                
                 this.loops[i].drawPreview();
 
                 if (p.mouseIsPressed) {
                   this.manageTabs(this.loops[i]);
-                  this.activeTab = this.loops[i];
+                  this.activeTab.active = true;
                   
                   //reset loops position
                   for (let j = 0; j < this.loops[i].tracks.length; j++) {
-                    //console.log("ai",this.loops[i].tracks[j].particlesX);
                     this.loops[i].tracks[j].particlesX = this.loops[i].tracks[j].targetXpreview.concat();
                     this.loops[i].tracks[j].particlesY = this.loops[i].tracks[j].targetYpreview.concat();
                   }
 
+                  //change mouse position to avoid imediate retriggering
+                  p.mouseX = p.windowWidth / 2;
                   p.mouseIsPressed = false;
                 }
               }
+              else this.loops[i].hover = false;
             }
           }
       }
@@ -364,7 +399,9 @@ const sketch = (saveSession, sesh) => (p) => {
       if (this.tabs.length < this.maxTabs && !this.tabs.includes(loop)) {
         this.tabs.push(loop);
         this.activeTab = loop;
-        console.log(this.tabs);
+        //console.log(this.tabsX, this.tabsTargetX);
+        //this.tabsX[this.tabs.length - 1] = this.tabsTargetX[this.tabs.length - 1];
+        //console.log(this.tabsX, this.tabsTargetX);
       }
          
       //tabs include loop
@@ -376,6 +413,8 @@ const sketch = (saveSession, sesh) => (p) => {
       else if (this.tabs.length === this.maxTabs && !this.tabs.includes(loop)) {
         this.tabs.shift();
         this.tabs.push(loop);
+        //this.tabsTargetX.push(this.tabsTargetX[this.tabsTargetX.length-1]);
+        //this.tabsTargetX.shift();
       }
 
       this.loopDrawer = false;
@@ -388,31 +427,67 @@ const sketch = (saveSession, sesh) => (p) => {
       p.textAlign(p.CENTER, p.TOP);
       p.textFont(fontMedium);
 
-      if (this.tabs.length === 0) {
-        p.fill(255, 255, 255);
-        p.text("BLOOM", p.windowWidth / 2, p.windowHeight / 30);
-      } else {
-        let totalDist = 0;
-        let auxDist = 0;
+      let totalDist = 0;
+      let auxDist = 0;
 
-        totalDist += p.textWidth("BLOOM")/2+p.windowWidth/43+p.textWidth(this.tabs[0].name)/2;
-        
+      if (this.tabs.length === 0) this.bloomTargetX = p.windowWidth/2;
+      else {
+
+        totalDist += p.textWidth("BLOOM")/2+p.windowWidth/30+p.textWidth(this.tabs[0].name)/2;
         for (let i = 1; i < this.tabs.length; i++) totalDist += p.textWidth(this.tabs[i-1].name)/2+p.windowWidth/30+p.textWidth(this.tabs[i].name)/2;
-        
-        if (this.activeTab === null) p.fill(255, 255, 255);
-        else p.fill(255, 255, 255, 255/4);
-        p.text("BLOOM", p.windowWidth / 2 - totalDist / 2, p.windowHeight / 30);
+        this.bloomTargetX = p.windowWidth / 2 - totalDist / 2;
         auxDist += p.textWidth("BLOOM")/2+p.windowWidth/30+p.textWidth(this.tabs[0].name)/2;
-        if (this.activeTab === this.tabs[0]) p.fill(255, 255, 255);
-        else p.fill(255, 255, 255, 255/4);
-        p.text(this.tabs[0].name, p.windowWidth / 2 - totalDist / 2+auxDist, p.windowHeight / 30);
+        this.tabsTargetX[0] = p.windowWidth / 2 - totalDist / 2+auxDist;
 
         for (let i = 1; i < this.tabs.length; i++) {
-          if (this.activeTab === this.tabs[i]) p.fill(255, 255, 255);
-          else p.fill(255, 255, 255, 255/4);
           auxDist += p.textWidth(this.tabs[i-1].name)/2+p.windowWidth/30+p.textWidth(this.tabs[i].name)/2;
-          p.text(this.tabs[i].name, p.windowWidth / 2 - totalDist / 2+auxDist, p.windowHeight / 30);
+          this.tabsTargetX[i] = p.windowWidth / 2 - totalDist / 2+auxDist;
         }
+      }
+
+      let dif = this.bloomTargetX - this.bloomX;
+      this.bloomX += dif / 10;
+
+      p.fill(255, 255, 255, 255/4);
+      p.textFont(fontLight);
+      if (this.activeTab === null) {
+        p.fill(255, 255, 255);
+        p.textFont(fontMedium);
+      }
+      else if (p.mouseX > p.windowWidth/2-totalDist/2-p.textWidth("BLOOM")/2 && p.mouseX < p.windowWidth/2-totalDist/2+p.textWidth("BLOOM")/2 && p.mouseY > p.windowHeight / 30 && p.mouseY < p.windowHeight / 30 * 2) {
+        p.fill(255, 255, 255);
+        p.textFont(fontLight);
+        document.body.style.cursor = 'pointer';
+
+        if (p.mouseIsPressed) {
+          this.activeTab = null;
+          p.mouseIsPressed = false;
+        }
+      }
+      p.text("BLOOM", this.bloomX, p.windowHeight / 30);
+
+      for (let i = 0; i < this.tabs.length; i++) {
+        if (this.activeTab === this.tabs[i]) {
+          p.fill(255, 255, 255);
+          p.textFont(fontMedium);
+        }
+        else if (p.mouseX > this.tabsTargetX[i]-p.textWidth(this.tabs[i].name)/2 && p.mouseX < this.tabsTargetX[i]+p.textWidth(this.tabs[i].name)/2 && p.mouseY > p.windowHeight / 30 && p.mouseY < p.windowHeight / 30 * 2) {
+          p.fill(255, 255, 255);
+          p.textFont(fontLight);
+          document.body.style.cursor = 'pointer';
+          if (p.mouseIsPressed) {
+            this.activeTab = this.tabs[i];
+            this.activeTab.active = false;
+            p.mouseIsPressed = false;
+          }
+        }
+        else {
+          p.fill(255, 255, 255, 255/4);
+          p.textFont(fontLight);
+        }
+        dif = this.tabsTargetX[i] - this.tabsX[i];
+        this.tabsX[i] += dif / 10;
+        p.text(this.tabs[i].name, this.tabsX[i], p.windowHeight / 30);
       }
     }
 
@@ -455,11 +530,16 @@ const sketch = (saveSession, sesh) => (p) => {
       this.nSteps = 4 * nBars;
 
       this.play = false;
+      this.active = false;
 
       this.tempo = tempo;
       this.timeBtwSteps = 60 / tempo / 4;
       this.lastInstant = 0;
       this.currentStep = 0;
+
+      this.blackoutOpa = 0;
+
+      this.hover = false;
 
       this.lastInstPlusMenu = 0;
       this.opaPlus = 0;
@@ -521,12 +601,6 @@ const sketch = (saveSession, sesh) => (p) => {
       saveSession(session);
     }
 
-    switchView() {
-      for (let i = 0; i < this.tracks.length; i++) {
-        this.tracks[i].expanded = !this.tracks[i].expanded;
-      }
-    }
-
     updateMetronome() {
       if (p.millis() - this.lastInstant >= this.timeBtwSteps * 1000) {
         //console.log(this.currentStep);
@@ -543,7 +617,6 @@ const sketch = (saveSession, sesh) => (p) => {
     }
 
     draw() {
-
       //draw track lines
       for (let i = 0; i < this.tracks.length; i++) {
         this.tracks[i].drawLine();
@@ -600,6 +673,21 @@ const sketch = (saveSession, sesh) => (p) => {
         p.strokeWeight(1);
         p.rect(this.plusX, this.plusY, iconSize, iconSize, iconCorners);
         p.image(plus, this.plusX + iconSize / 2, p.windowHeight - iconSize, p.windowHeight / 50, p.windowHeight / 50);
+
+        //blackout animation
+        if (this === session.activeTab) {
+          if (this.active === false) this.blackoutOpa = 255;
+          this.active = true;
+        }
+
+        if (this.active) {
+          if (this.blackoutOpa - this.opaPlusInc > 0) this.blackoutOpa -= this.opaPlusInc;
+          else this.blackoutOpa = 0;
+        }
+
+        p.noStroke();
+        p.fill(0, 0, 0, this.blackoutOpa);
+        p.rect(0, 0, p.windowWidth, p.windowHeight);
     }
 
     //draw simplified representation of loop in drawer
@@ -631,8 +719,7 @@ const sketch = (saveSession, sesh) => (p) => {
       this.tempo = tempo;
       this.nSteps = nSteps;
 
-      this.expanded = true;
-      this.radiusCol = p.windowHeight / 6;
+      this.radiusCol = p.windowHeight / 4;
 
       this.opaLine = 0;
       this.opaLineInc = 5;
@@ -689,10 +776,10 @@ const sketch = (saveSession, sesh) => (p) => {
 
       this.x = p.windowWidth / 2 + p.windowWidth/8;
       this.y = p.windowHeight / 2;
-      this.radiusCol = p.windowHeight / 6;
+      this.radiusCol = p.windowHeight / 4;
 
       p.noFill();
-      p.stroke(255, 255, 255);
+      p.stroke(255, 255, 255,previewOpa);
       p.strokeWeight(maxWeightLines / (this.id + 1));
 
       p.beginShape();
@@ -705,9 +792,7 @@ const sketch = (saveSession, sesh) => (p) => {
 
         let xoff = p.map(p.cos(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
         let yoff = p.map(p.sin(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
-        let r = p.map(p.noise(xoff, yoff, zoff), 0, 1, 0, this.radiusCol/1.5);
-        phase += 0.000005;
-        zoff += 0.000005;
+        let r = p.map(p.noise(xoff, yoff, zoff), 0, 1, 0, this.radiusCol/3);
 
         this.targetXpreview[i] = this.x + p5.Vector.fromAngle(angle, this.radiusCol + r).x;
         this.targetYpreview[i] = this.y + p5.Vector.fromAngle(p.PI - angle, this.radiusCol + r).y;
@@ -729,7 +814,8 @@ const sketch = (saveSession, sesh) => (p) => {
     drawInDrawer(x, y, radius) {
 
       p.noFill();
-      p.stroke(255, 255, 255);
+      if(session.loops[this.loopId].hover === true) p.stroke(255, 255, 255);
+      else p.stroke(255, 255, 255,255/3);
       p.strokeWeight(maxWeightLines / (this.id + 1));
 
       p.beginShape();
@@ -742,9 +828,9 @@ const sketch = (saveSession, sesh) => (p) => {
 
         let xoff = p.map(p.cos(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
         let yoff = p.map(p.sin(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
-        let r = p.map(p.noise(xoff, yoff, zoff), 0, 1, 0, radius/1.5);
-        phase += 0.000005;
-        zoff += 0.000005;
+        let r = p.map(p.noise(xoff, yoff, zoff), 0, 1, 0, radius/3);
+        phase += 0.000001;
+        zoff += 0.000002;
 
         this.targetXdrawer[i] = x + p5.Vector.fromAngle(angle, radius + r).x;
         this.targetYdrawer[i] = y + p5.Vector.fromAngle(p.PI - angle, radius + r).y;
@@ -778,65 +864,34 @@ const sketch = (saveSession, sesh) => (p) => {
 
       p.stroke(255, 0, 0);
 
-      if (this.expanded) {
+      let n = p.noise(0, this.id * 0.3, p.frameCount * 0.002);
+      let y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
+      this.targetXexp[0] = 0;
+      this.targetYexp[0] = p.windowHeight / 2 + y;
 
-        let n = p.noise(0, this.id * 0.3, p.frameCount * 0.002);
-        let y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
-        this.targetXexp[0] = 0;
-        this.targetYexp[0] = p.windowHeight / 2 + y;
+      let index = 1;
 
-        let index = 1;
-
-        for (let x = marginX; x <= p.windowWidth - marginX; x += (p.windowWidth - marginX * 2) / this.nSteps) {
-          n = p.noise(x * 0.0005, this.id * 0.3, p.frameCount * 0.002);
-          y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
-          this.targetXexp[index] = x;
-          this.targetYexp[index] = p.windowHeight / 2 + y;
-          index++;
-        }
-
-        n = p.noise(p.windowWidth * 0.0005, this.id * 0.3, p.frameCount * 0.002);
+      for (let x = marginX; x <= p.windowWidth - marginX; x += (p.windowWidth - marginX * 2) / this.nSteps) {
+        n = p.noise(x * 0.0005, this.id * 0.3, p.frameCount * 0.002);
         y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
-        this.targetXexp[this.targetXexp.length - 1] = p.windowWidth;
-        this.targetYexp[this.targetXexp.length - 1] = p.windowHeight / 2 + y;
+        this.targetXexp[index] = x;
+        this.targetYexp[index] = p.windowHeight / 2 + y;
+        index++;
+      }
 
-        //for (let i = 0; i<this.targetXexp.length;i++) p.point(this.targetXexp[i], this.targetYexp[i]);
+      n = p.noise(p.windowWidth * 0.0005, this.id * 0.3, p.frameCount * 0.002);
+      y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
+      this.targetXexp[this.targetXexp.length - 1] = p.windowWidth;
+      this.targetYexp[this.targetXexp.length - 1] = p.windowHeight / 2 + y;
 
-        for (let i = 0; i < this.targetXexp.length; i++) {
-          let a = p.createVector(0, -1).angleBetween(p.createVector(this.particlesX[i] - this.targetXexp[i], this.particlesY[i] - this.targetYexp[i]));
-          let d = p.dist(this.particlesX[i], this.particlesY[i], this.targetXexp[i], this.targetYexp[i]);
+      //for (let i = 0; i<this.targetXexp.length;i++) p.point(this.targetXexp[i], this.targetYexp[i]);
 
-          this.particlesX[i] -= p5.Vector.fromAngle(a, d / 15).y;
-          this.particlesY[i] -= p5.Vector.fromAngle(p.PI - a, d / 15).x;
-        }
+      for (let i = 0; i < this.targetXexp.length; i++) {
+        let a = p.createVector(0, -1).angleBetween(p.createVector(this.particlesX[i] - this.targetXexp[i], this.particlesY[i] - this.targetYexp[i]));
+        let d = p.dist(this.particlesX[i], this.particlesY[i], this.targetXexp[i], this.targetYexp[i]);
 
-      } else {
-
-        let angle = -p.PI / 2;
-
-        for (let i = 0; i < this.targetXcol.length; i++) {
-
-          let xoff = p.map(p.cos(angle + phase * this.id / 10), -1, 1, 0, noiseMax);
-          let yoff = p.map(p.sin(angle + phase * this.id / 10), -1, 1, 0, noiseMax);
-          let r = p.map(p.noise(xoff, yoff, zoff), 0, 1, 0, 50);
-          phase += 0.00005;
-          zoff += 0.00001;
-
-          this.targetXcol[i] = this.x + p5.Vector.fromAngle(angle, this.radiusCol + r).x;
-          this.targetYcol[i] = this.y + p5.Vector.fromAngle(p.PI - angle, this.radiusCol + r).y;
-
-          angle -= p.TWO_PI / this.targetXcol.length + p.TWO_PI / this.targetXcol.length / this.targetXcol.length;
-        }
-
-        //for (let i = 0; i<this.targetXcol.length;i++) p.point(this.targetXcol[i], this.targetYcol[i]);
-
-        for (let i = 0; i < this.targetXcol.length; i++) {
-          let a = p.createVector(0, -1).angleBetween(p.createVector(this.particlesX[i] - this.targetXcol[i], this.particlesY[i] - this.targetYcol[i]));
-          let d = p.dist(this.particlesX[i], this.particlesY[i], this.targetXcol[i], this.targetYcol[i]);
-
-          this.particlesX[i] -= p5.Vector.fromAngle(a, d / 6).y;
-          this.particlesY[i] -= p5.Vector.fromAngle(p.PI - a, d / 6).x;
-        }
+        this.particlesX[i] -= p5.Vector.fromAngle(a, d / 15).y;
+        this.particlesY[i] -= p5.Vector.fromAngle(p.PI - a, d / 15).x;
       }
 
       //update icon position
@@ -920,11 +975,10 @@ const sketch = (saveSession, sesh) => (p) => {
 
       if (this.animOpa > 0) this.animR += this.animRInc;
 
-      if (currentLoop.tracks[0].expanded) {
-        targetY = targetY + p.sin(this.ang) * this.offset;
-        this.ang += this.angInc;
-      }
-
+      //REVER ISTO
+      targetY = targetY + p.sin(this.ang) * this.offset;
+      this.ang += this.angInc;
+      
       if (this.opa + this.opaInc > this.opaMax) this.opa = this.opaMax;
       else this.opa += this.opaInc;
 
@@ -1020,7 +1074,7 @@ const sketch = (saveSession, sesh) => (p) => {
           }
         }
 
-        p.textFont(font1);
+        //p.textFont(font1);
         p.textSize(p.windowHeight / 40);
         p.textAlign(p.LEFT, p.TOP);
         for (let i = 0; i < this.nOptions; i++) {
@@ -1093,7 +1147,7 @@ const sketch = (saveSession, sesh) => (p) => {
 
     //if (sesh === "bin file not found") {
     session = new Session();
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 5; i++) {
       session.loops.push(new Loop(i, "myloop"+i, 32, 120));
       session.loops[i].tracks.push(new Track(0, i, "mytrack1", 120, 128, p.windowWidth / 2));
     }
@@ -1108,8 +1162,9 @@ const sketch = (saveSession, sesh) => (p) => {
 
   // --------------------------------------------------------------------------------------
   p.draw = function () {
+    document.body.style.cursor = 'default';
     //p.translate(-p.windowWidth/2,-p.windowHeight/2);
-
+    p.frameRate(60);
     //update responsive values
     marginX = p.windowWidth / maxSteps;
     iconSize = p.windowHeight / 15;
