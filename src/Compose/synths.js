@@ -20,12 +20,18 @@ let melodyRev = new Tone.Reverb({
     wet: 0.7,
 }).toDestination();
 
-let melody = new Tone.PolySynth(Tone.Synth).chain(melodyDist, melodyDly, melodyRev);
+let melodyVol = new Tone.Volume({
+    volume: -6
+});
 
-melody.connect(melodyDist);
-melodyDist.connect(melodyDly);
-melodyDly.connect(melodyRev);
-melodyRev.toDestination();
+let melodyFilter = new Tone.Filter({
+    frequency: 0, 
+    type: "highpass",
+});
+
+let melodyMeter = new Tone.Meter();
+
+let melody = new Tone.PolySynth(Tone.Synth).chain(melodyVol, melodyFilter, melodyDist, melodyDly, melodyRev,  melodyMeter, Tone.Destination);
 
 let bass = new Tone.Synth();
 let bassDist = new Tone.Distortion(0.5);
@@ -47,6 +53,6 @@ harmonyDist.connect(harmonyDly);
 harmonyDly.connect(harmonyRev);
 harmonyRev.toDestination();
 
-let synths = { melody, bass, harmony };
+let synths = { melody, melodyDist, melodyDly, melodyRev, melodyVol, melodyFilter, melodyMeter};
 
 export default synths;

@@ -3,6 +3,8 @@ const freqs = [16.35,17.32,18.35,19.45,20.6,21.83,23.12,24.5,25.96,27.5,29.14,30
 
 const noteLabels = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
+const drumLabels = ["KICK", "SNARE", "CLOSED HAT", "OPEN HAT", "HIGH TOM", "LOW TOM", "CRASH"];
+
 function keysToFreq(c) {
     switch (c) {
         case "A":
@@ -36,6 +38,6 @@ function keysToFreq(c) {
     }
 }
 
-let musicTheory = { freqs, noteLabels, keysToFreq };
+let musicTheory = { freqs, noteLabels, drumLabels, keysToFreq };
 
 export default musicTheory;

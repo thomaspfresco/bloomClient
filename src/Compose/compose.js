@@ -531,7 +531,7 @@ const sketch = (saveSession, sesh) => (p) => {
 
       this.selectedTrack = null;
 
-      this.gridStudio = 0; //0:grid, 1:studio
+      this.gridStudio = 1; //0:grid, 1:studio, 2:automation
       this.gridOpa = 0;
       this.studioOpa = 0;
 
@@ -597,9 +597,10 @@ const sketch = (saveSession, sesh) => (p) => {
       //CODIGO PROVISORIO
       for (let i = 0; i < 5; i++) {
         let start = p.floor(p.random(0, nSteps));
+        let pitch = p.floor(p.random(0,12));
         //let duration = p.random(1,4);
         let duration = 1;
-        this.tracks[this.tracks.length - 1].timeline[start].push(new Note(p.floor(p.random(0,12)), this.loopId, this.tracks.length - 1, start, duration, this.tracks[this.tracks.length - 1].color));
+        this.tracks[this.tracks.length - 1].timeline[start][pitch] = new Note(pitch, this.loopId, this.tracks.length - 1, start, duration, this.tracks[this.tracks.length - 1].color);
       }
       saveSession(session);
     }
@@ -622,7 +623,7 @@ const sketch = (saveSession, sesh) => (p) => {
     draw() {
       //draw track lines and notes
       for (let i = 0; i < this.tracks.length; i++) {
-        this.tracks[i].drawLine();
+        this.tracks[i].draw();
         this.tracks[i].drawNotes();
       }
 
@@ -664,33 +665,10 @@ const sketch = (saveSession, sesh) => (p) => {
           else this.opaPlus -= this.opaPlusInc;
         }
 
-        //draw grid
-        /*if (this.selectedTrack !== null) {
-          p.stroke(255, 255, 255, 255/10);
-          p.noFill();
-          p.strokeWeight(1);
-          for (let i = 0; i < this.nSteps-1 ; i++) {
-            for (let j = 0; j < 12-1; j++) {
-              //let dist = p.dist(p.mouseX,p.mouseY,p.windowHeight/30+(p.windowWidth-p.windowHeight/30*2)/(this.nSteps-1)*i,p.windowHeight/30*3+(p.windowHeight-p.windowHeight/8*2)/(12-1)*j);
-              //p.fill(255,255,255,p.map(dist,0,p.windowHeight/4,255,50));
-              //if (dist > p.windowHeight/4) p.fill(255,255,255,50);
-              //p.rect(p.windowHeight/30+(p.windowWidth-p.windowHeight/30*2)/(this.nSteps-1)*i,p.windowHeight/30*3+(p.windowWidth-p.windowHeight/30*2)/(this.nSteps-1)*2*j,(p.windowWidth-p.windowHeight/30*2)/(this.nSteps-1),(p.windowWidth-p.windowHeight/30*2)/(this.nSteps-1)*2);
-              p.circle(p.windowHeight/30+(p.windowWidth-p.windowHeight/30*2)/(this.nSteps-1)*i,p.windowHeight/30*3+(p.windowWidth-p.windowHeight/30*2)*2/(this.nSteps-1)*j,2,2);
-            }
-          }
-        }*/
-
+        //grid or studio
         if (this.selectedTrack !== null) {
-          p.fill(255, 255, 255, 255/4);
-          p.noStroke();
-
-          for (let i = 0; i < nSteps ; i++) {
-            const xPos = gridInitX + gridStepSizeX * i;
-            for (let j = 0; j < 12; j++) {
-                const yPos = gridInitY + gridStepSizeY * j;
-                p.circle(xPos, yPos, 2, 2);
-            }
-          }
+          if (this.gridStudio === 0) this.drawGrid();
+          else this.selectedTrack.drawStudio();
         }
 
         this.menu.draw();
@@ -718,6 +696,22 @@ const sketch = (saveSession, sesh) => (p) => {
         p.rect(0, 0, p.windowWidth, p.windowHeight);
     }
 
+    drawGrid() {
+     
+      p.noStroke();
+      for (let i = 0; i < nSteps ; i++) {
+        const xPos = gridInitX + gridStepSizeX * i;
+        for (let j = 0; j < 12; j++) {
+            const yPos = gridInitY + gridStepSizeY * j;
+            const d = p.dist(p.mouseX,p.mouseY,xPos,yPos);
+            if (d < gridStepSizeX*nSteps/5) {
+              p.fill(255,255,255,p.map(d,0,gridStepSizeX*nSteps/5,255,255/6));
+            } else p.fill(255,255,255,255/6);
+            p.circle(xPos, yPos, 2, 2);
+        }
+      }
+    }
+
     //draw simplified representation of loop in drawer
     drawInDrawer(x, y, radius) {
       for (let i = 0; i < this.tracks.length; i++) {
@@ -739,6 +733,9 @@ const sketch = (saveSession, sesh) => (p) => {
       this.name = name;
 
       this.loopId = loopId;
+
+      if (this.name === "DRUMS") this.nPitches = musicTheory.drumLabels.length;
+      this.nPitches = 12;
 
       this.timeline = [];
 
@@ -763,6 +760,23 @@ const sketch = (saveSession, sesh) => (p) => {
 
       this.x = p.windowWidth / 2 + p.windowWidth/8;
       this.y = p.windowHeight / 2;
+
+      //fx knobs
+      this.filterKnob = new Knob("POSITION",0.50);
+      this.distKnob = new Knob("AMOUNT",0.50);
+      this.dlyKnobs = [new Knob("TIME",0.50),new Knob("FEEDBACK",0.50),new Knob("VOLUME",0.50)];
+      this.revKnobs = [new Knob("SIZE",0.50),new Knob("DRY/WET",0.50)];
+
+      //different sinthesis for drums tracks
+      if (this.name === "DRUMS") {
+        this.drumKnobs = [];
+        for (let i=0; i<musicTheory.drumLabels.length; i++) this.drumKnobs.push([new Knob("VOLUME",0),new Knob("PITCH",0.50)])
+      } else {
+        this.osc1Knobs = [new Knob("WAVE",0),new Knob("PITCH",0.50),new Knob("VOLUME",1)];
+        this.env1Knobs = [new Knob("ATTACK",0),new Knob("DECAY",0.50),new Knob("SUSTAIN",0.50),new Knob("RELEASE",1)];
+        this.osc2Knobs = [new Knob("WAVE",0),new Knob("PITCH",0.50),new Knob("VOLUME",1)];
+        this.env2Knobs = [new Knob("ATTACK",0),new Knob("DECAY",0.50),new Knob("SUSTAIN",0.50),new Knob("RELEASE",1)];
+      }
 
       this.particlesX = [];
       this.particlesY = [];
@@ -796,9 +810,92 @@ const sketch = (saveSession, sesh) => (p) => {
         this.targetXpreview.push(0);
         this.targetYpreview.push(0);
         if (i < nSteps) {
-          this.timeline.push(new Array(12).fill(null));
+          this.timeline.push(new Array(this.nPitches).fill(null));
         }
       }
+    }
+
+    drawStudio() {
+      let studioGap = p.windowWidth/150;
+
+      let auxY = (gridStepSizeY*(12-1) - studioGap*2) / 3;
+      let col1X = studioGap+p.windowWidth/9;
+      let auxX = gridStepSizeX*(nSteps-1)-col1X;
+      let auxXfx = (auxX-studioGap*6)/7;
+
+      p.fill(50,50,50,255/4);
+      //p.stroke(255,255,255,255/4);
+      //p.strokeWeight(1);
+      //p.noFill();
+
+
+      
+      p.push();
+      p.noStroke();
+      p.fill(this.color[0], this.color[1], this.color[2], this.opaLine);
+      p.translate(gridInitX+p.windowWidth/9/2, gridInitY+auxY/2,-p.windowHeight/12);
+      p.scale(p.windowHeight/12 / petalModelSize1);
+      p.rotateX(p.PI/2);
+      p.rotateY(this.ang);
+      p.rotateZ(p.sin(this.ang)*p.PI/3);
+      p.model(petal1);
+      p.pop();
+
+      //volume fader
+      p.rect(gridInitX,gridInitY+studioGap + auxY,p.windowWidth/9, gridStepSizeY*(12-1) - studioGap - auxY,p.windowHeight/200);
+
+      if (this.name === "DRUMS") {
+        for(let i=0; i<this.drumKnobs.length; i++) p.rect(gridInitX+col1X+(i*auxXfx)+i*studioGap,gridInitY, auxXfx ,auxY*2 + studioGap,p.windowHeight/200);
+      } else {
+        p.rect(gridInitX+col1X,gridInitY, auxXfx*3 + studioGap*2,auxY,p.windowHeight/200); //oscillator 1
+        p.rect(gridInitX+col1X,gridInitY+auxY+studioGap, auxXfx*3 + studioGap*2,auxY,p.windowHeight/200); //oscillator 2
+        p.rect(gridInitX+col1X + auxXfx*3 + studioGap*3, gridInitY, auxXfx*4 + studioGap*3,auxY,p.windowHeight/200); //envelope 1
+        p.rect(gridInitX+col1X + auxXfx*3 + studioGap*3, gridInitY+auxY+studioGap, auxXfx*4 + studioGap*3,auxY,p.windowHeight/200); //envelope 2
+      }
+
+      //filter
+      p.rect(gridInitX+col1X,gridInitY+studioGap*2+auxY*2,auxXfx,auxY,p.windowHeight/200);
+
+      this.filterKnob.draw(gridInitX+col1X+auxXfx/2,gridInitY+studioGap*2.7+auxY*2+auxY/2);
+      p.fill(this.color[0],this.color[1],this.color[2]);
+      p.noStroke();
+      p.textAlign(p.LEFT,p.TOP);
+      p.text("FILTER",gridInitX+col1X+studioGap*1.2,gridInitY+studioGap*2+auxY*2+studioGap);
+      p.text("DISTORTION",gridInitX+col1X+auxXfx+studioGap+studioGap*1.2,gridInitY+studioGap*2+auxY*2,auxXfx+studioGap);
+      p.text("DELAY",gridInitX+col1X+auxXfx*2+studioGap*2+studioGap*1.2,gridInitY+studioGap*2+auxY*2+studioGap);
+      p.text("REVERB",gridInitX+col1X+auxXfx*5+studioGap*5+studioGap*1.2,gridInitY+studioGap*2+auxY*2+studioGap);
+      
+      
+      if (this.name === "DRUMS") {
+        for(let i=0; i<this.drumKnobs.length; i++) p.text(musicTheory.drumLabels[i],gridInitX+col1X+studioGap*1.2+(i*auxXfx)+i*studioGap,gridInitY+studioGap);
+      } else {
+        p.text("OSCILLATOR 1",gridInitX+col1X+studioGap*1.2,gridInitY+studioGap);
+        p.text("OSCILLATOR 2",gridInitX+col1X+studioGap*1.2,gridInitY+auxY+studioGap*2);
+        p.text("ENVELOPE 1",gridInitX+col1X+auxXfx*3+studioGap*3+studioGap*1.2,gridInitY+studioGap);
+        p.text("ENVELOPE 2",gridInitX+col1X+auxXfx*3+studioGap*3+studioGap*1.2,gridInitY+auxY+studioGap*2);
+      }
+
+      //distortion
+      p.rect(gridInitX+col1X+auxXfx+studioGap,gridInitY+studioGap*2+auxY*2,auxXfx,auxY,p.windowHeight/200);
+      this.distKnob.draw(gridInitX+col1X+auxXfx/2+auxXfx+studioGap,gridInitY+studioGap*2.7+auxY*2+auxY/2);
+
+      //delay
+      p.rect(gridInitX+col1X+auxXfx*2+studioGap*2,gridInitY+studioGap*2+auxY*2,auxXfx*3+studioGap*2,auxY,p.windowHeight/200);
+      for (let i=0; i<3; i++) this.dlyKnobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+2)+studioGap*(i+2),gridInitY+studioGap*2.7+auxY*2+auxY/2);
+
+      //osc1 and env1
+      for (let i=0; i<3; i++) this.osc1Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*0.7+auxY/2);
+      for (let i=0; i<4; i++) this.env1Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+3)+studioGap*(i+3),gridInitY+studioGap*0.7+auxY/2);
+
+      //osc2 and env2
+      for (let i=0; i<3; i++) this.osc2Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*1.7+auxY+auxY/2);
+      for (let i=0; i<4; i++) this.env2Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+3)+studioGap*(i+3),gridInitY+studioGap*1.7+auxY+auxY/2);
+
+      //reverb
+      p.rect(gridInitX+col1X+auxXfx*5+studioGap*5,gridInitY+studioGap*2+auxY*2,auxXfx*2+studioGap,auxY,p.windowHeight/200);
+      for (let i=0; i<2; i++) this.revKnobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(3+i+2)+studioGap*(3+i+2),gridInitY+studioGap*2.7+auxY*2+auxY/2);
+
+      //this.updateSynthValues();
     }
 
     drawPreview() {
@@ -880,7 +977,7 @@ const sketch = (saveSession, sesh) => (p) => {
     }
 
 
-    drawLine() {
+    draw() {
       if (session.activeTab.selectedTrack !== null && session.activeTab.selectedTrack !== this) {
         if (this.opaLine - this.opaLineInc < 255/6) this.opaLine = 255/6;
         else this.opaLine -= this.opaLineInc;
@@ -889,51 +986,53 @@ const sketch = (saveSession, sesh) => (p) => {
         else this.opaLine += this.opaLineInc;
       }
 
-      p.noFill();
-      //p.ambientMaterial(255, 0, 0);
-      p.stroke(255, 255, 255, this.opaLine);
-      p.strokeWeight(maxWeightLines / (this.id + 1));
-      //p.strokeWeight(maxWeightLines);
+      if (session.activeTab.selectedTrack === null) {
+        p.noFill();
+        //p.ambientMaterial(255, 0, 0);
+        p.stroke(255, 255, 255, this.opaLine);
+        p.strokeWeight(maxWeightLines / (this.id + 1));
+        //p.strokeWeight(maxWeightLines);
 
-      p.beginShape();
-      for (let i = 0; i < this.particlesX.length; i++) if(i%2 !== 0 || i===0) {
-        //let dif = session.loops[this.loopId].currentStep - i;
-        //let aux = p.map(dif, -session.loops[this.loopId].nSteps, session.loops[this.loopId].nSteps, 0, 255);
-        //p.stroke(255, 255, 255,aux);
-        p.vertex(this.particlesX[i], this.particlesY[i],-p.windowHeight/50*(maxTracks+2));
-      }
-      p.endShape();
+        p.beginShape();
+        for (let i = 0; i < this.particlesX.length; i++) if(i%2 !== 0 || i===0) {
+          //let dif = session.loops[this.loopId].currentStep - i;
+          //let aux = p.map(dif, -session.loops[this.loopId].nSteps, session.loops[this.loopId].nSteps, 0, 255);
+          //p.stroke(255, 255, 255,aux);
+          p.vertex(this.particlesX[i], this.particlesY[i],-p.windowHeight/50*(maxTracks+2));
+        }
+        p.endShape();
 
-      p.stroke(255, 0, 0);
+        p.stroke(255, 0, 0);
 
-      let n = p.noise(0, this.id * 0.3, p.frameCount * 0.002);
-      let y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
-      this.targetXexp[0] = 0;
-      this.targetYexp[0] = p.windowHeight / 2 + y;
+        let n = p.noise(0, this.id * 0.3, p.frameCount * 0.002);
+        let y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
+        this.targetXexp[0] = 0;
+        this.targetYexp[0] = p.windowHeight / 2 + y;
 
-      let index = 1;
+        let index = 1;
 
-      for (let x = gridInitX; x <= gridInitX + (gridStepSizeX * (nSteps-1)); x += gridStepSizeX) {
-        n = p.noise(x * 0.0005, this.id * 0.3, p.frameCount * 0.002);
+        for (let x = gridInitX; x <= gridInitX + (gridStepSizeX * (nSteps-1)); x += gridStepSizeX) {
+          n = p.noise(x * 0.0005, this.id * 0.3, p.frameCount * 0.002);
+          y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
+          this.targetXexp[index] = x;
+          this.targetYexp[index] = p.windowHeight / 2 + y;
+          index++;
+        }
+
+        n = p.noise(p.windowWidth * 0.0005, this.id * 0.3, p.frameCount * 0.002);
         y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
-        this.targetXexp[index] = x;
-        this.targetYexp[index] = p.windowHeight / 2 + y;
-        index++;
-      }
+        this.targetXexp[this.targetXexp.length - 1] = p.windowWidth;
+        this.targetYexp[this.targetXexp.length - 1] = p.windowHeight / 2 + y;
 
-      n = p.noise(p.windowWidth * 0.0005, this.id * 0.3, p.frameCount * 0.002);
-      y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
-      this.targetXexp[this.targetXexp.length - 1] = p.windowWidth;
-      this.targetYexp[this.targetXexp.length - 1] = p.windowHeight / 2 + y;
+        //for (let i = 0; i<this.targetXexp.length;i++) p.point(this.targetXexp[i], this.targetYexp[i]);
 
-      //for (let i = 0; i<this.targetXexp.length;i++) p.point(this.targetXexp[i], this.targetYexp[i]);
+        for (let i = 0; i < this.targetXexp.length; i++) {
+          let a = p.createVector(0, -1).angleBetween(p.createVector(this.particlesX[i] - this.targetXexp[i], this.particlesY[i] - this.targetYexp[i]));
+          let d = p.dist(this.particlesX[i], this.particlesY[i], this.targetXexp[i], this.targetYexp[i]);
 
-      for (let i = 0; i < this.targetXexp.length; i++) {
-        let a = p.createVector(0, -1).angleBetween(p.createVector(this.particlesX[i] - this.targetXexp[i], this.particlesY[i] - this.targetYexp[i]));
-        let d = p.dist(this.particlesX[i], this.particlesY[i], this.targetXexp[i], this.targetYexp[i]);
-
-        this.particlesX[i] -= p5.Vector.fromAngle(a, d / 15).y;
-        this.particlesY[i] -= p5.Vector.fromAngle(p.PI - a, d / 15).x;
+          this.particlesX[i] -= p5.Vector.fromAngle(a, d / 15).y;
+          this.particlesY[i] -= p5.Vector.fromAngle(p.PI - a, d / 15).x;
+        }
       }
 
       //update icon position
@@ -998,7 +1097,7 @@ const sketch = (saveSession, sesh) => (p) => {
         for (let j = 0; j < this.timeline[i].length; j++) {
           if (this.timeline[i][j] !== null) {
             if (session.activeTab.selectedTrack !== null) {
-              this.timeline[i][j].draw(this.particlesX[i+1], gridInitY + (12-this.timeline[i][j].pitch-1)*gridStepSizeY);
+              this.timeline[i][j].draw(this.particlesX[i+1], gridInitY + (this.nPitches-this.timeline[i][j].pitch-1)*gridStepSizeY);
             }
             else this.timeline[i][j].draw(this.particlesX[i+1], this.particlesY[i+1]);
           }
@@ -1040,8 +1139,6 @@ const sketch = (saveSession, sesh) => (p) => {
       this.animR = 0;
       this.animOpaInc = 10;
       this.animRInc = p.windowHeight / 250;
-      this.animScale = this.size * 0.2;
-      this.animScaleInc = p.windowHeight / 100;
 
       this.offset = p.windowHeight / 40;
       this.ang = p.PI * p.random(0, 100);
@@ -1052,7 +1149,14 @@ const sketch = (saveSession, sesh) => (p) => {
       this.angInc = p.PI / 12;
       this.animOpa = 255;
       this.animR = this.size;
-      this.animScale = this.size * 0.2;
+      //synth.triggerAttackRelease("C3", "16n");
+      synths.melody.triggerAttackRelease(musicTheory.freqs[this.pitch]*p.pow(2,this.octave), session.activeTab.timeBtwSteps);
+    }
+
+    playShort() {
+      this.angInc = p.PI / 12;
+      this.animOpa = 255;
+      this.animR = this.size;
       //synth.triggerAttackRelease("C3", "16n");
       synths.melody.triggerAttackRelease(musicTheory.freqs[this.pitch]*p.pow(2,this.octave), "16n");
     }
@@ -1104,7 +1208,7 @@ const sketch = (saveSession, sesh) => (p) => {
           this.hover = true;
 
           if (p.mouseIsPressed && this.dragging === false) {
-            this.play();
+            this.playShort();
             this.dragging = true;
             dragging = true;
           }
@@ -1114,21 +1218,38 @@ const sketch = (saveSession, sesh) => (p) => {
       if (p.mouseIsPressed === false && this.dragging === true) {
         this.dragging = false;
         dragging = false;
+        this.hover = true;
       }
 
       if (this.dragging) {
-        //console.log(session.activeTab.selectedTrack.timeline[this.start][this.pitch]);
         const auxX = p.round((p.mouseX - gridInitX) / gridStepSizeX);
-        const auxY = p.abs(12-p.round((p.mouseY - gridInitY) / gridStepSizeY)-1);
-        if (session.activeTab.selectedTrack.timeline[this.start][this.pitch] !== session.activeTab.selectedTrack.timeline[auxX][auxY]) {
-          this.play();
-          session.activeTab.selectedTrack.timeline[auxX][auxY] = this;
-          session.activeTab.selectedTrack.timeline[this.start][this.pitch] = null;
-          this.start = auxX;
-          this.pitch = auxY;
+        const auxY = session.activeTab.tracks[this.trackId].nPitches-p.round((p.mouseY - gridInitY) / gridStepSizeY)-1;
+        //console.log(auxX,auxY);
+
+
+
+        //console.log(this.start,this.pitch,auxX,auxY);
+        if (auxX >= 0 && auxX < nSteps && auxY >= 0 && auxY < session.activeTab.tracks[this.trackId].nPitches) {
+          if (session.activeTab.selectedTrack.timeline[this.start][this.pitch] !== session.activeTab.selectedTrack.timeline[auxX][auxY]) {
+            session.activeTab.selectedTrack.timeline[auxX][auxY] = this;
+            session.activeTab.selectedTrack.timeline[this.start][this.pitch] = null;
+            
+            if (this.pitch != auxY) {
+              this.start = auxX;
+              this.pitch = auxY;
+              this.playShort();
+            } else {
+              this.start = auxX;
+              this.pitch = auxY;
+              this.angInc = p.PI / 12;
+            }
+
+            //targetX = p.abs(gridInitX + p.round((p.mouseX - gridInitX) / gridStepSizeX) * gridStepSizeX);
+            //targetY = p.abs(gridInitY + p.round((p.mouseY - gridInitY) / gridStepSizeY) * gridStepSizeY);
+            //if (targetX > gridInitX + (nSteps-1) * gridStepSizeX) targetX = gridInitX + (nSteps-1) * gridStepSizeX;
+            //if (targetY > gridInitY + (12-1) * gridStepSizeY) targetY = gridInitY + (12-1) * gridStepSizeY;
+          }
         }
-        targetX = gridInitX + p.round((p.mouseX - gridInitX) / gridStepSizeX) * gridStepSizeX;
-        targetY = gridInitY + p.round((p.mouseY - gridInitY) / gridStepSizeY) * gridStepSizeY;
         this.showInfo();
         document.body.style.cursor = 'grabbing';
       }
@@ -1269,7 +1390,7 @@ const sketch = (saveSession, sesh) => (p) => {
 
               if (p.mouseIsPressed) {
                 session.activeTab.addTrack(instruments[i]);
-                console.log(instruments[i]);
+                //console.log(instruments[i]);
                 this.reset();
                 p.mouseIsPressed = false;
               }
@@ -1301,6 +1422,82 @@ const sketch = (saveSession, sesh) => (p) => {
     }
   }
 
+  class Knob {
+    constructor(label,value) {
+      this.label = label;
+      
+      this.radius = p.windowHeight / 15;
+
+      this.value = value;
+      this.tempValue = value;
+
+      this.automation = [];
+
+      this.hover = false;
+      this.dragging = false;
+    }
+
+    draw(x,y) {
+
+      this.radius = p.windowHeight / 15;
+
+      p.fill(255,255,255);
+      p.noStroke();
+      p.textSize(p.windowHeight/65);
+      p.textAlign(p.CENTER,p.BOTTOM);
+      p.text(this.label,x,y-this.radius/1.7);
+      p.textAlign(p.CENTER,p.TOP);
+      p.textSize(p.windowHeight/50);
+      p.text(this.value,x,y+this.radius/1.7);
+
+      p.noFill();
+      p.stroke(255, 255, 255);
+      p.strokeWeight(1);
+      p.push();
+      p.translate(x,y);
+      //console.log(this.value,p.PI/2+p.PI/4,p.PI+p.PI/4);
+      p.rotate(p.map(this.value,0,1,0-p.PI/2-p.PI/4,3*(p.PI/2)-p.PI/2-p.PI/4));
+      p.translate(-x,-y);
+      p.circle(x, y, this.radius);
+      p.line(x,y,x,y-this.radius/2);
+      p.pop();
+
+      if (p.mouseX > x -this.radius/2 && p.mouseX < x+this.radius/2 && p.mouseY > y -this.radius/2 && p.mouseY < y +this.radius/2
+        && dragging === false) {
+          document.body.style.cursor = 'grab';
+          
+          this.hover = true;
+
+          if (p.mouseIsPressed && this.dragging === false) {
+            this.dragging = true;
+            dragging = true;
+            this.tempValue = this.value;
+          }
+          
+      } else this.hover = false;
+
+      if (p.mouseIsPressed === false && this.dragging === true) {
+        this.dragging = false;
+        dragging = false;
+        this.hover = true;
+      }
+
+      if (this.dragging) {
+        document.body.style.cursor = 'grabbing';
+        if (p.mouseY > y+this.radius/2) {
+          let d = p.dist(x,p.mouseY,x, y+this.radius/2);
+          this.value = p.round(this.tempValue - 0.05*p.round(d/(p.windowHeight/100)),2);
+        }
+        else if (p.mouseY < y-this.radius/2)  {
+          let d = p.dist(x,p.mouseY,x,y-this.radius/2);
+          this.value = p.round(this.tempValue + 0.05*p.round(d/(p.windowHeight/100)),2);
+        }
+        if (this.value > 1) this.value = 1;
+        if (this.value < 0) this.value = 0;
+      }
+    }
+  }
+
   // --------------------------------------------------------------------------------------
   p.preload = function () {
     plus = p.loadImage(plusSVG);
@@ -1323,7 +1520,7 @@ const sketch = (saveSession, sesh) => (p) => {
     p.imageMode(p.CENTER);
     p.textFont(fontMedium);
 
-    console.log(sesh);
+    //console.log(sesh);
     //p.pixelDensity(1);
 
     // Set up orthographic projection
@@ -1341,13 +1538,14 @@ const sketch = (saveSession, sesh) => (p) => {
     gridStepSizeX = (p.windowWidth - p.windowHeight / 30 * 3) / (nSteps - 1);
     gridStepSizeY = ((p.windowHeight - p.windowHeight / 30) * 3.8) / (nSteps - 1);
     gridInitX = p.windowWidth / 2 - gridStepSizeX * (nSteps-1) / 2;
+    //REVER
     gridInitY = p.windowHeight / 2 - gridStepSizeY * 12 / 2;
 
     //if (sesh === "bin file not found") {
     session = new Session();
     for (let i = 0; i < 10; i++) {
       session.loops.push(new Loop(i, "myloop"+i, 120));
-      session.loops[i].tracks.push(new Track(0, i, "DRUMS", p.windowWidth / 2));
+      session.loops[i].tracks.push(new Track(0, i, "MELODY", p.windowWidth / 2));
       for (let j = 0; j < 5; j++) {
         let start = p.floor(p.random(0, nSteps));
         let pitch = p.floor(p.random(0,12));
