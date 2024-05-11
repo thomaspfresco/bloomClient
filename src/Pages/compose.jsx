@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
 import Loading from '../Components/Loading';
-import sketch from '../P5/compose';
+import sketch from '../Compose/compose';
 import p5 from 'p5';
 import * as Tone from 'tone';
 

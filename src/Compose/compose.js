@@ -5,24 +5,47 @@ https://dev.to/nyxtom/flow-fields-and-noise-algorithms-with-p5-js-5g67
 */
 
 import obliqueStratagies from "../obliqueStratagies.js";
+import musicTheory from "./musicTheory.js";
 
-import disketFont from '../Fonts/Disket-Mono-Regular.ttf';
 import poppinsLightFont from '../Fonts/Poppins-Light.ttf';
 import poppinsMediumFont from '../Fonts/Poppins-Medium.ttf';
 import poppinsBoldFont from '../Fonts/Poppins-Bold.ttf';
+
 import plusSVG from '../Assets/plus.svg';
 import arrowSVG from '../Assets/arrow.svg';
-import * as Tone from 'tone';
+
+import petalOBJ1 from '../Assets/petal1.obj';
+import petalOBJ2 from '../Assets/petal2.obj';
+import petalOBJ3 from '../Assets/petal3.obj';
+import petalOBJ4 from '../Assets/petal4.obj';
+
+import synths from './synths.js';
 import p5 from 'p5';
 
-let font1, fontLight, fontMedium, fontBold;
+let fontLight, fontMedium, fontBold;
+let petal1, petal2, petal3, petal4;
 let plus, arrow;
 
-const synth = new Tone.Synth().toDestination();
+let dragging = false;
+
+let inputNotes = [];
+let maxInputNotes = 5;
+let currentOctave = 3;
+let minOctave = 1;
+let maxOctave = 7;
+
+let nSteps = 64;
+
+let gridStepSizeX;
+let gridStepSizeY;
+let gridInitX;
+let gridInitY;
 
 let phase = 0;
 let zoff = 0;
 let noiseMax = 1;
+
+let petalModelSize1 = 0;
 
 var particles = new Array(50);
 var totalFrames = 300;
@@ -37,41 +60,17 @@ let maxWeightLines = 2;
 let maxBars = 16;
 let maxSteps = 4 * maxBars;
 
+let maxTracks = 4;
+let maxLoops = 50;
+let maxStructs = 10;
+
 let marginX;
 let iconSize;
 let iconCorners;
 
-const instruments = ["record", "melody", "harmony", "drums", "bass"];
+const instruments = ["MELODY", "HARMONY", "DRUMS", "BASS"];
 
 let session;
-
-// --------------------------------------------------------------------------------------
-
-let loopSearch = '';
-let structSearch = '';
-let maxNameLength = 15;
-
-document.addEventListener('DOMContentLoaded', function() {
-  // Variable to store typing status
-
-  // Event listener for keydown event
-  document.addEventListener('keydown', function(event) {
-      const keyCode = event.keyCode;
-      // Check if the pressed key is alphanumeric or space
-      if ((keyCode >= 48 && keyCode <= 57) ||     // 0-9
-          (keyCode >= 65 && keyCode <= 90) ||     // A-Z
-          keyCode === 32) {                       // Space
-          if (session.loopDrawer) {
-            if (loopSearch.length < maxNameLength) {
-              loopSearch += event.key;
-              console.log(loopSearch);
-            }
-          }
-      }
-  });
-
-});
-
 
 // --------------------------------------------------------------------------------------
 
@@ -122,9 +121,9 @@ const sketch = (saveSession, sesh) => (p) => {
   function initLoadedSesh() {
     session = new Session();
     for (let i = 0; i < sesh.loops.length; i++) {
-      let loop = new Loop(sesh.loops[i].id, sesh.loops[i].name, sesh.loops[i].nBars, sesh.loops[i].tempo);
+      let loop = new Loop(sesh.loops[i].id, sesh.loops[i].name, sesh.loops[i].tempo);
       for (let j = 0; j < sesh.loops[i].tracks.length; j++) {
-        let track = new Track(sesh.loops[i].tracks[j].id, sesh.loops[i].id, sesh.loops[i].tracks[j].name, sesh.loops[i].tempo, sesh.loops[i].nSteps, sesh.loops[i].tracks[j].iconTargetX);
+        let track = new Track(sesh.loops[i].tracks[j].id, sesh.loops[i].id, sesh.loops[i].tracks[j].name, sesh.loops[i].tracks[j].iconTargetX);
         for (let k = 0; k < sesh.loops[i].tracks[j].timeline.length; k++) {
           for (let l = 0; l < sesh.loops[i].tracks[j].timeline[k].length; l++) {
             let note = new Note(sesh.loops[i].tracks[j].timeline[k][l].name, sesh.loops[i].id, sesh.loops[i].tracks[j].id, k, sesh.loops[i].tracks[j].timeline[k][l].duration, sesh.loops[i].tracks[j].color);
@@ -211,7 +210,7 @@ const sketch = (saveSession, sesh) => (p) => {
         //create loop
         if (p.mouseIsPressed) {
           let name = "myloop"+(this.loops.length+1);
-          this.loops.push(new Loop(this.loops.length, name, 4, 120));
+          this.loops.push(new Loop(this.loops.length, name, 120));
           this.manageTabs(this.loops[this.loops.length-1]);
           p.mouseIsPressed = false;
         }
@@ -226,7 +225,7 @@ const sketch = (saveSession, sesh) => (p) => {
 
       //drawers trigger
       if (this.loopDrawer === false && this.structDrawer === false) {
-        if (p.mouseX < p.windowWidth / 50) {
+        if (p.mouseX < p.windowWidth / 100) {
           if (this.loopDrawer === false) {
             this.drawerInstant = p.millis();
             loopSearch = "";
@@ -244,7 +243,7 @@ const sketch = (saveSession, sesh) => (p) => {
           previewInstant = p.millis();
           this.loopDrawer = true;
         }
-        else if (p.mouseX > p.windowWidth - p.windowWidth / 50) this.structDrawer = true;
+        else if (p.mouseX > p.windowWidth - p.windowWidth / 100) this.structDrawer = true;
         if (this.drawersDark - this.drawersDarkInc < 0) this.drawersDark = 0;
         else this.drawersDark -= this.drawersDarkInc;
       } else if (this.loopDrawer || this.structDrawer) {
@@ -325,7 +324,7 @@ const sketch = (saveSession, sesh) => (p) => {
 
                 if (p.millis() - previewInstant > previewDelay) {
                   if (previewOpa + this.drawersDarkInc/2 > 255) previewOpa = 255;
-                  else previewOpa += this.drawersDarkInc/2;
+                  else previewOpa += this.drawersDarkInc;
                 }
 
                 document.body.style.cursor = 'pointer';
@@ -521,16 +520,20 @@ const sketch = (saveSession, sesh) => (p) => {
 
   class Loop {
 
-    constructor(id, name, nBars, tempo) {
+    constructor(id, name, tempo) {
       this.id = id;
       this.name = name;
       this.tracks = [];
       this.key = "C major";
-      this.nBars = nBars;
-      this.nSteps = 4 * nBars;
 
       this.play = false;
       this.active = false;
+
+      this.selectedTrack = null;
+
+      this.gridStudio = 0; //0:grid, 1:studio
+      this.gridOpa = 0;
+      this.studioOpa = 0;
 
       this.tempo = tempo;
       this.timeBtwSteps = 60 / tempo / 4;
@@ -562,11 +565,11 @@ const sketch = (saveSession, sesh) => (p) => {
         this.menu.x = this.plusX;
       }
       else {
-        let w = (this.tracks.length - 1) * (iconSize / 4) + iconSize * (this.tracks.length);
+        let w = (this.tracks.length - 1) * (iconSize/2) + iconSize * (this.tracks.length);
         let anchorRight = p.windowWidth / 2 + w / 2;
 
         for (let i = 0; i < this.tracks.length; i++) {
-          this.tracks[i].iconTargetX = anchorRight - w + i * (iconSize + iconSize / 4);
+          this.tracks[i].iconTargetX = anchorRight - w + i * (iconSize + iconSize / 2);
           this.tracks[i].iconY = p.windowHeight - iconSize / 2 - iconSize;
         }
 
@@ -586,44 +589,40 @@ const sketch = (saveSession, sesh) => (p) => {
       for (let i = 0; i < this.tracks.length; i++) {
         this.tracks[i].iconTargetX = anchorRight - w + i * (iconSize + iconSize / 4);
       }
-      this.tracks.push(new Track(this.tracks.length, this.id, name, this.tempo, this.nSteps, anchorRight - iconSize));
+      this.tracks.push(new Track(this.tracks.length, this.id, name, anchorRight - iconSize));
       this.plusTargetX = anchorRight + iconSize / 4;
       this.menu.x = this.plusTargetX;
       //}
 
       //CODIGO PROVISORIO
       for (let i = 0; i < 5; i++) {
-        let start = p.round(p.random(0, this.nSteps));
+        let start = p.floor(p.random(0, nSteps));
         //let duration = p.random(1,4);
         let duration = 1;
-        this.tracks[this.tracks.length - 1].timeline[start].push(new Note("C1", this.loopId, this.tracks.length - 1, start, duration, this.tracks[this.tracks.length - 1].color));
+        this.tracks[this.tracks.length - 1].timeline[start].push(new Note(p.floor(p.random(0,12)), this.loopId, this.tracks.length - 1, start, duration, this.tracks[this.tracks.length - 1].color));
       }
       saveSession(session);
     }
 
     updateMetronome() {
       if (p.millis() - this.lastInstant >= this.timeBtwSteps * 1000) {
-        //console.log(this.currentStep);
-        this.currentStep++;
-        this.lastInstant = p.millis();
-        if (this.currentStep === this.nSteps) this.currentStep = 0;
+        if (this.currentStep === nSteps-1) this.currentStep = 0;
+        else this.currentStep++;
 
+        this.lastInstant = p.millis();
+      
         for (let t in this.tracks) {
           for (let n in this.tracks[t].timeline[this.currentStep]) {
-            this.tracks[t].timeline[this.currentStep][n].play();
+            if (this.tracks[t].timeline[this.currentStep][n] !== null) this.tracks[t].timeline[this.currentStep][n].play();
           }
         }
       }
     }
 
     draw() {
-      //draw track lines
+      //draw track lines and notes
       for (let i = 0; i < this.tracks.length; i++) {
         this.tracks[i].drawLine();
-      }
-
-      //draw notes over all track lines
-      for (let i = 0; i < this.tracks.length; i++) {
         this.tracks[i].drawNotes();
       }
 
@@ -639,9 +638,9 @@ const sketch = (saveSession, sesh) => (p) => {
         //cursor
         if (this.play) {
           p.stroke(255, 255, 255);
-          p.strokeWeight(1);
+          p.strokeWeight(0.5);
           //p.rect(marginX+this.currentStep*(p.windowWidth-marginX*2)/this.nSteps,0,(p.windowWidth-marginX*2)/this.nSteps,p.windowHeight);
-          p.line(marginX + this.currentStep * (p.windowWidth - marginX * 2) / this.nSteps, 0, marginX + this.currentStep * (p.windowWidth - marginX * 2) / this.nSteps, p.windowHeight);
+          p.line(gridInitX + this.currentStep * gridStepSizeX, 0,gridInitX + this.currentStep * gridStepSizeX, p.windowHeight);
         }
 
         //hover plus button
@@ -665,13 +664,42 @@ const sketch = (saveSession, sesh) => (p) => {
           else this.opaPlus -= this.opaPlusInc;
         }
 
+        //draw grid
+        /*if (this.selectedTrack !== null) {
+          p.stroke(255, 255, 255, 255/10);
+          p.noFill();
+          p.strokeWeight(1);
+          for (let i = 0; i < this.nSteps-1 ; i++) {
+            for (let j = 0; j < 12-1; j++) {
+              //let dist = p.dist(p.mouseX,p.mouseY,p.windowHeight/30+(p.windowWidth-p.windowHeight/30*2)/(this.nSteps-1)*i,p.windowHeight/30*3+(p.windowHeight-p.windowHeight/8*2)/(12-1)*j);
+              //p.fill(255,255,255,p.map(dist,0,p.windowHeight/4,255,50));
+              //if (dist > p.windowHeight/4) p.fill(255,255,255,50);
+              //p.rect(p.windowHeight/30+(p.windowWidth-p.windowHeight/30*2)/(this.nSteps-1)*i,p.windowHeight/30*3+(p.windowWidth-p.windowHeight/30*2)/(this.nSteps-1)*2*j,(p.windowWidth-p.windowHeight/30*2)/(this.nSteps-1),(p.windowWidth-p.windowHeight/30*2)/(this.nSteps-1)*2);
+              p.circle(p.windowHeight/30+(p.windowWidth-p.windowHeight/30*2)/(this.nSteps-1)*i,p.windowHeight/30*3+(p.windowWidth-p.windowHeight/30*2)*2/(this.nSteps-1)*j,2,2);
+            }
+          }
+        }*/
+
+        if (this.selectedTrack !== null) {
+          p.fill(255, 255, 255, 255/4);
+          p.noStroke();
+
+          for (let i = 0; i < nSteps ; i++) {
+            const xPos = gridInitX + gridStepSizeX * i;
+            for (let j = 0; j < 12; j++) {
+                const yPos = gridInitY + gridStepSizeY * j;
+                p.circle(xPos, yPos, 2, 2);
+            }
+          }
+        }
+
         this.menu.draw();
 
         //plus button
         p.fill(255, 255, 255, this.opaPlus);
         p.stroke(255);
         p.strokeWeight(1);
-        p.rect(this.plusX, this.plusY, iconSize, iconSize, iconCorners);
+        //p.rect(this.plusX, this.plusY, iconSize, iconSize, iconCorners);
         p.image(plus, this.plusX + iconSize / 2, p.windowHeight - iconSize, p.windowHeight / 50, p.windowHeight / 50);
 
         //blackout animation
@@ -706,7 +734,7 @@ const sketch = (saveSession, sesh) => (p) => {
 
   class Track {
 
-    constructor(id, loopId, name, tempo, nSteps, iconTargetX) {
+    constructor(id, loopId, name, iconTargetX) {
       this.id = id;
       this.name = name;
 
@@ -714,16 +742,17 @@ const sketch = (saveSession, sesh) => (p) => {
 
       this.timeline = [];
 
-      this.color = [p.random(0, 255), p.random(0, 255), p.random(0, 255)];
+      this.ang = p.random(0, p.TWO_PI);
+      this.angInc = p.PI / 400;
 
-      this.tempo = tempo;
-      this.nSteps = nSteps;
+      this.color = [p.random(0, 255), p.random(0, 255), p.random(0, 255)];
 
       this.radiusCol = p.windowHeight / 4;
 
-      this.opaLine = 0;
+      this.iconHover = false;
+
+      this.opaLine = 255;
       this.opaLineInc = 5;
-      this.opaLineMax = 255;
 
       this.iconTargetX = iconTargetX;
       this.iconX = iconTargetX;
@@ -751,7 +780,7 @@ const sketch = (saveSession, sesh) => (p) => {
       this.targetXpreview = [];
       this.targetYpreview = [];
 
-      for (let i = 0; i < this.nSteps + 3; i++) {
+      for (let i = 0; i < nSteps + 2; i++) {
         this.particlesX.push(p.windowWidth / 2);
         this.particlesY.push(p.windowHeight / 2);
         this.particlesDrawerX.push(-p.windowWidth/5);
@@ -766,10 +795,10 @@ const sketch = (saveSession, sesh) => (p) => {
         this.targetYdrawer.push(0);
         this.targetXpreview.push(0);
         this.targetYpreview.push(0);
-        if (i < this.nSteps) this.timeline.push([]);
+        if (i < nSteps) {
+          this.timeline.push(new Array(12).fill(null));
+        }
       }
-
-      //console.log(this.timeline[0]);
     }
 
     drawPreview() {
@@ -783,8 +812,8 @@ const sketch = (saveSession, sesh) => (p) => {
       p.strokeWeight(maxWeightLines / (this.id + 1));
 
       p.beginShape();
-      for (let i = 0; i < this.particlesPreviewX.length; i++) p.vertex(this.particlesPreviewX[i], this.particlesPreviewY[i]);
-      p.endShape();
+      for (let i = 0; i < this.particlesPreviewX.length; i++) if(i%2 !== 0) p.vertex(this.particlesPreviewX[i], this.particlesPreviewY[i]);
+      p.endShape(p.CLOSE);
 
       let angle = -p.PI / 2;
 
@@ -819,8 +848,9 @@ const sketch = (saveSession, sesh) => (p) => {
       p.strokeWeight(maxWeightLines / (this.id + 1));
 
       p.beginShape();
-      for (let i = 0; i < this.particlesDrawerX.length; i++) p.vertex(this.particlesDrawerX[i], this.particlesDrawerY[i]);
-      p.endShape();
+      for (let i = 0; i < this.particlesDrawerX.length; i++) if(i%8 !== 0) p.vertex(this.particlesDrawerX[i], this.particlesDrawerY[i]);
+      p.endShape(p.CLOSE);
+      //p.circle(x, y, radius);
 
       let angle = -p.PI / 2;
 
@@ -851,15 +881,27 @@ const sketch = (saveSession, sesh) => (p) => {
 
 
     drawLine() {
-      //if (this.opaLine + this.opaLineInc > this.opaLineMax) this.opaLine = this.opaLineMax;
-      //else this.opaLine += this.opaLineInc;
+      if (session.activeTab.selectedTrack !== null && session.activeTab.selectedTrack !== this) {
+        if (this.opaLine - this.opaLineInc < 255/6) this.opaLine = 255/6;
+        else this.opaLine -= this.opaLineInc;
+      } else {
+        if (this.opaLine + this.opaLineInc > 255) this.opaLine = 255;
+        else this.opaLine += this.opaLineInc;
+      }
 
       p.noFill();
-      p.stroke(255, 255, 255);
+      //p.ambientMaterial(255, 0, 0);
+      p.stroke(255, 255, 255, this.opaLine);
       p.strokeWeight(maxWeightLines / (this.id + 1));
+      //p.strokeWeight(maxWeightLines);
 
       p.beginShape();
-      for (let i = 0; i < this.particlesX.length; i++) p.vertex(this.particlesX[i], this.particlesY[i]);
+      for (let i = 0; i < this.particlesX.length; i++) if(i%2 !== 0 || i===0) {
+        //let dif = session.loops[this.loopId].currentStep - i;
+        //let aux = p.map(dif, -session.loops[this.loopId].nSteps, session.loops[this.loopId].nSteps, 0, 255);
+        //p.stroke(255, 255, 255,aux);
+        p.vertex(this.particlesX[i], this.particlesY[i],-p.windowHeight/50*(maxTracks+2));
+      }
       p.endShape();
 
       p.stroke(255, 0, 0);
@@ -871,7 +913,7 @@ const sketch = (saveSession, sesh) => (p) => {
 
       let index = 1;
 
-      for (let x = marginX; x <= p.windowWidth - marginX; x += (p.windowWidth - marginX * 2) / this.nSteps) {
+      for (let x = gridInitX; x <= gridInitX + (gridStepSizeX * (nSteps-1)); x += gridStepSizeX) {
         n = p.noise(x * 0.0005, this.id * 0.3, p.frameCount * 0.002);
         y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
         this.targetXexp[index] = x;
@@ -902,7 +944,41 @@ const sketch = (saveSession, sesh) => (p) => {
       else this.opaIcon += this.opaIconInc;
 
       //icon
-      p.strokeWeight(1);
+      p.noStroke();
+      p.textFont(fontLight);
+      p.fill(255, 255, 255, this.opaIcon);
+      p.textAlign(p.CENTER, p.BOTTOM);
+      p.textSize(p.windowHeight / 65);
+      p.text(this.name, this.iconX + iconSize / 2, p.windowHeight - marginX);
+
+      if (this.id%2 === 0) this.ang += this.angInc;
+      else this.ang -= this.angInc;
+
+      //p.fill(this.color[0], this.color[1], this.color[2], this.opaIcon);
+      p.fill(this.color[0], this.color[1], this.color[2], this.opaLine);
+      p.push();
+      p.translate(this.iconX + iconSize / 2, p.windowHeight - marginX -p.windowHeight / 40 - p.windowHeight/30,-p.windowHeight/30);
+      p.scale(p.windowHeight/30 / petalModelSize1);
+      p.rotateX(p.PI/2);
+      p.rotateY(this.ang);
+      p.rotateZ(p.sin(this.ang)*p.PI/3);
+      p.model(petal1);
+      p.pop();
+
+      //hover and track select
+      if (p.mouseX > this.iconX && p.mouseX < this.iconX+p.windowHeight/30*2 && p.mouseY > p.windowHeight - marginX -p.windowHeight / 45 - p.windowHeight/30*2 && p.mouseY < p.windowHeight - marginX -p.windowHeight / 45) {
+        document.body.style.cursor = 'pointer';
+        this.iconHover = true;
+        
+        if (p.mouseIsPressed) {
+          session.activeTab.selectedTrack = this;
+          p.mouseIsPressed = false;
+
+        }
+      }
+      else this.iconHover = false;
+      
+      /*p.strokeWeight(1);
       p.stroke(255, 255, 255, this.opaIcon);
       p.rect(this.iconX, this.iconY, iconSize, iconSize, iconCorners);
 
@@ -914,13 +990,18 @@ const sketch = (saveSession, sesh) => (p) => {
       p.text('0' + (this.id + 1), this.iconX + iconSize / 2, this.iconY + iconSize / 7);
       p.textAlign(p.CENTER, p.BOTTOM);
       p.textSize(p.windowHeight / 90);
-      p.text(this.name, this.iconX + iconSize / 2, this.iconY + iconSize - iconSize / 5);
+      p.text(this.name, this.iconX + iconSize / 2, this.iconY + iconSize - iconSize / 5);*/
     }
 
     drawNotes() {
       for (let i = 0; i < this.timeline.length; i++) {
         for (let j = 0; j < this.timeline[i].length; j++) {
-          this.timeline[i][j].draw(this.particlesX[i], this.particlesY[i]);
+          if (this.timeline[i][j] !== null) {
+            if (session.activeTab.selectedTrack !== null) {
+              this.timeline[i][j].draw(this.particlesX[i+1], gridInitY + (12-this.timeline[i][j].pitch-1)*gridStepSizeY);
+            }
+            else this.timeline[i][j].draw(this.particlesX[i+1], this.particlesY[i+1]);
+          }
         }
       }
     }
@@ -928,10 +1009,17 @@ const sketch = (saveSession, sesh) => (p) => {
 
   class Note {
 
-    constructor(name, loopId, trackId, start, duration, color) {
-      this.name = name;
+    constructor(pitch, loopId, trackId, start, duration, color) {
       this.start = start;
       this.duration = duration;
+
+      this.octave = 3;
+
+      this.hover = false;
+      this.dragging = false;
+
+      //this.pitch = musicTheory.freqs[p.floor(p.random(0, musicTheory.freqs.length))]*8;
+      this.pitch = pitch;
 
       this.color = color;
 
@@ -944,8 +1032,9 @@ const sketch = (saveSession, sesh) => (p) => {
       this.y = p.random(0, p.windowHeight);
 
       this.opa = 255;
-      this.opaInc = 1;
-      this.opaMax = 255;
+      this.opaInc = 5;
+
+      this.opaInfo = 0;
 
       this.animOpa = 0;
       this.animR = 0;
@@ -954,21 +1043,107 @@ const sketch = (saveSession, sesh) => (p) => {
       this.animScale = this.size * 0.2;
       this.animScaleInc = p.windowHeight / 100;
 
-      this.offset = p.windowHeight / 50;
-      this.ang = p.PI * p.random(0, 10);
-      this.angInc = p.PI / 200;
+      this.offset = p.windowHeight / 40;
+      this.ang = p.PI * p.random(0, 100);
+      this.angInc = p.random(p.PI / 190,p.PI / 210);
     }
 
     play() {
+      this.angInc = p.PI / 12;
       this.animOpa = 255;
       this.animR = this.size;
       this.animScale = this.size * 0.2;
-      synth.triggerAttackRelease("C3", "16n");
+      //synth.triggerAttackRelease("C3", "16n");
+      synths.melody.triggerAttackRelease(musicTheory.freqs[this.pitch]*p.pow(2,this.octave), "16n");
+    }
+
+    showInfo() {
+      p.fill(255, 255, 255, this.opaInfo);
+
+      if (this.opaInfo + this.opaInc > 255) this.opaInfo = 255;
+      else this.opaInfo += this.opaInc;
+
+      if (this.x <= p.windowWidth / 2) {
+        p.textAlign(p.LEFT, p.CENTER);
+        p.textSize(p.windowHeight / 40);
+        p.textFont(fontMedium);
+        p.text(musicTheory.noteLabels[this.pitch] + this.octave, this.x+gridStepSizeX, this.y-gridStepSizeX*1.2);
+        p.textFont(fontLight);
+        p.textSize(p.windowHeight / 65);
+        if (this.duration === 1) p.text("STEP "+(this.start+1), this.x+gridStepSizeX, this.y-gridStepSizeX*1.2-p.windowHeight / 50);
+        else p.text("STEP "+(this.start+1)+"-"+(this.duration+1), this.x+gridStepSizeX, this.y-gridStepSizeX*1.2-p.windowHeight / 50);
+        p.fill(this.color[0], this.color[1], this.color[2], this.opaInfo);
+        p.text(session.activeTab.tracks[this.trackId].name, this.x+gridStepSizeX, this.y-gridStepSizeX*1.2+p.windowHeight / 42);
+      } else {
+        p.textAlign(p.RIGHT, p.CENTER);
+        p.textSize(p.windowHeight / 40);
+        p.textFont(fontMedium);
+        p.text(musicTheory.noteLabels[this.pitch] + this.octave, this.x-gridStepSizeX, this.y-gridStepSizeX*1.2);
+        p.textFont(fontLight);
+        p.textSize(p.windowHeight / 65);
+        if (this.duration === 1) p.text("STEP "+(this.start+1), this.x-gridStepSizeX, this.y-gridStepSizeX*1.2-p.windowHeight / 50);
+        else p.text("STEP "+(this.start+1)+"-"+(this.duration+1), this.x-gridStepSizeX, this.y-gridStepSizeX*1.2-p.windowHeight / 50);
+        p.fill(this.color[0], this.color[1], this.color[2], this.opaInfo);
+        p.text(session.activeTab.tracks[this.trackId].name, this.x-gridStepSizeX, this.y-gridStepSizeX*1.2+p.windowHeight / 42);
+      }
     }
 
     draw(targetX, targetY) {
-
       this.size = p.windowHeight / 60;
+
+      if (p.mouseX > targetX - gridStepSizeX/2 && p.mouseX < targetX + gridStepSizeX/2 
+        && p.mouseY > targetY - gridStepSizeX/2 && p.mouseY < targetY + gridStepSizeX/2
+        && session.activeTab.selectedTrack === session.activeTab.tracks[this.trackId] && dragging === false) {
+          document.body.style.cursor = 'grab';
+          
+          if (this.hover === false) {
+            this.opaInfo = 0;
+            this.angInc = p.PI / 12;
+          }
+
+          this.hover = true;
+
+          if (p.mouseIsPressed && this.dragging === false) {
+            this.play();
+            this.dragging = true;
+            dragging = true;
+          }
+          
+      } else this.hover = false;
+
+      if (p.mouseIsPressed === false && this.dragging === true) {
+        this.dragging = false;
+        dragging = false;
+      }
+
+      if (this.dragging) {
+        //console.log(session.activeTab.selectedTrack.timeline[this.start][this.pitch]);
+        const auxX = p.round((p.mouseX - gridInitX) / gridStepSizeX);
+        const auxY = p.abs(12-p.round((p.mouseY - gridInitY) / gridStepSizeY)-1);
+        if (session.activeTab.selectedTrack.timeline[this.start][this.pitch] !== session.activeTab.selectedTrack.timeline[auxX][auxY]) {
+          this.play();
+          session.activeTab.selectedTrack.timeline[auxX][auxY] = this;
+          session.activeTab.selectedTrack.timeline[this.start][this.pitch] = null;
+          this.start = auxX;
+          this.pitch = auxY;
+        }
+        targetX = gridInitX + p.round((p.mouseX - gridInitX) / gridStepSizeX) * gridStepSizeX;
+        targetY = gridInitY + p.round((p.mouseY - gridInitY) / gridStepSizeY) * gridStepSizeY;
+        this.showInfo();
+        document.body.style.cursor = 'grabbing';
+      }
+
+      if (this.hover) this.showInfo();
+
+      if (session.activeTab.selectedTrack !== session.activeTab.tracks[this.trackId]) {
+        if (this.opa - this.opaInc < 255/2) this.opa = 255/2;
+        else this.opa -= this.opaInc;
+      } else {
+        if (this.opa + this.opaInc > this.opaMax) this.opa = this.opaMax;
+        else this.opa += this.opaInc;
+      }
+
+      if (this.angInc > p.PI / 200) this.angInc -= 0.005;
 
       if (this.animOpa - this.animOpaInc < 0) this.animOpa = 0;
       else this.animOpa -= this.animOpaInc;
@@ -976,26 +1151,35 @@ const sketch = (saveSession, sesh) => (p) => {
       if (this.animOpa > 0) this.animR += this.animRInc;
 
       //REVER ISTO
-      targetY = targetY + p.sin(this.ang) * this.offset;
+      if (session.activeTab.selectedTrack === null) targetY = targetY + p.sin(this.ang/2) * this.offset;
       this.ang += this.angInc;
-      
+
       if (this.opa + this.opaInc > this.opaMax) this.opa = this.opaMax;
       else this.opa += this.opaInc;
 
       let a = p.createVector(0, -1).angleBetween(p.createVector(this.x - targetX, this.y - targetY));
       let d = p.dist(this.x, this.y, targetX, targetY);
 
-      this.x -= p5.Vector.fromAngle(a, d / 10).y;
-      this.y -= p5.Vector.fromAngle(p.PI - a, d / 10).x;
+      this.x -= p5.Vector.fromAngle(a, d / 15).y;
+      this.y -= p5.Vector.fromAngle(p.PI - a, d / 15).x;
 
       p.fill(this.color[0], this.color[1], this.color[2], this.opa);
       p.noStroke();
-      p.circle(this.x, this.y, this.size, this.size);
+      //p.circle(this.x, this.y, this.size, this.size);
+
+      p.push();
+      if (session.activeTab.selectedTrack === session.activeTab.tracks[this.trackId]) p.translate(this.x,this.y,p.windowHeight/60);
+      else p.translate(this.x,this.y,-p.windowHeight/60*(session.activeTab.tracks[this.trackId].id+1));
+      p.scale(p.windowHeight/60 / petalModelSize1);
+      p.rotateX(this.ang);
+      p.rotateY(this.ang);
+      p.model(petal1);
+      p.pop();
 
       p.noFill();
       p.stroke(this.color[0], this.color[1], this.color[2], this.animOpa);
       p.strokeWeight(this.size / 10);
-      p.circle(this.x, this.y, this.animR, this.animR);
+      if (this.animOpa > 0) p.circle(this.x, this.y, this.animR, this.animR);
     }
   }
 
@@ -1084,7 +1268,7 @@ const sketch = (saveSession, sesh) => (p) => {
               for (let j = 0; j < this.nOptions; j++) if (j !== i) this.optionsOpa[j] = 50;
 
               if (p.mouseIsPressed) {
-                currentLoop.addTrack(instruments[i]);
+                session.activeTab.addTrack(instruments[i]);
                 console.log(instruments[i]);
                 this.reset();
                 p.mouseIsPressed = false;
@@ -1122,7 +1306,11 @@ const sketch = (saveSession, sesh) => (p) => {
     plus = p.loadImage(plusSVG);
     arrow = p.loadImage(arrowSVG);
 
-    font1 = p.loadFont(disketFont);
+    petal1 = p.loadModel(petalOBJ1);
+    petal2 = p.loadModel(petalOBJ2);
+    petal3 = p.loadModel(petalOBJ3);
+    petal4 = p.loadModel(petalOBJ4);
+
     fontLight = p.loadFont(poppinsLightFont);
     fontMedium = p.loadFont(poppinsMediumFont);
     fontBold = p.loadFont(poppinsBoldFont);
@@ -1130,29 +1318,47 @@ const sketch = (saveSession, sesh) => (p) => {
 
   // --------------------------------------------------------------------------------------
   p.setup = function () {
-    p.createCanvas(p.windowWidth, p.windowHeight);
+    p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
     p.frameRate(60);
     p.imageMode(p.CENTER);
     p.textFont(fontMedium);
 
     console.log(sesh);
+    //p.pixelDensity(1);
+
+    // Set up orthographic projection
+    p.ortho(-p.windowWidth / 2, p.windowWidth / 2, -p.windowHeight / 2, p.windowHeight / 2, 0, 1000);
 
     //protect initial trigger of drawers
     p.mouseX = p.windowWidth / 2;
     p.mouseY = p.windowHeight / 2;
 
-    marginX = p.windowWidth / maxSteps;
+    //marginX = p.windowWidth / maxSteps;
+    marginX = p.windowHeight / 30;
     iconSize = p.windowHeight / 15;
     iconCorners = p.windowHeight / 100;
 
+    gridStepSizeX = (p.windowWidth - p.windowHeight / 30 * 3) / (nSteps - 1);
+    gridStepSizeY = ((p.windowHeight - p.windowHeight / 30) * 3.8) / (nSteps - 1);
+    gridInitX = p.windowWidth / 2 - gridStepSizeX * (nSteps-1) / 2;
+    gridInitY = p.windowHeight / 2 - gridStepSizeY * 12 / 2;
+
     //if (sesh === "bin file not found") {
     session = new Session();
-    for (let i = 0; i < 5; i++) {
-      session.loops.push(new Loop(i, "myloop"+i, 32, 120));
-      session.loops[i].tracks.push(new Track(0, i, "mytrack1", 120, 128, p.windowWidth / 2));
+    for (let i = 0; i < 10; i++) {
+      session.loops.push(new Loop(i, "myloop"+i, 120));
+      session.loops[i].tracks.push(new Track(0, i, "DRUMS", p.windowWidth / 2));
+      for (let j = 0; j < 5; j++) {
+        let start = p.floor(p.random(0, nSteps));
+        let pitch = p.floor(p.random(0,12));
+        //let duration = p.random(1,4);
+        let duration = 1;
+        session.loops[i].tracks[0].timeline[start][pitch] = new Note(pitch, session.loops[i].id, 0, start, duration, session.loops[i].tracks[0].color);
+      }
     }
-    //session.loops.push(new Loop(1, "myloop2", 4, 120));
-    //session.loops.push(new Loop(2, "myloop3", 4, 120));
+
+    //console.log(session);
+
     //} else {
     //  initLoadedSesh();
     //}
@@ -1163,17 +1369,34 @@ const sketch = (saveSession, sesh) => (p) => {
   // --------------------------------------------------------------------------------------
   p.draw = function () {
     document.body.style.cursor = 'default';
+
+    // Set up orthographic projection
+    p.ortho(-p.windowWidth / 2, p.windowWidth / 2, -p.windowHeight / 2, p.windowHeight / 2, 0, 1000);
+
+    petalModelSize1 = calculateBoundingBox(petal1).width;
+    //p.lightFalloff(40,0,0);
+    //p.spotLight(255, 255, 255, p.mouseX-p.windowWidth/2, p.mouseY-p.windowHeight/2, 10, 0, 0, -1); // Set spot light color, position, and direction
+    //p.pointLight(255, 255, 255, p.mouseX-p.windowWidth/2, p.mouseY-p.windowHeight/2, 2);
     //p.translate(-p.windowWidth/2,-p.windowHeight/2);
-    p.frameRate(60);
     //update responsive values
-    marginX = p.windowWidth / maxSteps;
+    marginX = p.windowHeight / 30;
     iconSize = p.windowHeight / 15;
     iconCorners = p.windowHeight / 100;
+    gridStepSizeX = (p.windowWidth - p.windowHeight / 30 * 3) / (nSteps - 1);
+    gridStepSizeY = ((p.windowHeight - p.windowHeight / 30) * 3.8) / (nSteps - 1);
+    gridInitX = p.windowWidth / 2 - gridStepSizeX * (nSteps-1) / 2;
+    gridInitY = p.windowHeight / 2 - gridStepSizeY * 12 / 2;
 
+
+    p.translate(-p.windowWidth/2,-p.windowHeight/2);
     p.background(0);
-    drawParticles();
+    //drawParticles();
 
     session.draw();
+    //p.fill(255, 255, 255);
+    //p.circle(p.mouseX, p.mouseY, 10, 10); 
+    //let bbox = calculateBoundingBox(petal1);
+    //console.log("Bounding box dimensions:", bbox);
   }
 
   p.keyPressed = function () {
@@ -1182,13 +1405,96 @@ const sketch = (saveSession, sesh) => (p) => {
         session.activeTab.play = false;
       }
       else {
+        session.activeTab.currentStep = -1;
         session.activeTab.play = true;
       }
     }
     if (p.keyCode === p.BACKSPACE) {
       if (session.loopDrawer) loopSearch = loopSearch.slice(0, -1);
     }
+
+    if (inputNotes.length < maxInputNotes) {
+      let input = musicTheory.keysToFreq(p.key.toUpperCase());
+      if (input !== -1 && inputNotes.indexOf(input*p.pow(2,currentOctave)) === -1) {
+        inputNotes.push(input*p.pow(2,currentOctave));
+        synths.melody.triggerAttack(input*p.pow(2,currentOctave));
+      }
+    }
   }
+
+  p.keyReleased = function () {
+
+    if (p.key.toUpperCase() === 'Z') if (currentOctave > minOctave) currentOctave--;
+    if (p.key.toUpperCase() === 'X') if (currentOctave < maxOctave) currentOctave++;
+
+    let input = musicTheory.keysToFreq(p.key.toUpperCase());
+    if (input !== -1) {
+      let index = inputNotes.indexOf(input*p.pow(2,currentOctave));
+      if (index !== -1) {
+        inputNotes.splice(index, 1);
+        synths.melody.triggerRelease(input*p.pow(2,currentOctave));
+      }
+    }
+  }
+
+function calculateBoundingBox(model) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let minZ = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let maxZ = -Infinity;
+
+  // Iterate through all vertices of the model
+  for (let i = 0; i < model.vertices.length; i++) {
+    let v = model.vertices[i];
+    minX = p.min(minX, v.x);
+    minY = p.min(minY, v.y);
+    minZ = p.min(minZ, v.z);
+    maxX = p.max(maxX, v.x);
+    maxY = p.max(maxY, v.y);
+    maxZ = p.max(maxZ, v.z);
+  }
+
+  // Calculate dimensions
+  let width = maxX - minX;
+  let height = maxY - minY;
+  let depth = maxZ - minZ;
+
+  return {
+    width: width,
+    height: height,
+    depth: depth
+  };
 }
+
+}
+
+// --------------------------------------------------------------------------------------
+
+let loopSearch = '';
+let structSearch = '';
+let maxNameLength = 15;
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Variable to store typing status
+
+  // Event listener for keydown event
+  document.addEventListener('keydown', function(event) {
+      const keyCode = event.keyCode;
+      // Check if the pressed key is alphanumeric or space
+      if ((keyCode >= 48 && keyCode <= 57) ||     // 0-9
+          (keyCode >= 65 && keyCode <= 90) ||     // A-Z
+          keyCode === 32) {                       // Space
+          if (session.loopDrawer) {
+            if (loopSearch.length < maxNameLength) {
+              loopSearch += event.key;
+              //console.log(loopSearch);
+            }
+          }
+      }
+  });
+
+});
 
 export default sketch;
