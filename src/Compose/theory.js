@@ -9,39 +9,39 @@ const waveTypes = ["sine", "square", "sawtooth", "triangle", "white", "pink", "b
 
 const delayTimes = ["1/64","1/32","1/16","1/8","1/4","1/2","1","2"]
 
-function keysToFreq(c) {
+function keysDecode(c) {
     switch (c) {
         case "A":
-            return freqs[0];
+            return 0;
         case "W":
-            return freqs[1];
+            return 1;
         case "S":
-            return freqs[2];
+            return 2;
         case "E":
-            return freqs[3];
+            return 3;
         case "D":
-            return freqs[4];
+            return 4;
         case "F":
-            return freqs[5];
+            return 5;
         case "T":
-            return freqs[6];
+            return 6;
         case "G":
-            return freqs[7];
+            return 7;
         case "Y":
-            return freqs[8];
+            return 8;
         case "H":
-            return freqs[9];
+            return 9;
         case "U":
-            return freqs[10];
+            return 10;
         case "J":
-            return freqs[11];
+            return 11;
         case "K":
-            return freqs[12];
+            return 12;
         default:
             return -1;
     }
 }
 
-let theory = { freqs, noteLabels, drumLabels, keysToFreq, waveTypes, delayTimes};
+let theory = { freqs, noteLabels, drumLabels, keysDecode, waveTypes, delayTimes};
 
 export default theory;

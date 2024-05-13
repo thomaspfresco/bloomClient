@@ -1,4 +1,11 @@
 import * as Tone from 'tone';
+import kickAcoustic from '../Assets/audioSamples/kick_acoustic.wav';
+import snareAcoustic from '../Assets/audioSamples/snare_acoustic.wav';
+import closedHatAcoustic from '../Assets/audioSamples/closedHat_acoustic.wav';
+import openedHatAcoustic from '../Assets/audioSamples/openedHat_acoustic.wav';
+import lowTomAcoustic from '../Assets/audioSamples/lowTom_acoustic.wav';
+import highTomAcoustic from '../Assets/audioSamples/highTom_acoustic.wav';
+import crashAcoustic from '../Assets/audioSamples/crash_acoustic.wav';
 
 // ---------------------------------------------------------------
 // MELODY
@@ -66,6 +73,41 @@ harmonyDist.connect(harmonyDly);
 harmonyDly.connect(harmonyRev);
 harmonyRev.toDestination();*/
 
-let synths = { melodyPatchOSC1, melodyOSC1, melodyOSC2, melodyFilter, melodyDist, melodyDly, melodyRev, melodyMeter, melodyVol};
+// ---------------------------------------------------------------
+// DRUMS
+// ---------------------------------------------------------------
+
+const acoustic = [kickAcoustic, snareAcoustic, closedHatAcoustic, openedHatAcoustic, highTomAcoustic, lowTomAcoustic, crashAcoustic];
+const kit = acoustic;
+
+let drumFilter = new Tone.Filter();
+let drumDist = new Tone.Distortion({
+    distortion: 0.5,
+    wet: 0
+});
+let drumDly = new Tone.PingPongDelay({
+    delayTime: "4n",
+    wet: 0.2
+});
+let drumRev = new Tone.Reverb({
+    decay: 4,
+    wet: 0
+});
+let drumMeter = new Tone.Meter();
+
+const drumVol = new Tone.PanVol().chain(drumFilter, drumDist, drumDly, drumRev, drumMeter, Tone.Destination);
+
+const drumSynth = [];
+for (let i = 0; i < 7; i++) {
+    drumSynth.push(new Tone.Player(kit[i]));
+    drumSynth[i].connect(Tone.Destination);
+}
+
+// ---------------------------------------------------------------
+// EXPORT
+// ---------------------------------------------------------------
+
+let synths = { melodyPatchOSC1, melodyOSC1, melodyOSC2, melodyFilter, melodyDist, melodyDly, melodyRev, melodyMeter, melodyVol,
+               drumSynth, drumFilter, drumDist, drumDly, drumRev, drumMeter, drumVol};
 
 export default synths;

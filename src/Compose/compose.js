@@ -774,7 +774,10 @@ const sketch = (saveSession, sesh) => (p) => {
       this.revButton = new Button(true,this.color);
 
       if (this.name === "BASS") this.petal = petal1;
-      if (this.name === "MELODY") this.petal = petal3;
+      if (this.name === "MELODY") {
+        this.petal = petal3;
+        this.synth = synths.melodyOSC1;
+      }
       if (this.name === "HARMONY") this.petal = petal4;
 
       //different sinthesis for drums tracks
@@ -782,6 +785,7 @@ const sketch = (saveSession, sesh) => (p) => {
         this.drumKnobs = [];
         this.drumButtons = [];
         this.petal = petal2;
+        this.synth = synths.drumSynth;
         for (let i=0; i<theory.drumLabels.length; i++) { 
           this.drumKnobs.push([new Knob("VOLUME",0),new Knob("PITCH",0.50)]);
           this.drumButtons.push(new Button(true,this.color));
@@ -832,19 +836,25 @@ const sketch = (saveSession, sesh) => (p) => {
       }
     }
 
-    playInputNote(inputFreq) {
-      if (this.name === "MELODY") {
-        synths.melodyOSC1.triggerAttack(inputFreq);
+    playInputNote(input) {
+      if (this.name === "DRUMS") {
+        this.synth[input].start();
+
+        //stop open hat when closed hat is triggered
+        if (input === 2) {
+          this.synth[3].stop();
+
+        }
+      } else {
+        this.synth.triggerAttack(theory.freqs[input]*p.pow(2,currentOctave));
         //console.log(synths.melodyOSC1._voices);
         //synths.melodyNoise1.triggerAttack();
-      } else {
-        
       }
     }
 
-    releaseInputNote(inputFreq) {
-      if (this.name === "MELODY") {
-        synths.melodyOSC1.triggerRelease(inputFreq);
+    releaseInputNote(input) {
+      if (this.name !== "DRUMS") {
+        this.synth.triggerRelease(theory.freqs[input]*p.pow(2,currentOctave));
         //synths.melodyNoise1.triggerRelease();
       }
     }
@@ -858,12 +868,12 @@ const sketch = (saveSession, sesh) => (p) => {
       let auxXfx = (auxX-studioGap*6)/7;
 
       let barHeight = 0;
-      if (this.name === "MELODY") {
-        let dbs = synths.melodyMeter.getValue();
-        if (dbs < -60) barHeight = 0;
-        else barHeight = p.map(dbs,-60,6,0, -(gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap));
-      }
-
+      let dbs = -Infinity;
+      if (this.name === "MELODY") dbs = synths.melodyMeter.getValue();
+      if (this.name === "DRUMS") dbs = synths.drumMeter.getValue();
+      if (dbs < -60) barHeight = 0;
+      else barHeight = p.map(dbs,-60,6,0, -(gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap));
+      
       p.noStroke();
       p.fill(this.color[0],this.color[1],this.color[2]);
       p.rect(gridInitX + p.windowWidth/9/2 - studioGap/2-studioGap*2,gridInitY+studioGap + auxY +5*studioGap + gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap,studioGap*2,barHeight);
@@ -954,8 +964,9 @@ const sketch = (saveSession, sesh) => (p) => {
 
       if (this.name === "DRUMS") {
         for(let i=0; i<this.drumKnobs.length; i++) {
-          this.drumKnobs[i][0].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*1.5+auxY/2);
-          this.drumKnobs[i][1].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),studioGap+gridInitY-studioGap+auxY+auxY/2);
+          this.drumKnobs[i][0].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*1.5+auxY/2,this.drumButtons[i].opa);
+          this.drumKnobs[i][1].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),studioGap+gridInitY-studioGap+auxY+auxY/2,this.drumButtons[i].opa);
+          this.drumButtons[i].draw(gridInitX+col1X+auxXfx*(i+1)+studioGap*(i)-studioGap*2,gridInitY+studioGap*2);
         }
       } else {
         for (let i=0; i<3; i++) this.osc1Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*0.7+auxY/2, this.osc1Button.opa);
@@ -1053,6 +1064,13 @@ const sketch = (saveSession, sesh) => (p) => {
     draw() {
 
       //update Synths
+      if (this.name === "DRUMS") {
+        for (let i=0; i<this.synth.length; i++) {
+          if (this.drumButtons[i].value) this.synth[i].volume.value = p.map(this.drumKnobs[i][0].value,0,1,-60,0);
+          else this.synth[i].volume.value = -Infinity;
+          this.synth[i].playbackRate = this.drumKnobs[i][1].value;
+        }
+      }
       if (this.name === "MELODY") {
         synths.melodyOSC1.set(synths.melodyPatchOSC1);
         
@@ -1748,25 +1766,39 @@ const sketch = (saveSession, sesh) => (p) => {
     }
 
     if (inputNotes.length < maxInputNotes) {
-      let input = theory.keysToFreq(p.key.toUpperCase());
-      if (input !== -1 && inputNotes.indexOf(input*p.pow(2,currentOctave)) === -1) {
-        inputNotes.push(input*p.pow(2,currentOctave));
-        if (session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack.playInputNote(input*p.pow(2,currentOctave));
+      let input = theory.keysDecode(p.key.toUpperCase());
+      if (input !== -1 && inputNotes.indexOf(input) === -1) {
+        inputNotes.push(input);
+        if (session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack.playInputNote(input);
       }
     }
   }
 
   p.keyReleased = function () {
 
-    if (p.key.toUpperCase() === 'Z') if (currentOctave > minOctave) currentOctave--;
-    if (p.key.toUpperCase() === 'X') if (currentOctave < maxOctave) currentOctave++;
+    if (session.activeTab.selectedTrack !== null) {
+      if (p.key.toUpperCase() === 'Z') if (currentOctave > minOctave) {
+        currentOctave--;
+        for (let i = 0; i < inputNotes.length; i++) {
+          session.activeTab.selectedTrack.releaseInputNote(inputNotes[i]);
+          inputNotes.splice(i, 1);
+        }
+      }
+      if (p.key.toUpperCase() === 'X') if (currentOctave < maxOctave) {
+        currentOctave++;
+        for (let i = 0; i < inputNotes.length; i++) {
+          session.activeTab.selectedTrack.releaseInputNote(inputNotes[i]);
+          inputNotes.splice(i, 1);
+        }
+      }
+    }
 
-    let input = theory.keysToFreq(p.key.toUpperCase());
+    let input = theory.keysDecode(p.key.toUpperCase());
     if (input !== -1) {
-      let index = inputNotes.indexOf(input*p.pow(2,currentOctave));
+      let index = inputNotes.indexOf(input);
       if (index !== -1) {
         inputNotes.splice(index, 1);
-        if (session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack.releaseInputNote(input*p.pow(2,currentOctave));
+        if (session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack.releaseInputNote(input);
       }
     }
   }
