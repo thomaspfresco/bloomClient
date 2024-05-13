@@ -5,6 +5,10 @@ const noteLabels = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", 
 
 const drumLabels = ["KICK", "SNARE", "CLOSED HAT", "OPEN HAT", "HIGH TOM", "LOW TOM", "CRASH"];
 
+const waveTypes = ["sine", "square", "sawtooth", "triangle", "white", "pink", "brown"];
+
+const delayTimes = ["1/64","1/32","1/16","1/8","1/4","1/2","1","2"]
+
 function keysToFreq(c) {
     switch (c) {
         case "A":
@@ -38,6 +42,6 @@ function keysToFreq(c) {
     }
 }
 
-let musicTheory = { freqs, noteLabels, drumLabels, keysToFreq };
+let theory = { freqs, noteLabels, drumLabels, keysToFreq, waveTypes, delayTimes};
 
-export default musicTheory;
+export default theory;

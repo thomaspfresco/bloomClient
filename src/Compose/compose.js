@@ -5,7 +5,7 @@ https://dev.to/nyxtom/flow-fields-and-noise-algorithms-with-p5-js-5g67
 */
 
 import obliqueStratagies from "../obliqueStratagies.js";
-import musicTheory from "./musicTheory.js";
+import theory from "./theory.js";
 
 import poppinsLightFont from '../Fonts/Poppins-Light.ttf';
 import poppinsMediumFont from '../Fonts/Poppins-Medium.ttf';
@@ -29,7 +29,7 @@ let plus, arrow;
 let dragging = false;
 
 let inputNotes = [];
-let maxInputNotes = 5;
+let maxInputNotes = 4;
 let currentOctave = 3;
 let minOctave = 1;
 let maxOctave = 7;
@@ -45,7 +45,7 @@ let phase = 0;
 let zoff = 0;
 let noiseMax = 1;
 
-let petalModelSize1 = 0;
+let petalModelSize = 0;
 
 var particles = new Array(50);
 var totalFrames = 300;
@@ -602,7 +602,7 @@ const sketch = (saveSession, sesh) => (p) => {
         let duration = 1;
         this.tracks[this.tracks.length - 1].timeline[start][pitch] = new Note(pitch, this.loopId, this.tracks.length - 1, start, duration, this.tracks[this.tracks.length - 1].color);
       }
-      saveSession(session);
+      //saveSession(session);
     }
 
     updateMetronome() {
@@ -734,7 +734,7 @@ const sketch = (saveSession, sesh) => (p) => {
 
       this.loopId = loopId;
 
-      if (this.name === "DRUMS") this.nPitches = musicTheory.drumLabels.length;
+      if (this.name === "DRUMS") this.nPitches = theory.drumLabels.length;
       this.nPitches = 12;
 
       this.timeline = [];
@@ -767,16 +767,37 @@ const sketch = (saveSession, sesh) => (p) => {
       this.dlyKnobs = [new Knob("TIME",0.50),new Knob("FEEDBACK",0.50),new Knob("VOLUME",0.50)];
       this.revKnobs = [new Knob("SIZE",0.50),new Knob("DRY/WET",0.50)];
 
+      //fx buttons
+      this.filterButton = new Button(true,this.color);
+      this.distButton = new Button(true,this.color);
+      this.dlyButton = new Button(true,this.color);
+      this.revButton = new Button(true,this.color);
+
+      if (this.name === "BASS") this.petal = petal1;
+      if (this.name === "MELODY") this.petal = petal3;
+      if (this.name === "HARMONY") this.petal = petal4;
+
       //different sinthesis for drums tracks
       if (this.name === "DRUMS") {
         this.drumKnobs = [];
-        for (let i=0; i<musicTheory.drumLabels.length; i++) this.drumKnobs.push([new Knob("VOLUME",0),new Knob("PITCH",0.50)])
+        this.drumButtons = [];
+        this.petal = petal2;
+        for (let i=0; i<theory.drumLabels.length; i++) { 
+          this.drumKnobs.push([new Knob("VOLUME",0),new Knob("PITCH",0.50)]);
+          this.drumButtons.push(new Button(true,this.color));
+        }      
       } else {
         this.osc1Knobs = [new Knob("WAVE",0),new Knob("PITCH",0.50),new Knob("VOLUME",1)];
         this.env1Knobs = [new Knob("ATTACK",0),new Knob("DECAY",0.50),new Knob("SUSTAIN",0.50),new Knob("RELEASE",1)];
         this.osc2Knobs = [new Knob("WAVE",0),new Knob("PITCH",0.50),new Knob("VOLUME",1)];
         this.env2Knobs = [new Knob("ATTACK",0),new Knob("DECAY",0.50),new Knob("SUSTAIN",0.50),new Knob("RELEASE",1)];
+
+        this.osc1Button = new Button(true,this.color);
+        this.env1Button = new Button(true,this.color);
+        this.osc2Button = new Button(true,this.color);
+        this.env2Button = new Button(true,this.color);
       }
+
 
       this.particlesX = [];
       this.particlesY = [];
@@ -787,8 +808,6 @@ const sketch = (saveSession, sesh) => (p) => {
 
       this.targetXexp = [];
       this.targetYexp = [];
-      this.targetXcol = [];
-      this.targetYcol = [];
       this.targetXdrawer = [];
       this.targetYdrawer = [];
       this.targetXpreview = [];
@@ -803,8 +822,6 @@ const sketch = (saveSession, sesh) => (p) => {
         this.particlesPreviewY.push(p.windowHeight / 2);
         this.targetXexp.push(0);
         this.targetYexp.push(0);
-        this.targetXcol.push(0);
-        this.targetYcol.push(0);
         this.targetXdrawer.push(0);
         this.targetYdrawer.push(0);
         this.targetXpreview.push(0);
@@ -812,6 +829,23 @@ const sketch = (saveSession, sesh) => (p) => {
         if (i < nSteps) {
           this.timeline.push(new Array(this.nPitches).fill(null));
         }
+      }
+    }
+
+    playInputNote(inputFreq) {
+      if (this.name === "MELODY") {
+        synths.melodyOSC1.triggerAttack(inputFreq);
+        //console.log(synths.melodyOSC1._voices);
+        //synths.melodyNoise1.triggerAttack();
+      } else {
+        
+      }
+    }
+
+    releaseInputNote(inputFreq) {
+      if (this.name === "MELODY") {
+        synths.melodyOSC1.triggerRelease(inputFreq);
+        //synths.melodyNoise1.triggerRelease();
       }
     }
 
@@ -823,26 +857,34 @@ const sketch = (saveSession, sesh) => (p) => {
       let auxX = gridStepSizeX*(nSteps-1)-col1X;
       let auxXfx = (auxX-studioGap*6)/7;
 
-      p.fill(50,50,50,255/4);
-      //p.stroke(255,255,255,255/4);
-      //p.strokeWeight(1);
-      //p.noFill();
+      let barHeight = 0;
+      if (this.name === "MELODY") {
+        let dbs = synths.melodyMeter.getValue();
+        if (dbs < -60) barHeight = 0;
+        else barHeight = p.map(dbs,-60,6,0, -(gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap));
+      }
 
-
-      
-      p.push();
       p.noStroke();
-      p.fill(this.color[0], this.color[1], this.color[2], this.opaLine);
-      p.translate(gridInitX+p.windowWidth/9/2, gridInitY+auxY/2,-p.windowHeight/12);
-      p.scale(p.windowHeight/12 / petalModelSize1);
-      p.rotateX(p.PI/2);
-      p.rotateY(this.ang);
-      p.rotateZ(p.sin(this.ang)*p.PI/3);
-      p.model(petal1);
-      p.pop();
+      p.fill(this.color[0],this.color[1],this.color[2]);
+      p.rect(gridInitX + p.windowWidth/9/2 - studioGap/2-studioGap*2,gridInitY+studioGap + auxY +5*studioGap + gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap,studioGap*2,barHeight);
 
-      //volume fader
-      p.rect(gridInitX,gridInitY+studioGap + auxY,p.windowWidth/9, gridStepSizeY*(12-1) - studioGap - auxY,p.windowHeight/200);
+      p.stroke(255,255,255,255/4);
+      p.strokeWeight(1);
+      p.noFill();
+
+      //boxes
+
+      //p.fill(50,50,50,255/4);
+      //p.noStroke();
+      p.rect(gridInitX + p.windowWidth/9/2 - studioGap/2-studioGap*2,gridInitY+studioGap + auxY +5*studioGap,studioGap*2, gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap); //volume fader
+      p.rect(gridInitX + p.windowWidth/9/2 + studioGap/2,gridInitY+studioGap + auxY +5*studioGap,studioGap*2, gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap); //volume fader
+
+      p.rect(gridInitX,gridInitY, p.windowWidth/9, auxY, p.windowHeight/200); //visualizer
+      p.rect(gridInitX,gridInitY+studioGap + auxY,p.windowWidth/9, gridStepSizeY*(12-1) - studioGap - auxY,p.windowHeight/200); //volume fader
+      p.rect(gridInitX+col1X,gridInitY+studioGap*2+auxY*2,auxXfx,auxY,p.windowHeight/200); //filter
+      p.rect(gridInitX+col1X+auxXfx+studioGap,gridInitY+studioGap*2+auxY*2,auxXfx,auxY,p.windowHeight/200); //distortion
+      p.rect(gridInitX+col1X+auxXfx*2+studioGap*2,gridInitY+studioGap*2+auxY*2,auxXfx*3+studioGap*2,auxY,p.windowHeight/200); //delay
+      p.rect(gridInitX+col1X+auxXfx*5+studioGap*5,gridInitY+studioGap*2+auxY*2,auxXfx*2+studioGap,auxY,p.windowHeight/200); //reverb
 
       if (this.name === "DRUMS") {
         for(let i=0; i<this.drumKnobs.length; i++) p.rect(gridInitX+col1X+(i*auxXfx)+i*studioGap,gridInitY, auxXfx ,auxY*2 + studioGap,p.windowHeight/200);
@@ -853,47 +895,78 @@ const sketch = (saveSession, sesh) => (p) => {
         p.rect(gridInitX+col1X + auxXfx*3 + studioGap*3, gridInitY+auxY+studioGap, auxXfx*4 + studioGap*3,auxY,p.windowHeight/200); //envelope 2
       }
 
-      //filter
-      p.rect(gridInitX+col1X,gridInitY+studioGap*2+auxY*2,auxXfx,auxY,p.windowHeight/200);
+      //petal visualizer
 
-      this.filterKnob.draw(gridInitX+col1X+auxXfx/2,gridInitY+studioGap*2.7+auxY*2+auxY/2);
+      p.push();
+      p.noStroke();
+      p.fill(this.color[0], this.color[1], this.color[2], this.opaLine);
+      p.translate(gridInitX+p.windowWidth/9/2, gridInitY+auxY/2,-p.windowHeight/12);
+      p.scale(p.windowHeight/12 / petalModelSize);
+      p.rotateX(p.PI/2);
+      p.rotateY(this.ang);
+      p.rotateZ(p.sin(this.ang)*p.PI/3);
+      p.model(this.petal);
+      p.pop();
+
+      //boxes labels
+
       p.fill(this.color[0],this.color[1],this.color[2]);
       p.noStroke();
       p.textAlign(p.LEFT,p.TOP);
+      p.textSize(p.windowHeight/60);
+
+      p.text("VOLUME",gridInitX+studioGap*1.2,gridInitY+auxY+studioGap*2);
+      p.fill(this.color[0],this.color[1],this.color[2],this.filterButton.opa);
       p.text("FILTER",gridInitX+col1X+studioGap*1.2,gridInitY+studioGap*2+auxY*2+studioGap);
-      p.text("DISTORTION",gridInitX+col1X+auxXfx+studioGap+studioGap*1.2,gridInitY+studioGap*2+auxY*2,auxXfx+studioGap);
+      p.fill(this.color[0],this.color[1],this.color[2],this.distButton.opa);
+      p.text("DISTORTION",gridInitX+col1X+auxXfx+studioGap+studioGap*1.2,gridInitY+studioGap*2+auxY*2+studioGap);
+      p.fill(this.color[0],this.color[1],this.color[2],this.dlyButton.opa);
       p.text("DELAY",gridInitX+col1X+auxXfx*2+studioGap*2+studioGap*1.2,gridInitY+studioGap*2+auxY*2+studioGap);
+      p.fill(this.color[0],this.color[1],this.color[2],this.revButton.opa);
       p.text("REVERB",gridInitX+col1X+auxXfx*5+studioGap*5+studioGap*1.2,gridInitY+studioGap*2+auxY*2+studioGap);
       
-      
       if (this.name === "DRUMS") {
-        for(let i=0; i<this.drumKnobs.length; i++) p.text(musicTheory.drumLabels[i],gridInitX+col1X+studioGap*1.2+(i*auxXfx)+i*studioGap,gridInitY+studioGap);
+        for(let i=0; i<this.drumKnobs.length; i++) p.text(theory.drumLabels[i],gridInitX+col1X+studioGap*1.2+(i*auxXfx)+i*studioGap,gridInitY+studioGap);
       } else {
+        p.fill(this.color[0],this.color[1],this.color[2],this.osc1Button.opa);
         p.text("OSCILLATOR 1",gridInitX+col1X+studioGap*1.2,gridInitY+studioGap);
+        p.fill(this.color[0],this.color[1],this.color[2],this.osc2Button.opa);
         p.text("OSCILLATOR 2",gridInitX+col1X+studioGap*1.2,gridInitY+auxY+studioGap*2);
+        p.fill(this.color[0],this.color[1],this.color[2],this.env1Button.opa);
         p.text("ENVELOPE 1",gridInitX+col1X+auxXfx*3+studioGap*3+studioGap*1.2,gridInitY+studioGap);
+        p.fill(this.color[0],this.color[1],this.color[2],this.env2Button.opa);
         p.text("ENVELOPE 2",gridInitX+col1X+auxXfx*3+studioGap*3+studioGap*1.2,gridInitY+auxY+studioGap*2);
       }
 
-      //distortion
-      p.rect(gridInitX+col1X+auxXfx+studioGap,gridInitY+studioGap*2+auxY*2,auxXfx,auxY,p.windowHeight/200);
-      this.distKnob.draw(gridInitX+col1X+auxXfx/2+auxXfx+studioGap,gridInitY+studioGap*2.7+auxY*2+auxY/2);
+      //knobs and buttons
 
-      //delay
-      p.rect(gridInitX+col1X+auxXfx*2+studioGap*2,gridInitY+studioGap*2+auxY*2,auxXfx*3+studioGap*2,auxY,p.windowHeight/200);
-      for (let i=0; i<3; i++) this.dlyKnobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+2)+studioGap*(i+2),gridInitY+studioGap*2.7+auxY*2+auxY/2);
+      this.filterKnob.draw(gridInitX+col1X+auxXfx/2,gridInitY+studioGap*2.7+auxY*2+auxY/2,this.filterButton.opa);
+      this.filterButton.draw(gridInitX+col1X+auxXfx-studioGap*2,gridInitY+studioGap*2+auxY*2+studioGap*2);
 
-      //osc1 and env1
-      for (let i=0; i<3; i++) this.osc1Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*0.7+auxY/2);
-      for (let i=0; i<4; i++) this.env1Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+3)+studioGap*(i+3),gridInitY+studioGap*0.7+auxY/2);
+      this.distKnob.draw(gridInitX+col1X+auxXfx/2+auxXfx+studioGap,gridInitY+studioGap*2.7+auxY*2+auxY/2,this.distButton.opa);
+      this.distButton.draw(gridInitX+col1X+auxXfx*2+studioGap-studioGap*2,gridInitY+studioGap*2+auxY*2+studioGap*2);
 
-      //osc2 and env2
-      for (let i=0; i<3; i++) this.osc2Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*1.7+auxY+auxY/2);
-      for (let i=0; i<4; i++) this.env2Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+3)+studioGap*(i+3),gridInitY+studioGap*1.7+auxY+auxY/2);
+      for (let i=0; i<3; i++) this.dlyKnobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+2)+studioGap*(i+2),gridInitY+studioGap*2.7+auxY*2+auxY/2,this.dlyButton.opa);
+      this.dlyButton.draw(gridInitX+col1X+auxXfx*5+studioGap*4-studioGap*2,gridInitY+studioGap*2+auxY*2+studioGap*2);
 
-      //reverb
-      p.rect(gridInitX+col1X+auxXfx*5+studioGap*5,gridInitY+studioGap*2+auxY*2,auxXfx*2+studioGap,auxY,p.windowHeight/200);
-      for (let i=0; i<2; i++) this.revKnobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(3+i+2)+studioGap*(3+i+2),gridInitY+studioGap*2.7+auxY*2+auxY/2);
+      for (let i=0; i<2; i++) this.revKnobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(3+i+2)+studioGap*(3+i+2),gridInitY+studioGap*2.7+auxY*2+auxY/2,this.revButton.opa);
+      this.revButton.draw(gridInitX+col1X+auxXfx*7+studioGap*6-studioGap*2,gridInitY+studioGap*2+auxY*2+studioGap*2);
+
+      if (this.name === "DRUMS") {
+        for(let i=0; i<this.drumKnobs.length; i++) {
+          this.drumKnobs[i][0].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*1.5+auxY/2);
+          this.drumKnobs[i][1].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),studioGap+gridInitY-studioGap+auxY+auxY/2);
+        }
+      } else {
+        for (let i=0; i<3; i++) this.osc1Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*0.7+auxY/2, this.osc1Button.opa);
+        this.osc1Button.draw(gridInitX+col1X+auxXfx*3+studioGap*2-studioGap*2,gridInitY+studioGap*2);
+        for (let i=0; i<4; i++) this.env1Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+3)+studioGap*(i+3),gridInitY+studioGap*0.7+auxY/2, this.env1Button.opa);
+        this.env1Button.draw(gridInitX+col1X+auxXfx*7+studioGap*6-studioGap*2,gridInitY+studioGap*2);
+        for (let i=0; i<3; i++) this.osc2Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*1.7+auxY+auxY/2, this.osc2Button.opa);
+        this.osc2Button.draw(gridInitX+col1X+auxXfx*3+studioGap*2-studioGap*2,gridInitY+studioGap+auxY+studioGap*2);
+        for (let i=0; i<4; i++) this.env2Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+3)+studioGap*(i+3),gridInitY+studioGap*1.7+auxY+auxY/2, this.env2Button.opa);
+        this.env2Button.draw(gridInitX+col1X+auxXfx*7+studioGap*6-studioGap*2,gridInitY+studioGap+auxY+studioGap*2);
+      }
 
       //this.updateSynthValues();
     }
@@ -978,6 +1051,21 @@ const sketch = (saveSession, sesh) => (p) => {
 
 
     draw() {
+
+      //update Synths
+      if (this.name === "MELODY") {
+        synths.melodyOSC1.set(synths.melodyPatchOSC1);
+        
+        if (this.dlyButton.value) {
+          synths.melodyDly.wet.value = this.dlyKnobs[2].value/2;
+        }
+        else {
+          synths.melodyDly.wet.value = 0;
+        }
+
+        console.log(synths.melodyDly.wet.valuek);
+      }
+
       if (session.activeTab.selectedTrack !== null && session.activeTab.selectedTrack !== this) {
         if (this.opaLine - this.opaLineInc < 255/6) this.opaLine = 255/6;
         else this.opaLine -= this.opaLineInc;
@@ -1001,38 +1089,38 @@ const sketch = (saveSession, sesh) => (p) => {
           p.vertex(this.particlesX[i], this.particlesY[i],-p.windowHeight/50*(maxTracks+2));
         }
         p.endShape();
+      }
 
-        p.stroke(255, 0, 0);
+      //p.stroke(255, 0, 0);
 
-        let n = p.noise(0, this.id * 0.3, p.frameCount * 0.002);
-        let y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
-        this.targetXexp[0] = 0;
-        this.targetYexp[0] = p.windowHeight / 2 + y;
+      let n = p.noise(0, this.id * 0.3, p.frameCount * 0.002);
+      let y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
+      this.targetXexp[0] = 0;
+      this.targetYexp[0] = p.windowHeight / 2 + y;
 
-        let index = 1;
+      let index = 1;
 
-        for (let x = gridInitX; x <= gridInitX + (gridStepSizeX * (nSteps-1)); x += gridStepSizeX) {
-          n = p.noise(x * 0.0005, this.id * 0.3, p.frameCount * 0.002);
-          y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
-          this.targetXexp[index] = x;
-          this.targetYexp[index] = p.windowHeight / 2 + y;
-          index++;
-        }
-
-        n = p.noise(p.windowWidth * 0.0005, this.id * 0.3, p.frameCount * 0.002);
+      for (let x = gridInitX; x <= gridInitX + (gridStepSizeX * (nSteps-1)); x += gridStepSizeX) {
+        n = p.noise(x * 0.0005, this.id * 0.3, p.frameCount * 0.002);
         y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
-        this.targetXexp[this.targetXexp.length - 1] = p.windowWidth;
-        this.targetYexp[this.targetXexp.length - 1] = p.windowHeight / 2 + y;
+        this.targetXexp[index] = x;
+        this.targetYexp[index] = p.windowHeight / 2 + y;
+        index++;
+      }
 
-        //for (let i = 0; i<this.targetXexp.length;i++) p.point(this.targetXexp[i], this.targetYexp[i]);
+      n = p.noise(p.windowWidth * 0.0005, this.id * 0.3, p.frameCount * 0.002);
+      y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
+      this.targetXexp[this.targetXexp.length - 1] = p.windowWidth;
+      this.targetYexp[this.targetXexp.length - 1] = p.windowHeight / 2 + y;
 
-        for (let i = 0; i < this.targetXexp.length; i++) {
-          let a = p.createVector(0, -1).angleBetween(p.createVector(this.particlesX[i] - this.targetXexp[i], this.particlesY[i] - this.targetYexp[i]));
-          let d = p.dist(this.particlesX[i], this.particlesY[i], this.targetXexp[i], this.targetYexp[i]);
+      //for (let i = 0; i<this.targetXexp.length;i++) p.point(this.targetXexp[i], this.targetYexp[i]);
 
-          this.particlesX[i] -= p5.Vector.fromAngle(a, d / 15).y;
-          this.particlesY[i] -= p5.Vector.fromAngle(p.PI - a, d / 15).x;
-        }
+      for (let i = 0; i < this.targetXexp.length; i++) {
+        let a = p.createVector(0, -1).angleBetween(p.createVector(this.particlesX[i] - this.targetXexp[i], this.particlesY[i] - this.targetYexp[i]));
+        let d = p.dist(this.particlesX[i], this.particlesY[i], this.targetXexp[i], this.targetYexp[i]);
+
+        this.particlesX[i] -= p5.Vector.fromAngle(a, d / 15).y;
+        this.particlesY[i] -= p5.Vector.fromAngle(p.PI - a, d / 15).x;
       }
 
       //update icon position
@@ -1057,11 +1145,11 @@ const sketch = (saveSession, sesh) => (p) => {
       p.fill(this.color[0], this.color[1], this.color[2], this.opaLine);
       p.push();
       p.translate(this.iconX + iconSize / 2, p.windowHeight - marginX -p.windowHeight / 40 - p.windowHeight/30,-p.windowHeight/30);
-      p.scale(p.windowHeight/30 / petalModelSize1);
+      p.scale(p.windowHeight/30 / petalModelSize);
       p.rotateX(p.PI/2);
       p.rotateY(this.ang);
       p.rotateZ(p.sin(this.ang)*p.PI/3);
-      p.model(petal1);
+      p.model(this.petal);
       p.pop();
 
       //hover and track select
@@ -1117,7 +1205,7 @@ const sketch = (saveSession, sesh) => (p) => {
       this.hover = false;
       this.dragging = false;
 
-      //this.pitch = musicTheory.freqs[p.floor(p.random(0, musicTheory.freqs.length))]*8;
+      //this.pitch = theory.freqs[p.floor(p.random(0, theory.freqs.length))]*8;
       this.pitch = pitch;
 
       this.color = color;
@@ -1150,7 +1238,7 @@ const sketch = (saveSession, sesh) => (p) => {
       this.animOpa = 255;
       this.animR = this.size;
       //synth.triggerAttackRelease("C3", "16n");
-      synths.melody.triggerAttackRelease(musicTheory.freqs[this.pitch]*p.pow(2,this.octave), session.activeTab.timeBtwSteps);
+      //synths.melody.triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave), session.activeTab.timeBtwSteps);
     }
 
     playShort() {
@@ -1158,7 +1246,7 @@ const sketch = (saveSession, sesh) => (p) => {
       this.animOpa = 255;
       this.animR = this.size;
       //synth.triggerAttackRelease("C3", "16n");
-      synths.melody.triggerAttackRelease(musicTheory.freqs[this.pitch]*p.pow(2,this.octave), "16n");
+      //synths.melody.triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave), "16n");
     }
 
     showInfo() {
@@ -1171,7 +1259,7 @@ const sketch = (saveSession, sesh) => (p) => {
         p.textAlign(p.LEFT, p.CENTER);
         p.textSize(p.windowHeight / 40);
         p.textFont(fontMedium);
-        p.text(musicTheory.noteLabels[this.pitch] + this.octave, this.x+gridStepSizeX, this.y-gridStepSizeX*1.2);
+        p.text(theory.noteLabels[this.pitch] + this.octave, this.x+gridStepSizeX, this.y-gridStepSizeX*1.2);
         p.textFont(fontLight);
         p.textSize(p.windowHeight / 65);
         if (this.duration === 1) p.text("STEP "+(this.start+1), this.x+gridStepSizeX, this.y-gridStepSizeX*1.2-p.windowHeight / 50);
@@ -1182,7 +1270,7 @@ const sketch = (saveSession, sesh) => (p) => {
         p.textAlign(p.RIGHT, p.CENTER);
         p.textSize(p.windowHeight / 40);
         p.textFont(fontMedium);
-        p.text(musicTheory.noteLabels[this.pitch] + this.octave, this.x-gridStepSizeX, this.y-gridStepSizeX*1.2);
+        p.text(theory.noteLabels[this.pitch] + this.octave, this.x-gridStepSizeX, this.y-gridStepSizeX*1.2);
         p.textFont(fontLight);
         p.textSize(p.windowHeight / 65);
         if (this.duration === 1) p.text("STEP "+(this.start+1), this.x-gridStepSizeX, this.y-gridStepSizeX*1.2-p.windowHeight / 50);
@@ -1291,10 +1379,10 @@ const sketch = (saveSession, sesh) => (p) => {
       p.push();
       if (session.activeTab.selectedTrack === session.activeTab.tracks[this.trackId]) p.translate(this.x,this.y,p.windowHeight/60);
       else p.translate(this.x,this.y,-p.windowHeight/60*(session.activeTab.tracks[this.trackId].id+1));
-      p.scale(p.windowHeight/60 / petalModelSize1);
+      p.scale(p.windowHeight/60 / petalModelSize);
       p.rotateX(this.ang);
       p.rotateY(this.ang);
-      p.model(petal1);
+      p.model(session.activeTab.tracks[this.trackId].petal);
       p.pop();
 
       p.noFill();
@@ -1423,7 +1511,7 @@ const sketch = (saveSession, sesh) => (p) => {
   }
 
   class Knob {
-    constructor(label,value) {
+    constructor(label,value,options) {
       this.label = label;
       
       this.radius = p.windowHeight / 15;
@@ -1431,17 +1519,21 @@ const sketch = (saveSession, sesh) => (p) => {
       this.value = value;
       this.tempValue = value;
 
+      this.options = options;
+
       this.automation = [];
 
       this.hover = false;
       this.dragging = false;
+
+      this.output = value;
     }
 
-    draw(x,y) {
+    draw(x,y,opa) {
 
       this.radius = p.windowHeight / 15;
 
-      p.fill(255,255,255);
+      p.fill(255,255,255,opa);
       p.noStroke();
       p.textSize(p.windowHeight/65);
       p.textAlign(p.CENTER,p.BOTTOM);
@@ -1451,7 +1543,7 @@ const sketch = (saveSession, sesh) => (p) => {
       p.text(this.value,x,y+this.radius/1.7);
 
       p.noFill();
-      p.stroke(255, 255, 255);
+      p.stroke(255, 255, 255,opa);
       p.strokeWeight(1);
       p.push();
       p.translate(x,y);
@@ -1492,9 +1584,53 @@ const sketch = (saveSession, sesh) => (p) => {
           let d = p.dist(x,p.mouseY,x,y-this.radius/2);
           this.value = p.round(this.tempValue + 0.05*p.round(d/(p.windowHeight/100)),2);
         }
-        if (this.value > 1) this.value = 1;
-        if (this.value < 0) this.value = 0;
+        if (this.options !== null) {
+        } else {
+          if (this.value > 1) this.value = 1;
+          if (this.value < 0) this.value = 0;
+        }
       }
+    }
+  }
+
+  //on/off button
+  class Button {
+    constructor(value,color) {
+      this.value = value;
+      this.color = color;
+      this.radius = p.windowWidth / 100;
+
+      this.hover = false;
+
+      if (value) this.opa = 255;
+      else this.opa = 255/2;
+    }
+
+    draw(x,y) {
+      this.radius = p.windowWidth / 100;
+
+      if (this.value) this.opa = 255;
+      else this.opa = 255/2;
+
+      p.noFill();
+      p.stroke(255, 255, 255,this.opa);
+      p.circle(x, y, this.radius);
+      if (this.value) {
+        p.noStroke();
+        p.fill(this.color[0], this.color[1], this.color[2],this.opa);
+        p.circle(x, y, this.radius/1.8);
+      }
+
+      if (p.mouseX > x -this.radius/2 && p.mouseX < x+this.radius/2 && p.mouseY > y -this.radius/2 && p.mouseY < y +this.radius/2  && dragging === false) {
+        document.body.style.cursor = 'pointer';
+
+        this.hover = true;
+
+        if (p.mouseIsPressed) {
+          this.value = !this.value;
+          p.mouseIsPressed = false;
+        }
+      } else this.hover = false;
     }
   }
 
@@ -1571,7 +1707,7 @@ const sketch = (saveSession, sesh) => (p) => {
     // Set up orthographic projection
     p.ortho(-p.windowWidth / 2, p.windowWidth / 2, -p.windowHeight / 2, p.windowHeight / 2, 0, 1000);
 
-    petalModelSize1 = calculateBoundingBox(petal1).width;
+    petalModelSize = calculateBoundingBox(petal1).width;
     //p.lightFalloff(40,0,0);
     //p.spotLight(255, 255, 255, p.mouseX-p.windowWidth/2, p.mouseY-p.windowHeight/2, 10, 0, 0, -1); // Set spot light color, position, and direction
     //p.pointLight(255, 255, 255, p.mouseX-p.windowWidth/2, p.mouseY-p.windowHeight/2, 2);
@@ -1612,10 +1748,10 @@ const sketch = (saveSession, sesh) => (p) => {
     }
 
     if (inputNotes.length < maxInputNotes) {
-      let input = musicTheory.keysToFreq(p.key.toUpperCase());
+      let input = theory.keysToFreq(p.key.toUpperCase());
       if (input !== -1 && inputNotes.indexOf(input*p.pow(2,currentOctave)) === -1) {
         inputNotes.push(input*p.pow(2,currentOctave));
-        synths.melody.triggerAttack(input*p.pow(2,currentOctave));
+        if (session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack.playInputNote(input*p.pow(2,currentOctave));
       }
     }
   }
@@ -1625,12 +1761,12 @@ const sketch = (saveSession, sesh) => (p) => {
     if (p.key.toUpperCase() === 'Z') if (currentOctave > minOctave) currentOctave--;
     if (p.key.toUpperCase() === 'X') if (currentOctave < maxOctave) currentOctave++;
 
-    let input = musicTheory.keysToFreq(p.key.toUpperCase());
+    let input = theory.keysToFreq(p.key.toUpperCase());
     if (input !== -1) {
       let index = inputNotes.indexOf(input*p.pow(2,currentOctave));
       if (index !== -1) {
         inputNotes.splice(index, 1);
-        synths.melody.triggerRelease(input*p.pow(2,currentOctave));
+        if (session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack.releaseInputNote(input*p.pow(2,currentOctave));
       }
     }
   }

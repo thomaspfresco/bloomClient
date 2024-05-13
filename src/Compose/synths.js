@@ -4,34 +4,47 @@ import * as Tone from 'tone';
 // MELODY
 // ---------------------------------------------------------------
 
+let melodyPatchOSC1 = {
+    oscillator: {
+        type: "square"
+    },
+    envelope: {
+        attack: 1,
+        decay: 0.2,
+        sustain: 1,
+        release: 0
+    }
+};
+
+const melodyOSC1 = new Tone.PolySynth(Tone.Synth,8);
+//const melodyNoise1 = new Tone.PolySynth();
+const melodyOSC2 = new Tone.PolySynth(Tone.Synth,8);
+//const melodyNoise2 = new Tone.PolySynth();
+
+let melodyFilter = new Tone.Filter();
 let melodyDist = new Tone.Distortion({
     distortion: 0.5,
     wet: 0
 });
-
 let melodyDly = new Tone.PingPongDelay({
     delayTime: "4n",
-    feedback: 0.5,
-    wet: 0.1
+    wet: 0.2
 });
-
 let melodyRev = new Tone.Reverb({
-    decay: 5,
-    wet: 0.7,
-}).toDestination();
-
-let melodyVol = new Tone.Volume({
-    volume: -6
+    decay: 4,
+    wet: 0
 });
-
-let melodyFilter = new Tone.Filter({
-    frequency: 0, 
-    type: "highpass",
-});
-
 let melodyMeter = new Tone.Meter();
 
-let melody = new Tone.PolySynth(Tone.Synth).chain(melodyVol, melodyFilter, melodyDist, melodyDly, melodyRev,  melodyMeter, Tone.Destination);
+const melodyVol = new Tone.PanVol().chain(melodyFilter, melodyDist, melodyDly, melodyRev, melodyMeter, Tone.Destination);
+
+melodyOSC1.connect(melodyVol);
+//melodyNoise1.connect(melodyVol);
+melodyOSC2.connect(melodyVol);
+//melodyNoise2.connect(melodyVol);
+
+
+/*let melody = new Tone.PolySynth(Tone.Synth).chain(melodyVol, melodyFilter, melodyDist, melodyDly, melodyRev,  melodyMeter, Tone.Destination);
 
 let bass = new Tone.Synth();
 let bassDist = new Tone.Distortion(0.5);
@@ -51,8 +64,8 @@ let harmonyRev = new Tone.Reverb(0.5);
 harmony.connect(harmonyDist);
 harmonyDist.connect(harmonyDly);
 harmonyDly.connect(harmonyRev);
-harmonyRev.toDestination();
+harmonyRev.toDestination();*/
 
-let synths = { melody, melodyDist, melodyDly, melodyRev, melodyVol, melodyFilter, melodyMeter};
+let synths = { melodyPatchOSC1, melodyOSC1, melodyOSC2, melodyFilter, melodyDist, melodyDly, melodyRev, melodyMeter, melodyVol};
 
 export default synths;
