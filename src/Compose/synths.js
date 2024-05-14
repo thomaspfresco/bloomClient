@@ -11,67 +11,25 @@ import crashAcoustic from '../Assets/audioSamples/crash_acoustic.wav';
 // MELODY
 // ---------------------------------------------------------------
 
-let melodyPatchOSC1 = {
-    oscillator: {
-        type: "square"
-    },
-    envelope: {
-        attack: 1,
-        decay: 0.2,
-        sustain: 1,
-        release: 0
-    }
-};
+const melodyOSC1 = new Tone.PolySynth(Tone.Synth);
+const melodyOSC2 = new Tone.PolySynth(Tone.Synth);
 
-const melodyOSC1 = new Tone.PolySynth(Tone.Synth,8);
-//const melodyNoise1 = new Tone.PolySynth();
-const melodyOSC2 = new Tone.PolySynth(Tone.Synth,8);
-//const melodyNoise2 = new Tone.PolySynth();
+const melodyFilter = new Tone.EQ3();
+const melodyDist = new Tone.Distortion();
+const melodyDly = new Tone.PingPongDelay();
+const melodyRev = new Tone.Reverb();
+const melodySplitter = new Tone.Split();
+const melodyLeft = new Tone.Meter();
+const melodyRight = new Tone.Meter();
 
-let melodyFilter = new Tone.Filter();
-let melodyDist = new Tone.Distortion({
-    distortion: 0.5,
-    wet: 0
-});
-let melodyDly = new Tone.PingPongDelay({
-    delayTime: "4n",
-    wet: 0.2
-});
-let melodyRev = new Tone.Reverb({
-    decay: 4,
-    wet: 0
-});
-let melodyMeter = new Tone.Meter();
+const melodyGain = new Tone.Gain().chain(melodyFilter, melodyDist, melodyDly, melodyRev, melodySplitter);
 
-const melodyVol = new Tone.PanVol().chain(melodyFilter, melodyDist, melodyDly, melodyRev, melodyMeter, Tone.Destination);
-
-melodyOSC1.connect(melodyVol);
-//melodyNoise1.connect(melodyVol);
-melodyOSC2.connect(melodyVol);
-//melodyNoise2.connect(melodyVol);
-
-
-/*let melody = new Tone.PolySynth(Tone.Synth).chain(melodyVol, melodyFilter, melodyDist, melodyDly, melodyRev,  melodyMeter, Tone.Destination);
-
-let bass = new Tone.Synth();
-let bassDist = new Tone.Distortion(0.5);
-let bassDly = new Tone.FeedbackDelay("4n", 0.5);
-let bassRev = new Tone.Reverb(0.5);
-
-bass.connect(bassDist);
-bassDist.connect(bassDly);
-bassDly.connect(bassRev);
-bassRev.toDestination();
-
-let harmony = new Tone.Synth();
-let harmonyDist = new Tone.Distortion(0.5);
-let harmonyDly = new Tone.FeedbackDelay("4n", 0.5);
-let harmonyRev = new Tone.Reverb(0.5);
-
-harmony.connect(harmonyDist);
-harmonyDist.connect(harmonyDly);
-harmonyDly.connect(harmonyRev);
-harmonyRev.toDestination();*/
+melodyOSC1.connect(melodyGain);
+melodyOSC2.connect(melodyGain);
+melodySplitter.connect(melodyLeft, 0, 0);
+melodySplitter.connect(melodyRight, 1, 0);
+melodyLeft.connect(new Tone.Panner(-1).connect(Tone.Destination));
+melodyRight.connect(new Tone.Panner(1).connect(Tone.Destination));
 
 // ---------------------------------------------------------------
 // DRUMS
@@ -107,7 +65,7 @@ for (let i = 0; i < 7; i++) {
 // EXPORT
 // ---------------------------------------------------------------
 
-let synths = { melodyPatchOSC1, melodyOSC1, melodyOSC2, melodyFilter, melodyDist, melodyDly, melodyRev, melodyMeter, melodyVol,
+let synths = { melodyOSC1, melodyOSC2, melodyFilter, melodyDist, melodyDly, melodyRev, melodyLeft, melodyRight, melodyGain,
                drumSynth, drumFilter, drumDist, drumDly, drumRev, drumMeter, drumVol};
 
 export default synths;
