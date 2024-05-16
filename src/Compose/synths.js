@@ -8,6 +8,44 @@ import highTomAcoustic from '../Assets/audioSamples/highTom_acoustic.wav';
 import crashAcoustic from '../Assets/audioSamples/crash_acoustic.wav';
 
 // ---------------------------------------------------------------
+// EXPORT
+// ---------------------------------------------------------------
+
+const context  = Tone.context;
+const renderDest  = context.createMediaStreamDestination();
+const renderer = new MediaRecorder(renderDest.stream);
+const chunks = [];
+
+function exportLoopAudio(loop) {
+    let step = 0;
+
+    Tone.Transport.scheduleRepeat(time => {
+        if (step === 0) renderer.start();
+        
+        if (step > nSteps) {
+          //synth.triggerRelease(time);
+          renderer.stop();
+          Tone.Transport.stop();
+        
+        } else {
+            synth.triggerAttack(notes[note], time);
+        }
+        
+        step++;
+      }, loop.timeBtwSteps);
+
+   /* for (let i = 0; i < loop.tracks.length; i++) {
+        loop.tracks[i].time;
+    }*/
+
+    renderer.ondataavailable = (event) => chuncks.push(event.data);
+    renderer.onstop = (event) => {
+        let blob = new Blob(chuncks, {type: 'audio/ogg; codecs=opus'});
+        audio.src = URL.createObjectURL(blob);
+    }
+}
+
+// ---------------------------------------------------------------
 // MELODY
 // ---------------------------------------------------------------
 

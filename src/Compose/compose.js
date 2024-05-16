@@ -2,6 +2,9 @@
 Tom Holloway. "Flow Fields and Noise Algorithms with P5.js". 2020.
 https://dev.to/nyxtom/flow-fields-and-noise-algorithms-with-p5-js-5g67
 (acedido em 12/11/2023)
+
+“Wandering in Space” by aceron: http://openprocessing.org/sketch/933943
+License CreativeCommons Attribution: https://creativecommons.org/licenses/by-sa/3.0
 */
 
 import obliqueStratagies from "../obliqueStratagies.js";
@@ -39,7 +42,7 @@ let currentOctave = 3;
 let minOctave = 1;
 let maxOctave = 7;
 
-let nSteps = 64;
+let nSteps = 8;
 
 let gridStepSizeX;
 let gridStepSizeY;
@@ -55,6 +58,10 @@ let petalModelSize = 0;
 var particles = new Array(50);
 var totalFrames = 300;
 let counter = 0;
+
+let petalParticles = new Array(500);
+let diagonal;
+let rotation = 0;
 
 let previewOpa = 0;
 let drawerOpa = 0;
@@ -123,6 +130,40 @@ const sketch = (saveSession, sesh) => (p) => {
     }
   }
 
+  //petals in begining
+  class PetalParticle {
+    n;r;o;l;ang;angInc;color;
+    constructor() {
+        this.l = 1;
+        this.n = p.random(1, p.windowWidth / 2);
+        this.r = p.random(0, p.TWO_PI);
+        this.o = p.random(1, p.random(1, p.windowWidth / this.n));
+        this.ang = p.random(0, p.TWO_PI);
+        this.angInc = p.random(0.005, 0.05);
+        this.color = [p.random(0, 255), p.random(0, 255), p.random(0, 255)];
+    }
+
+    draw() {
+        this.l++;
+        p.push();
+        p.rotate(this.r);
+        p.translate(this.drawDist()+p.windowHeight/50*p.sin(this.ang/4), p.windowHeight/50*p.sin(this.ang/2),-p.windowWidth / this.o / 5);
+        p.fill(this.color[0],this.color[1],this.color[2],p.min(this.l, 255));
+        p.scale(p.windowWidth / this.o / 10 / petalModelSize);
+        p.rotateX(this.ang);
+        p.rotateY(this.ang);
+        p.model(petal1);
+        //p.ellipse(0, 0, p.windowWidth / this.o / 50, p.windowWidth / this.o / 50);
+        p.pop();
+        this.o -= 0.015;
+        this.ang += this.angInc;
+    }
+
+    drawDist() {
+        return (p.atan(this.n / this.o) * p.windowWidth) / p.HALF_PI;
+    }
+  }
+
   function initLoadedSesh() {
     session = new Session();
     for (let i = 0; i < sesh.loops.length; i++) {
@@ -185,11 +226,27 @@ const sketch = (saveSession, sesh) => (p) => {
       this.drawersOpaMax = 255;
     }
 
+    drawPetalParticles() {
+      p.push();
+      p.translate(p.windowWidth / 2, p.windowHeight / 2);
+      rotation -= 0.001;
+      p.rotate(rotation);
+      
+      for (let i = 0; i < petalParticles.length; i++) {
+        petalParticles[i].draw();
+          if (petalParticles[i].drawDist() > diagonal) {
+            petalParticles[i] = new PetalParticle();
+          }
+      }
+      p.pop();
+    }
+
     draw() {
       this.drawersOffsetInc = p.windowWidth / 500;
 
       //draw sugestions oblique stratagies
       if (this.activeTab === null) {
+        this.drawPetalParticles();
         this.showSuggestions();
       }
       else this.activeTab.draw();
@@ -1817,6 +1874,8 @@ const sketch = (saveSession, sesh) => (p) => {
     //}
 
     for (let i = 0; i < particles.length; i++) particles[i] = new Particle();
+    for (let i = 0; i < petalParticles.length; i++) petalParticles[i] = new PetalParticle();
+    diagonal = p.sqrt(p.windowWidth * p.windowWidth + p.windowHeight * p.windowHeight) / 2;
   }
 
   // --------------------------------------------------------------------------------------

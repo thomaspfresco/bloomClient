@@ -119,6 +119,7 @@ function Compose() {
 
   return (
     <div className="canvas">
+       <audio controls></audio>
       {loading ? <Loading /> : null}
       <div ref={p5ContainerRef}></div> {}
     </div>
