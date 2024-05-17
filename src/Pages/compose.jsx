@@ -49,6 +49,7 @@ function Compose() {
     }
   };
 
+
   const loadSession = async () => {
     setLoading(true); 
     try {
@@ -89,7 +90,7 @@ function Compose() {
   useEffect(() => {
     loadSession().then((sesh) => {
       if (!loading && !p5InstanceRef.current) {
-        p5InstanceRef.current = new p5(sketch(saveSession,sesh), p5ContainerRef.current);
+        p5InstanceRef.current = new p5(sketch(saveSession,sesh,setLoading), p5ContainerRef.current);
       }
     }).catch((error) => {
       console.error('Error:', error);
@@ -119,7 +120,7 @@ function Compose() {
 
   return (
     <div className="canvas">
-       <audio controls></audio>
+       <a id="export"></a>
       {loading ? <Loading /> : null}
       <div ref={p5ContainerRef}></div> {}
     </div>

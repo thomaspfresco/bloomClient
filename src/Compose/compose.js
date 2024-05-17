@@ -1,4 +1,4 @@
-/* BASED ON:
+/* BASED ON
 Tom Holloway. "Flow Fields and Noise Algorithms with P5.js". 2020.
 https://dev.to/nyxtom/flow-fields-and-noise-algorithms-with-p5-js-5g67
 (acedido em 12/11/2023)
@@ -28,6 +28,8 @@ import petalOBJ3 from '../Assets/petal3.obj';
 import petalOBJ4 from '../Assets/petal4.obj';
 
 import synths from './synths.js';
+
+import * as Tone from 'tone';
 import p5 from 'p5';
 
 let fontLight, fontMedium, fontBold;
@@ -42,7 +44,7 @@ let currentOctave = 3;
 let minOctave = 1;
 let maxOctave = 7;
 
-let nSteps = 8;
+let nSteps = 64;
 
 let gridStepSizeX;
 let gridStepSizeY;
@@ -59,7 +61,7 @@ var particles = new Array(50);
 var totalFrames = 300;
 let counter = 0;
 
-let petalParticles = new Array(500);
+let petalParticles = new Array(250);
 let diagonal;
 let rotation = 0;
 
@@ -86,7 +88,7 @@ let session;
 
 // --------------------------------------------------------------------------------------
 
-const sketch = (saveSession, sesh) => (p) => {
+const sketch = (saveSession, sesh, setLoading) => (p) => {
 
   //PARTICLES--------------------------------------------------------------------------------------
 
@@ -199,6 +201,12 @@ const sketch = (saveSession, sesh) => (p) => {
       this.tabsX = [];
       this.tabsTargetX = [];
 
+      this.logMessage = "";
+      this.logOpa = 0;
+      this.logInstant = 0;
+      this.logDelay = 5000;
+      this.showLog = false;
+
       for (let i = 0; i < this.maxTabs; i++) {
         this.tabsX.push(p.windowWidth / 2);
         this.tabsTargetX.push(p.windowWidth / 2);
@@ -224,6 +232,28 @@ const sketch = (saveSession, sesh) => (p) => {
       this.structsOpa = 0;
       this.drawersOpaInc = 15;
       this.drawersOpaMax = 255;
+    }
+
+    drawLog() {
+      if (this.showLog) {
+        //reset log timer
+        if (this.logOpa === 0) this.logInstant = p.millis();
+
+        if (this.logOpa + 10 > 255/2) this.logOpa = 255/2;
+        else this.logOpa += 10;
+      } else {
+        if (this.logOpa - 10 < 0) this.logOpa = 0;
+        else this.logOpa -= 10;
+      }
+
+      p.fill(255, 255, 255, this.logOpa);
+      p.noStroke();
+      p.textAlign(p.RIGHT, p.TOP);
+      p.textSize(p.windowHeight / 50);
+      p.textFont(fontLight);
+      p.text(this.logMessage, p.windowWidth - iconSize, p.windowHeight / 30);
+
+      if (p.millis() - this.logInstant > this.logDelay) this.showLog = false;
     }
 
     drawPetalParticles() {
@@ -406,6 +436,8 @@ const sketch = (saveSession, sesh) => (p) => {
                 if (p.mouseIsPressed) {
                   this.manageTabs(this.loops[i]);
                   this.activeTab.active = true;
+                  //synths.exportLoopAudio(this.loops[i],nSteps,setLoading);
+                  //setLoading(true);
                   
                   //reset loops position
                   for (let j = 0; j < this.loops[i].tracks.length; j++) {
@@ -451,6 +483,9 @@ const sketch = (saveSession, sesh) => (p) => {
         if (this.structsOpa - this.drawersOpaInc < 0) this.structsOpa = 0;
         else this.structsOpa -= this.drawersOpaInc;
       }
+
+      //draw log
+      this.drawLog();
     }
 
     //manage tabs
@@ -849,9 +884,9 @@ const sketch = (saveSession, sesh) => (p) => {
 
       //fx buttons
       this.filterButton = new Button(true,this.color);
-      this.distButton = new Button(true,this.color);
-      this.dlyButton = new Button(true,this.color);
-      this.revButton = new Button(true,this.color);
+      this.distButton = new Button(false,this.color);
+      this.dlyButton = new Button(false,this.color);
+      this.revButton = new Button(false,this.color);
 
       if (this.name === "BASS") this.petal = petal1;
       if (this.name === "MELODY") {
@@ -919,7 +954,7 @@ const sketch = (saveSession, sesh) => (p) => {
 
     playInputNote(input) {
       if (this.name === "DRUMS") {
-        this.synth[input].start();
+        this.synth[input].start(Tone.context.currentTime);
 
         //stop open hat when closed hat is triggered
         if (input === 2) this.synth[3].stop();
@@ -927,8 +962,8 @@ const sketch = (saveSession, sesh) => (p) => {
         if (this.osc1Knobs[0].output === "WHITE" || this.osc1Knobs[0].output === "BROWN" || this.osc1Knobs[0].output === "PINK") {
           synths.melodyNoise1.triggerAttack();
         } else {
-          synths.melodyOSC1.triggerAttack(theory.freqs[input]*p.pow(2,currentOctave));
-          synths.melodyOSC2.triggerAttack(theory.freqs[input]*p.pow(2,currentOctave));
+          synths.melodyOSC1.triggerAttack(theory.freqs[input]*p.pow(2,currentOctave),Tone.context.currentTime);
+          synths.melodyOSC2.triggerAttack(theory.freqs[input]*p.pow(2,currentOctave),Tone.context.currentTime);
         }
         //console.log(synths.melodyOSC1._voices);
         //synths.melodyNoise1.triggerAttack();
@@ -937,9 +972,9 @@ const sketch = (saveSession, sesh) => (p) => {
 
     releaseInputNote(input) {
       if (this.name !== "DRUMS") {
-        synths.melodyOSC1.triggerRelease(theory.freqs[input]*p.pow(2,currentOctave));
+        synths.melodyOSC1.triggerRelease(theory.freqs[input]*p.pow(2,currentOctave),Tone.context.currentTime);
         //synths.melodyNoise1.triggerRelease();
-        synths.melodyOSC2.triggerRelease(theory.freqs[input]*p.pow(2,currentOctave));
+        synths.melodyOSC2.triggerRelease(theory.freqs[input]*p.pow(2,currentOctave),Tone.context.currentTime);
       }
     }
 
@@ -1866,6 +1901,9 @@ const sketch = (saveSession, sesh) => (p) => {
         session.loops[i].tracks[0].timeline[start][pitch] = new Note(pitch, session.loops[i].id, 0, start, duration, session.loops[i].tracks[0].color);
       }
     }
+
+    //ref session to synth.js
+    synths.setSession(session);
 
     //console.log(session);
 
