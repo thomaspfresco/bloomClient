@@ -204,7 +204,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.logMessage = "";
       this.logOpa = 0;
       this.logInstant = 0;
-      this.logDelay = 5000;
+      this.logDelay = 3000;
       this.showLog = false;
 
       for (let i = 0; i < this.maxTabs; i++) {
@@ -890,10 +890,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       if (this.name === "BASS") this.petal = petal1;
       if (this.name === "MELODY") {
-        this.synth = [];
         this.petal = petal3;
-        this.synth.push(synths.melodyOSC1);
-        this.synth.push(synths.melodyOSC2);
+        this.synth = synths.melody;
       }
       if (this.name === "HARMONY") this.petal = petal4;
 
@@ -908,15 +906,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           this.drumButtons.push(new Button(true,this.color));
         }      
       } else {
-        this.osc1Knobs = [new Knob("WAVE", 0, theory.waveTypes, ""),new Knob("PITCH",0.50, theory.pitchValues,"st"),new Knob("VOLUME",0.50,theory.defaultValues,"")];
-        this.env1Knobs = [new Knob("ATTACK",0,theory.timeValues,"s"),new Knob("DECAY",0.50,theory.timeValues,"s"),new Knob("SUSTAIN",0.50,theory.defaultValues,""),new Knob("RELEASE",0,theory.timeValues,"s")];
-        this.osc2Knobs = [new Knob("WAVE", 0, theory.waveTypes, ""),new Knob("PITCH",0.50, theory.pitchValues,"st"),new Knob("VOLUME",0.50,theory.defaultValues,"")];
-        this.env2Knobs = [new Knob("ATTACK",0,theory.timeValues,"s"),new Knob("DECAY",0.50,theory.timeValues,"s"),new Knob("SUSTAIN",0.50,theory.defaultValues,""),new Knob("RELEASE",0,theory.timeValues,"s")];
-
-        this.osc1Button = new Button(true,this.color);
-        this.env1Button = new Button(true,this.color);
-        this.osc2Button = new Button(true,this.color);
-        this.env2Button = new Button(true,this.color);
+        this.oscKnobs = [[new Knob("WAVE", 0, theory.waveTypes, ""),new Knob("PITCH",0.50, theory.pitchValues,"st"),new Knob("VOLUME",0.50,theory.defaultValues,"")],[new Knob("WAVE", 0, theory.waveTypes, ""),new Knob("PITCH",0.50, theory.pitchValues,"st"),new Knob("VOLUME",0.50,theory.defaultValues,"")]];
+        this.envKnobs = [[new Knob("ATTACK",0,theory.timeValues,"s"),new Knob("DECAY",0.50,theory.timeValues,"s"),new Knob("SUSTAIN",0.50,theory.defaultValues,""),new Knob("RELEASE",0,theory.timeValues,"s")],[new Knob("ATTACK",0,theory.timeValues,"s"),new Knob("DECAY",0.50,theory.timeValues,"s"),new Knob("SUSTAIN",0.50,theory.defaultValues,""),new Knob("RELEASE",0,theory.timeValues,"s")]];
+        this.oscButtons = [new Button(true,this.color),new Button(true,this.color)];
+        this.envButtons = [new Button(true,this.color),new Button(true,this.color)];
       }
 
       this.particlesX = [];
@@ -959,22 +952,17 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         //stop open hat when closed hat is triggered
         if (input === 2) this.synth[3].stop();
       } else {
-        if (this.osc1Knobs[0].output === "WHITE" || this.osc1Knobs[0].output === "BROWN" || this.osc1Knobs[0].output === "PINK") {
-          synths.melodyNoise1.triggerAttack();
-        } else {
-          synths.melodyOSC1.triggerAttack(theory.freqs[input]*p.pow(2,currentOctave),Tone.context.currentTime);
-          synths.melodyOSC2.triggerAttack(theory.freqs[input]*p.pow(2,currentOctave),Tone.context.currentTime);
+        for (let osc in this.synth.oscillators) {
+          this.synth.oscillators[osc].triggerAttack(theory.freqs[input]*p.pow(2,currentOctave),Tone.context.currentTime);
         }
-        //console.log(synths.melodyOSC1._voices);
-        //synths.melodyNoise1.triggerAttack();
       }
     }
 
     releaseInputNote(input) {
       if (this.name !== "DRUMS") {
-        synths.melodyOSC1.triggerRelease(theory.freqs[input]*p.pow(2,currentOctave),Tone.context.currentTime);
-        //synths.melodyNoise1.triggerRelease();
-        synths.melodyOSC2.triggerRelease(theory.freqs[input]*p.pow(2,currentOctave),Tone.context.currentTime);
+        for (let osc in this.synth.oscillators) {
+          this.synth.oscillators[osc].triggerRelease(theory.freqs[input]*p.pow(2,currentOctave),Tone.context.currentTime);
+        }
       }
     }
 
@@ -998,9 +986,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       let barLeftHeight = 0;
       let barRightHeight = 0;
-      let dbs = [-Infinity,-Infinity];
-      if (this.name === "MELODY") dbs = [synths.melodyLeft.getValue(),synths.melodyRight.getValue()];
-      //if (this.name === "DRUMS") dbs = [synths.melodyLeft.getValue(),synths.melodyRight.getValue()];
+      let dbs = [this.synth.fxChain.left.getValue(),this.synth.fxChain.right.getValue()];
       if (dbs[0] < -60) dbs[0] = -60;
       if (dbs[1] < -60) dbs[1] = -60;
       
@@ -1072,13 +1058,13 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (this.name === "DRUMS") {
         for(let i=0; i<this.drumKnobs.length; i++) p.text(theory.drumLabels[i],gridInitX+col1X+studioGap*1.2+(i*auxXfx)+i*studioGap,gridInitY+studioGap);
       } else {
-        p.fill(this.color[0],this.color[1],this.color[2],this.osc1Button.opa);
+        p.fill(this.color[0],this.color[1],this.color[2],this.oscButtons[0].opa);
         p.text("OSCILLATOR 1",gridInitX+col1X+studioGap*1.2,gridInitY+studioGap);
-        p.fill(this.color[0],this.color[1],this.color[2],this.osc2Button.opa);
+        p.fill(this.color[0],this.color[1],this.color[2],this.oscButtons[1].opa);
         p.text("OSCILLATOR 2",gridInitX+col1X+studioGap*1.2,gridInitY+auxY+studioGap*2);
-        p.fill(this.color[0],this.color[1],this.color[2],this.env1Button.opa);
+        p.fill(this.color[0],this.color[1],this.color[2],this.envButtons[0].opa);
         p.text("ENVELOPE 1",gridInitX+col1X+auxXfx*3+studioGap*3+studioGap*1.2,gridInitY+studioGap);
-        p.fill(this.color[0],this.color[1],this.color[2],this.env2Button.opa);
+        p.fill(this.color[0],this.color[1],this.color[2],this.envButtons[1].opa);
         p.text("ENVELOPE 2",gridInitX+col1X+auxXfx*3+studioGap*3+studioGap*1.2,gridInitY+auxY+studioGap*2);
       }
 
@@ -1105,14 +1091,14 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           p.rect(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+auxY*2-studioGap*2);
         }
       } else {
-        for (let i=0; i<3; i++) this.osc1Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*0.7+auxY/2, this.osc1Button.opa);
-        this.osc1Button.draw(gridInitX+col1X+auxXfx*3+studioGap*2-studioGap*2,gridInitY+studioGap*2);
-        for (let i=0; i<4; i++) this.env1Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+3)+studioGap*(i+3),gridInitY+studioGap*0.7+auxY/2, this.env1Button.opa);
-        this.env1Button.draw(gridInitX+col1X+auxXfx*7+studioGap*6-studioGap*2,gridInitY+studioGap*2);
-        for (let i=0; i<3; i++) this.osc2Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*1.7+auxY+auxY/2, this.osc2Button.opa);
-        this.osc2Button.draw(gridInitX+col1X+auxXfx*3+studioGap*2-studioGap*2,gridInitY+studioGap+auxY+studioGap*2);
-        for (let i=0; i<4; i++) this.env2Knobs[i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+3)+studioGap*(i+3),gridInitY+studioGap*1.7+auxY+auxY/2, this.env2Button.opa);
-        this.env2Button.draw(gridInitX+col1X+auxXfx*7+studioGap*6-studioGap*2,gridInitY+studioGap+auxY+studioGap*2);
+        for (let i=0; i<3; i++) this.oscKnobs[0][i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*0.7+auxY/2, this.oscButtons[0].opa);
+        this.oscButtons[0].draw(gridInitX+col1X+auxXfx*3+studioGap*2-studioGap*2,gridInitY+studioGap*2);
+        for (let i=0; i<4; i++) this.envKnobs[0][i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+3)+studioGap*(i+3),gridInitY+studioGap*0.7+auxY/2, this.envButtons[0].opa);
+        this.envButtons[0].draw(gridInitX+col1X+auxXfx*7+studioGap*6-studioGap*2,gridInitY+studioGap*2);
+        for (let i=0; i<3; i++) this.oscKnobs[1][i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i)+studioGap*(i),gridInitY+studioGap*1.7+auxY+auxY/2, this.oscButtons[1].opa);
+        this.oscButtons[1].draw(gridInitX+col1X+auxXfx*3+studioGap*2-studioGap*2,gridInitY+studioGap+auxY+studioGap*2);
+        for (let i=0; i<4; i++) this.envKnobs[1][i].draw(gridInitX+col1X+auxXfx/2+auxXfx*(i+3)+studioGap*(i+3),gridInitY+studioGap*1.7+auxY+auxY/2, this.envButtons[1].opa);
+        this.envButtons[1].draw(gridInitX+col1X+auxXfx*7+studioGap*6-studioGap*2,gridInitY+studioGap+auxY+studioGap*2);
       }
 
       //this.updateSynthValues();
@@ -1199,47 +1185,88 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     updateSynthParams() {
       if (this.name === "DRUMS") {
         for (let i=0; i<this.synth.length; i++) {
-          if (this.drumButtons[i].value) this.synth[i].volume.value = p.map(this.drumKnobs[i][0].value,0,1,-40,0);
+          if (this.drumButtons[i].state) this.synth[i].volume.value = p.map(this.drumKnobs[i][0].value,0,1,-40,0);
           else this.synth[i].volume.value = -Infinity;
           this.synth[i].playbackRate = this.drumKnobs[i][1].value;
         }
       }
-      if (this.name === "MELODY") {
-        if (this.osc1Button.value) {
-          synths.melodyOSC1.set({oscillator: {type: this.osc1Knobs[0].output.toLowerCase(), volume: p.map(this.osc1Knobs[2].output,0,1,-40,0)}});
-        }
-        else synths.melodyOSC1.set({oscillator: {volume: -Infinity}});
-        if (this.env1Button.value) synths.melodyOSC1.set({envelope: {attack: this.env1Knobs[0].output, decay: this.env1Knobs[1].output, sustain: this.env1Knobs[2].output, release: this.env1Knobs[3].output}});
-        else synths.melodyOSC1.set({envelope: {attack: 0, decay: 0, sustain: 1, release: 0}});
+      else {
+        let oscInfo = [];
+        oscInfo.push(this.synth.oscillators[0].get());
+        oscInfo.push(this.synth.oscillators[1].get());
 
-        if (this.osc2Button.value) synths.melodyOSC2.set({oscillator: {type: this.osc2Knobs[0].output.toLowerCase(), volume: p.map(this.osc2Knobs[2].output,0,1,-40,0)}});
-        else synths.melodyOSC2.set({oscillator: {volume: -Infinity}});
-        if (this.env2Button.value) synths.melodyOSC2.set({envelope: {attack: this.env2Knobs[0].output, decay: this.env2Knobs[1].output, sustain: this.env2Knobs[2].output, release: this.env2Knobs[3].output}});
-        else synths.melodyOSC2.set({envelope: {attack: 0, decay: 0, sustain: 1, release: 0}});
+        for (let i=0; i<2; i++) {
+          if (this.oscButtons[i].state) {
+            if (oscInfo[i].oscillator.type !== this.oscKnobs[i][0].output.toLowerCase()) this.synth.oscillators[i].set({oscillator: {type: this.oscKnobs[i][0].output.toLowerCase()}});
+            if (oscInfo[i].volume !== p.map(this.oscKnobs[i][2].output,0,1,-40,0)) this.synth.oscillators[i].set({volume: p.map(this.oscKnobs[i][2].output,0,1,-40,0)});
+          }
+          else if (oscInfo[i].volume !== -Infinity) this.synth.oscillators[i].set({volume: -Infinity});
+
+          if (this.envButtons[i].state) {
+            if (oscInfo[i].envelope.attack !== this.envKnobs[i][0].output) this.synth.oscillators[i].set({envelope: {attack: this.envKnobs[i][0].output}});
+            if (oscInfo[i].envelope.decay !== this.envKnobs[i][1].output) this.synth.oscillators[i].set({envelope: {decay: this.envKnobs[i][1].output}});
+            if (oscInfo[i].envelope.sustain !== this.envKnobs[i][2].output) this.synth.oscillators[i].set({envelope: {sustain: this.envKnobs[i][2].output}});
+            if (oscInfo[i].envelope.release !== this.envKnobs[i][3].output) this.synth.oscillators[i].set({envelope: {release: this.envKnobs[i][3].output}});
+          }
+          else this.synth.oscillators[i].set({envelope: {attack: 0, decay: 0, sustain: 1, release: 0}});
+        }
       }
 
-      if (this.filterButton.value) {
+      if (this.filterButton.state) {
+        let mapping = p.map(this.filterKnob.output,0,1,100,10000);
+
+        if (this.synth.fxChain.filter.frequency !== mapping) this.synth.fxChain.filter.frequency.value = mapping;
+
+      } else if (this.synth.fxChain.filter.frequency) {
+        this.synth.fxChain.filter.frequency.value = 20000;
+      }
+      
+
+      /*if (this.filterButton.value) {
         if(this.filterKnob.output <= 0.5) synths.melodyFilter.set({low:0,mid:p.map(this.filterKnob.output,0,0.5,-70,0),high: p.map(this.filterKnob.output,0,0.5,-70,0)});  
         else synths.melodyFilter.set({low: p.map(this.filterKnob.output,0.5,1,0,-70), mid:p.map(this.filterKnob.output,0.5,1,0,-70), high: 0});  
-      }
+      }*/
       /*if (this.filterButton.value) {
         synths.melodyFilter.set({high:-Infinity,highFrequency: p.map(this.filterKnob.output,0,1,0,40000)});  
       } */
-      else synths.melodyFilter.set({low:0,mid:0,high:0});
+      //else synths.melodyFilter.set({low:0,mid:0,high:0});
 
-      if (this.distButton.value) synths.melodyDist.set({distortion: this.distKnob.output, wet:0.5});
-      else synths.melodyDist.set({distortion:0, wet:0});
 
-      if (this.dlyButton.value) synths.melodyDly.set({delayTime: session.loops[this.loopId].timeBtwSteps*(p.round(p.map(this.dlyKnobs[0].value,0,1,0,theory.delayTimes.length-1))+1), wet: this.dlyKnobs[2].value/2, feedback: this.dlyKnobs[1].value});
-      else synths.melodyDly.set({wet:0, feedback: 0});
+      if (this.distButton.state) {
+        if (this.synth.fxChain.distortion.wet !== 0.5) this.synth.fxChain.distortion.wet.value = 0.5;
+        if (this.synth.fxChain.distortion.distortion !== this.distKnob.value) this.synth.fxChain.distortion.distortion = this.distKnob.value;
+      }
+      else if (this.synth.fxChain.distortion.wet !== 0) {
+        this.synth.fxChain.distortion.wet.value = 0;
+        this.synth.fxChain.distortion.distortion = 0;
+      }
 
-      //if (this.revButton.value) synths.melodyRev.set({preDelay: 0, decay: this.revKnobs[0].output, wet: this.revKnobs[1].output});
-      //else synths.melodyRev.set({decay:0.001, wet:0});
+      if (this.dlyButton.state) {
+        let dTime = session.loops[this.loopId].timeBtwSteps*(p.round(p.map(this.dlyKnobs[0].value,0,1,0,theory.delayTimes.length-1))+1);
+        if (this.synth.fxChain.delay.delayTime !== dTime) this.synth.fxChain.delay.delayTime.value = dTime;
+        if (this.synth.fxChain.delay.feedback !== this.dlyKnobs[1].value) this.synth.fxChain.delay.feedback.value = this.dlyKnobs[1].value;
+        if (this.synth.fxChain.delay.wet !== this.dlyKnobs[2].value/2) this.synth.fxChain.delay.wet.value = this.dlyKnobs[2].value/2;
+      }
+      else if (this.synth.fxChain.delay.wet !== 0) {
+        this.synth.fxChain.delay.wet.value = 0;
+        this.synth.fxChain.delay.feedback.value = 0;
+      }
+      
+
+      if (this.revButton.state) {
+        if (this.synth.fxChain.reverb.decay !== this.revKnobs[0].output) this.synth.fxChain.reverb.decay = this.revKnobs[0].output;
+        if (this.synth.fxChain.reverb.wet !== this.revKnobs[1].output) this.synth.fxChain.reverb.wet.value = this.revKnobs[1].output;
+      }
+      else {
+        if (this.synth.fxChain.reverb.wet !== 0) {
+          this.synth.fxChain.reverb.wet.value = 0;
+          this.synth.fxChain.reverb.decay = 0.01;
+        }
+      } 
     } 
 
 
     draw() {
-      //console.log(synths.melodyDly.wet.valuek);
       this.updateSynthParams();
 
       if (session.activeTab.selectedTrack !== null && session.activeTab.selectedTrack !== this) {
@@ -1418,8 +1445,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.pitch === 2) session.activeTab.tracks[this.trackId].synth[3].stop();
       }
       else {
-        session.loops[this.loopId].tracks[this.trackId].synth[0].triggerAttack(theory.freqs[this.pitch]*p.pow(2,this.octave));
-        session.loops[this.loopId].tracks[this.trackId].synth[1].triggerAttack(theory.freqs[this.pitch]*p.pow(2,this.octave));
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[0].triggerAttack(theory.freqs[this.pitch]*p.pow(2,this.octave));
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerAttack(theory.freqs[this.pitch]*p.pow(2,this.octave));
       }
       //synths.melody.triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave), session.activeTab.timeBtwSteps);
     }
@@ -1432,8 +1459,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (session.activeTab.tracks[this.trackId].name === "DRUMS") {
         session.activeTab.tracks[this.trackId].synth[this.pitch].start();
       } else {
-        session.loops[this.loopId].tracks[this.trackId].synth[0].triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave),"16n");
-        session.loops[this.loopId].tracks[this.trackId].synth[1].triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave),"16n");
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[0].triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave),"16n");
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave),"16n");
       }
     }
 
@@ -1470,8 +1497,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
     triggerRelease() {
       if (session.loops[this.loopId].currentStep === this.start+this.duration) {
-        session.loops[this.loopId].tracks[this.trackId].synth[0].triggerRelease(theory.freqs[this.pitch]*p.pow(2,this.octave));
-        session.loops[this.loopId].tracks[this.trackId].synth[1].triggerRelease(theory.freqs[this.pitch]*p.pow(2,this.octave));
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[0].triggerRelease(theory.freqs[this.pitch]*p.pow(2,this.octave));
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerRelease(theory.freqs[this.pitch]*p.pow(2,this.octave));
       }
     }
 
@@ -1800,27 +1827,27 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
   //on/off button
   class Button {
-    constructor(value,color) {
-      this.value = value;
+    constructor(state,color) {
+      this.state = state;
       this.color = color;
       this.radius = p.windowWidth / 100;
 
       this.hover = false;
 
-      if (value) this.opa = 255;
+      if (state) this.opa = 255;
       else this.opa = 255/2;
     }
 
     draw(x,y) {
       this.radius = p.windowWidth / 100;
 
-      if (this.value) this.opa = 255;
+      if (this.state) this.opa = 255;
       else this.opa = 255/2;
 
       p.noFill();
       p.stroke(255, 255, 255,this.opa);
       p.circle(x, y, this.radius);
-      if (this.value) {
+      if (this.state) {
         p.noStroke();
         p.fill(this.color[0], this.color[1], this.color[2],this.opa);
         p.circle(x, y, this.radius/1.8);
@@ -1832,7 +1859,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         this.hover = true;
 
         if (p.mouseIsPressed) {
-          this.value = !this.value;
+          this.state = !this.state;
           p.mouseIsPressed = false;
         }
       } else this.hover = false;

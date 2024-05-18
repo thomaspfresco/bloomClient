@@ -17,6 +17,7 @@ import crashAcoustic from '../Assets/audioSamples/crash_acoustic.wav';
 
 // ---------------------------------------------------------------
 
+//ref to p5.js
 let session;
 function setSession(s) { session = s; }
 
@@ -101,12 +102,12 @@ function onDeviceInput({ note, vel }) {
                 }
             } else {
                 if (vel !== 0) {
-                    s[0].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
-                    s[1].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
+                    s.oscillators[0].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
+                    s.oscillators[1].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
                 }
                 else { 
-                    s[0].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
-                    s[1].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
+                    s.oscillators[0].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
+                    s.oscillators[1].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
                 }
             }
         }
@@ -233,64 +234,65 @@ function exportLoopAudio(loop,nSteps,setLoading) {
 }
 
 // ---------------------------------------------------------------
-// MELODY
+// SYNTHS
 // ---------------------------------------------------------------
 
-const melodyOSC1 = new Tone.PolySynth(Tone.Synth);
-const melodyOSC2 = new Tone.PolySynth(Tone.Synth);
+class fxChain {
+    constructor() {
+        this.distortion = new Tone.Distortion({wet: 0.5});
+        this.delay = new Tone.PingPongDelay();
+        this.reverb = new Tone.Reverb({preDelay: 0});
+        this.limiter = new Tone.Limiter(0);
+        this.splitter = new Tone.Split();
+        this.left = new Tone.Meter();
+        this.right = new Tone.Meter();
 
-const melodyFilter = new Tone.EQ3();
-const melodyDist = new Tone.Distortion();
-const melodyDly = new Tone.PingPongDelay();
-const melodyRev = new Tone.Reverb();
-const melodySplitter = new Tone.Split();
-const melodyLeft = new Tone.Meter();
-const melodyRight = new Tone.Meter();
+        this.filter = new Tone.Filter().chain(this.distortion, this.delay, this.reverb, this.limiter, this.splitter);
 
-const melodyGain = new Tone.Gain().chain(melodyFilter, melodyDist, melodyDly, melodyRev, melodySplitter);
+        this.splitter.connect(this.left, 0, 0);
+        this.splitter.connect(this.right, 1, 0);
+        this.left.connect(new Tone.Panner(-1).connect(Tone.Destination));
+        this.right.connect(new Tone.Panner(1).connect(Tone.Destination));
+    }
+}
 
-melodyOSC1.connect(melodyGain);
-melodyOSC2.connect(melodyGain);
-melodySplitter.connect(melodyLeft, 0, 0);
-melodySplitter.connect(melodyRight, 1, 0);
-melodyLeft.connect(new Tone.Panner(-1).connect(Tone.Destination));
-melodyRight.connect(new Tone.Panner(1).connect(Tone.Destination));
+class synth {
+    constructor() {
+        this.oscillators = [new Tone.PolySynth(Tone.Synth), new Tone.PolySynth(Tone.Synth)];
+        this.gain = new Tone.Gain();
 
-// ---------------------------------------------------------------
-// DRUMS
-// ---------------------------------------------------------------
+        this.fxChain = new fxChain();
+
+        this.oscillators[0].connect(this.gain);
+        this.oscillators[1].connect(this.gain);
+        this.gain.connect(this.fxChain.filter);
+    }
+}
 
 const acoustic = [kickAcoustic, snareAcoustic, closedHatAcoustic, openedHatAcoustic, highTomAcoustic, lowTomAcoustic, crashAcoustic];
 const kit = acoustic;
 
-let drumFilter = new Tone.Filter();
-let drumDist = new Tone.Distortion({
-    distortion: 0.5,
-    wet: 0
-});
-let drumDly = new Tone.PingPongDelay({
-    delayTime: "4n",
-    wet: 0.2
-});
-let drumRev = new Tone.Reverb({
-    decay: 4,
-    wet: 0
-});
-let drumMeter = new Tone.Meter();
+class drumSynth {
+    constructor(kit) {
 
-const drumVol = new Tone.PanVol().chain(drumFilter, drumDist, drumDly, drumRev, drumMeter, Tone.Destination);
+        this.parts = [];
 
-const drumSynth = [];
-for (let i = 0; i < 7; i++) {
-    drumSynth.push(new Tone.Player(kit[i]));
-    drumSynth[i].connect(Tone.Destination);
+        this.fxChain = new fxChain();
+
+        for (let i = 0; i < 7; i++) {
+            this.parts.push(new Tone.Player(kit[i]));
+            this.parts[i].connect(this.fxChain.filter);
+        }
+    }
 }
+
+const melody = new synth();
+const drums = new drumSynth(kit);
 
 // ---------------------------------------------------------------
 // EXPORT
 // ---------------------------------------------------------------
 
-let synths = { setSession, exportLoopAudio, melodyOSC1, melodyOSC2, melodyFilter, melodyDist, melodyDly, melodyRev, melodyLeft, melodyRight, melodyGain,
-               drumSynth, drumFilter, drumDist, drumDly, drumRev, drumMeter, drumVol};
+    const synths = { setSession, exportLoopAudio, melody, drums };
 
 export default synths;

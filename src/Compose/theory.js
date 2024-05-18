@@ -50,7 +50,7 @@ const defaultValues = [];
 let defaultAux = 0;
 while (defaultAux <= 1) {
     defaultValues.push(Math.round(defaultAux * 100) / 100);
-    defaultAux += 0.02;
+    defaultAux += 0.01;
 }
 defaultValues.push(1);
 
