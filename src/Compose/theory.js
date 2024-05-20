@@ -42,9 +42,12 @@ const pitchValues = [];
 let pitchAux = -12;
 
 while (pitchAux <= 12) {
-    pitchValues.push(pitchAux);
-    pitchAux += 0.25;
+    pitchValues.push(Math.round(pitchAux * 10) / 10);
+    if (pitchAux >= -1 && pitchAux < 0.9) pitchAux += 0.1;
+    else pitchAux += 1;
 }
+
+//console.log(pitchValues); 
 
 const defaultValues = [];
 let defaultAux = 0;
