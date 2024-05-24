@@ -636,7 +636,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.studioOpa = 0;
 
       this.tempoScroll = new Scrollable("TEMPO",tempo,20,400,"BPM",1,5);
-      this.transposeScroll = new Scrollable("TRANSPOSE",0,-12,12,"ST",1,1);
+      // = new Scrollable("TRANSPOSE",0,-12,12,"ST",1,1);
+
+      this.click = new Button(false, [255,255,255]);
+      this.record = new Button(false, [255,0,0]);
 
       this.tempo = tempo;
       this.timeBtwSteps = 60 / tempo / 4;
@@ -740,7 +743,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         this.plusX += dif / 10;
 
         //cursor
-        if (this.play) {
+        if (this.play && this.currentStep >= 0) {
           p.stroke(255, 255, 255);
           p.strokeWeight(0.5);
           //p.rect(marginX+this.currentStep*(p.windowWidth-marginX*2)/this.nSteps,0,(p.windowWidth-marginX*2)/this.nSteps,p.windowHeight);
@@ -775,8 +778,15 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           else this.selectedTrack.drawAutomation();
 
           let auxY = p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2;
-          this.tempoScroll.draw(p.windowWidth/8,auxY);
-          this.transposeScroll.draw(p.windowWidth/8*2.5,auxY);
+          let auxX = (p.windowWidth - gridInitX*2 - p.windowWidth/150*7)/8/2;
+          this.tempoScroll.draw(gridInitX + auxX,auxY);
+          p.textSize(p.windowHeight / 50);
+          let tw = p.textWidth("CLICK");
+
+          this.click.draw(gridInitX + auxX*3+p.windowWidth/150*1,auxY);
+
+          this.record.draw(gridInitX + auxX*5+p.windowWidth/150*2,auxY);
+          //this.transposeScroll.draw(p.windowWidth/8*2.5,auxY);
           
           if (this.tempoScroll.value !== this.tempo) {
             this.tempo = this.tempoScroll.value;
@@ -878,6 +888,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.radiusCol = p.windowHeight / 4;
 
       this.iconHover = false;
+      
+      this.hoverVolume = false;
+      this.draggingVolume = false;
+      this.volumeY = 0;
 
       this.opaLine = 255;
       this.opaLineInc = 5;
@@ -891,6 +905,9 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       this.x = p.windowWidth / 2 + p.windowWidth/8;
       this.y = p.windowHeight / 2;
+
+      this.knobs = [];
+      this.param = 0;
 
       //fx knobs
       this.filterKnob = new Knob("POSITION",0.50,theory.defaultValues,"");
@@ -919,12 +936,12 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (this.name === "HARMONY") {
         this.petal = petal4;
         this.synth = synths.harmony;
-        this.presets = 0;
+        this.preset = 0;
       }
 
       //different sinthesis for drums tracks
       if (this.name === "DRUMS") {
-        this.presets = 0;
+        this.preset = 0;
         this.presetScroll = new Scrollable("PRESET",this.preset,0,synths.drumPresets.length-1,"",1,1);
         //this.automationScroll = new Scrollable("AUTOMATION",0,["a","b","c"]);
         this.drumKnobs = [];
@@ -934,18 +951,41 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         for (let i=0; i<theory.drumLabels.length; i++) { 
           this.drumKnobs.push([new Knob("GAIN",1,theory.defaultValues,""),new Knob("PITCH",0.50, theory.pitchValues,"st")]);
           this.drumButtons.push(new Button(true,this.color));
+          this.knobs.push([theory.drumLabels[i],this.drumKnobs[i][0]]);
+          this.knobs.push([theory.drumLabels[i],this.drumKnobs[i][1]]);
         }      
       } else {
         this.oscPitch = [0,0];
         //this.transposeScroll = new Scrollable("TRANSPOSE",0,-12,12,"ST",1,1);
         this.presetScroll = new Scrollable("PRESET",this.preset,0,synths.synthPresets.length-1,"",1,1);
-        //this.automationScroll = new Scrollable("AUTOMATION",0);
 
-        this.oscKnobs = [[new Knob("WAVE", 0, theory.waveTypes, ""),new Knob("PITCH",0.50, theory.pitchValues,"st"),new Knob("VOLUME",0.50,theory.defaultValues,"")],[new Knob("WAVE", 0, theory.waveTypes, ""),new Knob("PITCH",0.50, theory.pitchValues,"st"),new Knob("VOLUME",0.50,theory.defaultValues,"")]];
+        this.oscKnobs = [[new Knob("WAVE", 1, theory.waveTypes, ""),new Knob("PITCH",0.50, theory.pitchValues,"st"),new Knob("VOLUME",0.50,theory.defaultValues,"")],[new Knob("WAVE", 0, theory.waveTypes, ""),new Knob("PITCH",0.50, theory.pitchValues,"st"),new Knob("VOLUME",0.50,theory.defaultValues,"")]];
         this.envKnobs = [[new Knob("ATTACK",0,theory.timeValues,"s"),new Knob("DECAY",0.50,theory.timeValues,"s"),new Knob("SUSTAIN",0.50,theory.defaultValues,""),new Knob("RELEASE",0,theory.timeValues,"s")],[new Knob("ATTACK",0,theory.timeValues,"s"),new Knob("DECAY",0.50,theory.timeValues,"s"),new Knob("SUSTAIN",0.50,theory.defaultValues,""),new Knob("RELEASE",0,theory.timeValues,"s")]];
         this.oscButtons = [new Button(true,this.color),new Button(true,this.color)];
         this.envButtons = [new Button(true,this.color),new Button(true,this.color)];
+        
+        for (let i = 0; i < 2; i++) {
+          this.knobs.push(["OSCILLATOR "+(i+1),this.oscKnobs[i][0]]);
+          this.knobs.push(["OSCILLATOR "+(i+1),this.oscKnobs[i][1]]);
+          this.knobs.push(["OSCILLATOR "+(i+1),this.oscKnobs[i][2]]);
+          this.knobs.push(["ENVELOPE "+(i+1),this.envKnobs[i][0]]);
+          this.knobs.push(["ENVELOPE "+(i+1),this.envKnobs[i][1]]);
+          this.knobs.push(["ENVELOPE "+(i+1),this.envKnobs[i][2]]);
+          this.knobs.push(["ENVELOPE "+(i+1),this.envKnobs[i][3]]);
+        }
+
       }
+
+      this.knobs.push(["FILTER",this.filterKnob]);
+      this.knobs.push(["DISTORTION",this.distKnob]);
+      this.knobs.push(["DELAY",this.dlyKnobs[0]]);
+      this.knobs.push(["DELAY",this.dlyKnobs[1]]);
+      this.knobs.push(["DELAY",this.dlyKnobs[2]]);
+      this.knobs.push(["REVERB",this.revKnobs[0]]);
+      this.knobs.push(["REVERB",this.revKnobs[1]]);
+      this.automationScroll = new Scrollable("PARAMETER",this.param,0,this.knobs.length-1,"",1,1);
+
+      console.log(this.knobs);
 
       this.particlesX = [];
       this.particlesY = [];
@@ -982,10 +1022,12 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
     playInputNote(input) {
       if (this.name === "DRUMS") {
-        this.synth.parts[input].start(Tone.context.currentTime);
+        if (input < theory.drumLabels.length) {
+          this.synth.parts[input].start(Tone.context.currentTime);
 
-        //stop open hat when closed hat is triggered
-        if (input === 2) this.synth.parts[3].stop();
+          //stop open hat when closed hat is triggered
+          if (input === 2) this.synth.parts[3].stop();
+        }
       } else {
         for (let osc in this.synth.oscillators) {
           this.synth.oscillators[osc].triggerAttack(theory.freqs[input]*p.pow(2,currentOctave+this.oscPitch[osc]),Tone.context.currentTime);
@@ -1007,8 +1049,34 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.rect(gridInitX,gridInitY,gridStepSizeX*(nSteps-1),gridStepSizeY*(12-1),p.windowHeight/200);
 
       p.beginShape();
-      for (let i = 0; i < nSteps; i++) p.vertex(gridInitX+gridStepSizeX*i,p.windowHeight/2);
+      for (let i = 0; i < nSteps; i++) {
+        let aux = p.map(this.knobs[this.automationScroll.value][1].automation[i],0,1,gridInitY+gridStepSizeY*(this.nPitches-1),gridInitY);
+        p.vertex(gridInitX+gridStepSizeX*i,aux);
+      }
       p.endShape();
+
+      //param scroll
+      this.automationScroll.draw(p.windowWidth/4*3,p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2);
+      /*if (this.presetScroll.value !== this.preset) {
+        this.preset = this.presetScroll.value;
+        if (this.name === "DRUMS") this.switchPreset(synths.drumPresets[this.preset]);
+        else this.switchPreset(synths.synthPresets[this.preset]);
+      }*/
+
+      if (p.mouseX > gridInitX && p.mouseX < gridInitX + gridStepSizeX * (nSteps-1) && p.mouseY > gridInitY && p.mouseY < gridInitY + gridStepSizeY * (this.nPitches-1) && dragging === false) {
+        document.body.style.cursor = 'pointer';
+        let posX = p.round((p.mouseX-gridInitX)/gridStepSizeX);
+        let aux = p.map(this.knobs[this.automationScroll.value][1].automation[posX],0,1,gridInitY+gridStepSizeY*(this.nPitches-1),gridInitY);
+        p.circle(gridInitX + posX*gridStepSizeX, aux, 5);
+        if (p.mouseIsPressed) {
+          if (this.knobs[this.automationScroll.value][1].automating === false) this.knobs[this.automationScroll.value][1].automating = true;
+          this.knobs[this.automationScroll.value][1].automation[posX] = p.map(p.mouseY,gridInitY+gridStepSizeY*(this.nPitches-1),gridInitY,0,1);
+        }
+        //p.stroke(255,255,255,255/2);
+        //p.strokeWeight(1);
+        //p.line(gridInitX, this.mouseY, gridInitX + gridStepSizeX * nSteps, this.mouseY);
+        //p.line(this.mouseX, gridInitY, this.mouseX, gridInitY + gridStepSizeY * this.nPitches);
+      }
     }
 
     drawStudio() {
@@ -1028,6 +1096,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       barLeftHeight = p.map(dbs[0],-60,0,0, -(gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap));
       barRightHeight = p.map(dbs[1],-60,0,0, -(gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap));
       
+      //this.hoverVolume = false;
+      //this.draggingVolume = false;
+      //this.volumeY = 0;
+
       p.noStroke();
       p.fill(this.color[0],this.color[1],this.color[2]);
       p.rect(gridInitX + p.windowWidth/9/2 - studioGap/2-studioGap*2,gridInitY+studioGap + auxY +5*studioGap + gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap,studioGap*2,barLeftHeight);
@@ -1041,8 +1113,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         else this.switchPreset(synths.synthPresets[this.preset]);
       }
 
-      p.stroke(255,255,255,255/4);
+      p.stroke(255);
       p.strokeWeight(1);
+      //p.fill(0);
+
+      p.stroke(255,255,255,255/4);
       p.noFill();
 
       //boxes
@@ -1051,6 +1126,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //p.noStroke();
       p.rect(gridInitX + p.windowWidth/9/2 - studioGap/2-studioGap*2,gridInitY+studioGap + auxY +5*studioGap,studioGap*2, gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap); //volume fader
       p.rect(gridInitX + p.windowWidth/9/2 + studioGap/2,gridInitY+studioGap + auxY +5*studioGap,studioGap*2, gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap); //volume fader
+
+      p.fill(0);
+      p.rect(gridInitX + p.windowWidth/9/2 - studioGap/2 -studioGap*2,gridInitY+studioGap + auxY +5*studioGap,studioGap*5, p.windowHeight/100);
+      p.noFill();
 
       p.rect(gridInitX,gridInitY, p.windowWidth/9, auxY, p.windowHeight/200); //visualizer
       p.rect(gridInitX,gridInitY+studioGap + auxY,p.windowWidth/9, gridStepSizeY*(12-1) - studioGap - auxY,p.windowHeight/200); //volume fader
@@ -1111,6 +1190,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         p.text("ENVELOPE 2",gridInitX+col1X+auxXfx*3+studioGap*3+studioGap*1.2,gridInitY+auxY+studioGap*2);
       }
 
+      this.filterKnob.draw(gridInitX+col1X+auxXfx/2,gridInitY+studioGap*2.7+auxY*2+auxY/2,this.filterButton.opa);
       //knobs and buttons
 
       this.filterKnob.draw(gridInitX+col1X+auxXfx/2,gridInitY+studioGap*2.7+auxY*2+auxY/2,this.filterButton.opa);
@@ -1259,12 +1339,16 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     updateSynthParams() {
       if (this.name === "DRUMS") {
         for (let i=0; i<this.synth.parts.length; i++) {
-          let mapping = p.map(this.drumKnobs[i][0].value,0,1,-40,0);
-          if (this.synth.parts[i].volume.value !== mapping) {
-            if (this.drumButtons[i].state) this.synth.parts[i].volume.value = mapping;
-            else this.synth.parts[i].volume.value = -Infinity;
-          }
-          if (this.synth.parts[i].playbackRate !== this.drumKnobs[i][1].value) this.synth.parts[i].playbackRate = this.drumKnobs[i][1].value;
+          let mapping = p.map(this.drumKnobs[i][0].value,0,1,-50,0);
+          if (this.drumButtons[i].state) {
+            if (this.synth.parts[i].volume.value !== mapping) {
+              if (this.drumKnobs[i][0].value === 0) this.synth.parts[i].volume.value = -Infinity;
+              else this.synth.parts[i].volume.value = mapping;
+            }
+          } else  if (this.synth.parts[i].volume.value !== -Infinity) this.synth.parts[i].volume.value = -Infinity;
+          
+          mapping = p.map(this.drumKnobs[i][1].output,-12,12,0.02,2);
+          if (this.synth.parts[i].playbackRate !== mapping) this.synth.parts[i].playbackRate = mapping;
         }
       }
       else {
@@ -1276,7 +1360,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           if (this.oscButtons[i].state) {
             if (oscInfo[i].oscillator.type !== this.oscKnobs[i][0].output.toLowerCase()) this.synth.oscillators[i].set({oscillator: {type: this.oscKnobs[i][0].output.toLowerCase()}});
             if (this.oscPitch[i] !== p.map(this.oscKnobs[i][1].output,-12,12,-1,1)) this.oscPitch[i] = p.map(this.oscKnobs[i][1].output,-12,12,-1,1);
-            if (oscInfo[i].volume !== p.map(this.oscKnobs[i][2].output,0,1,-40,0)) this.synth.oscillators[i].set({volume: p.map(this.oscKnobs[i][2].output,0,1,-40,0)});
+            if (oscInfo[i].volume !== p.map(this.oscKnobs[i][2].output,0,1,-50,0)) this.synth.oscillators[i].set({volume: p.map(this.oscKnobs[i][2].output,0,1,-50,0)});
           }
           else if (oscInfo[i].volume !== -Infinity) this.synth.oscillators[i].set({volume: -Infinity});
 
@@ -1298,17 +1382,6 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       } else if (this.synth.fxChain.filter.frequency) {
         this.synth.fxChain.filter.frequency.value = 20000;
       }
-      
-
-      /*if (this.filterButton.value) {
-        if(this.filterKnob.output <= 0.5) synths.melodyFilter.set({low:0,mid:p.map(this.filterKnob.output,0,0.5,-70,0),high: p.map(this.filterKnob.output,0,0.5,-70,0)});  
-        else synths.melodyFilter.set({low: p.map(this.filterKnob.output,0.5,1,0,-70), mid:p.map(this.filterKnob.output,0.5,1,0,-70), high: 0});  
-      }*/
-      /*if (this.filterButton.value) {
-        synths.melodyFilter.set({high:-Infinity,highFrequency: p.map(this.filterKnob.output,0,1,0,40000)});  
-      } */
-      //else synths.melodyFilter.set({low:0,mid:0,high:0});
-
 
       if (this.distButton.state) {
         if (this.synth.fxChain.distortion.wet !== 0.5) this.synth.fxChain.distortion.wet.value = 0.5;
@@ -1466,8 +1539,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         for (let j = 0; j < this.timeline[i].length; j++) {
           if (this.timeline[i][j] !== null) {
             if (session.activeTab.selectedTrack !== null) {
-              if (this.name === "DRUMS") this.timeline[i][j].draw(this.particlesX[i+1], gridInitY + (this.nPitches-this.timeline[i][j].pitch-1)*gridStepSizeY*2);
-              else this.timeline[i][j].draw(this.particlesX[i+1], gridInitY + (this.nPitches-this.timeline[i][j].pitch-1)*gridStepSizeY);
+              this.timeline[i][j].draw(this.particlesX[i+1], gridInitY + (this.nPitches-this.timeline[i][j].pitch-1)*gridStepSizeY);
             }
             else this.timeline[i][j].draw(this.particlesX[i+1], this.particlesY[i+1]);
           }
@@ -1835,18 +1907,20 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.options = options;
       this.unit = unit;
 
-      this.automation = [];
-      this.automation.fill(value);
+      this.automation = new Array(nSteps).fill(value);
+      this.automating = false;
 
       this.hover = false;
       this.dragging = false;
 
       this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))];
     }
-
+ 
     draw(x,y,opa) {
       this.radius = p.windowHeight / 15;
 
+      if (this.automating && session.activeTab.currentStep !== -1) this.value = this.automation[session.activeTab.currentStep];
+    
       if (typeof this.output === "string") this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))].toUpperCase();
       else this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))];
 
@@ -1975,14 +2049,24 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     }
 
     increment(inc) {
-      if (this.value + inc <= this.max) this.value += inc;
-      else this.value = this.max;
+      if (this.label === "TEMPO") {
+        if (this.value + inc <= this.max) this.value += inc;
+        else this.value = this.max;
+      } else {
+        if (this.value - inc >= this.min) this.value -= inc;
+        else this.value = this.min;
+      }
 
     }
 
     decrement(inc) {
-      if (this.value - inc >= this.min) this.value -= inc;
-      else this.value = this.min;
+      if (this.label === "TEMPO") {
+        if (this.value - inc >= this.min) this.value -= inc;
+        else this.value = this.min;
+      } else {
+        if (this.value + inc <= this.max) this.value += inc;
+        else this.value = this.max;
+      }
     }
 
     draw(x,y) {
@@ -1991,16 +2075,24 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //if (this.opa + this.opaInc > this.opaMax) this.opa = this.opaMax;
       //else this.opa += this.opaInc;
 
-      //p.fill(255, 0, 0, this.opa/2);
-      //p.rect(x-this.w/2,y-this.h/2,this.w,this.h);
+      p.fill(255, 0, 0, this.opa/2);
+      p.rect(x-this.w/2,y-this.h/2,this.w,this.h);
 
       p.noStroke();
       
       p.fill(255, 255, 255);
       p.textSize(p.windowHeight/40);
       p.textAlign(p.LEFT,p.TOP);
-      //if (this.label === "PRESET") p.text(synths.synthPresets[this.value].name, x-this.w/3.2, y-this.h/2);
-      //else p.text(this.value + " " + this.unit, x-this.w/3.2, y-this.h/2);
+      if (this.label === "PRESET") {
+        //console.log(session.activeTab.selectedTrack);
+        if (session.activeTab.selectedTrack.name === "DRUMS") p.text(synths.drumPresets[this.value].name, x-this.w/3.2, y-this.h/2);
+        else p.text(synths.synthPresets[this.value].name, x-this.w/3.2, y-this.h/2);
+      }
+      else if (this.label === "PARAMETER") {
+        let knob = session.activeTab.selectedTrack.knobs[this.value];
+        p.text(knob[0] + " - " + knob[1].label, x-this.w/3.2, y-this.h/2);
+      }
+      else p.text(this.value + " " + this.unit, x-this.w/3.2, y-this.h/2);
 
       p.textAlign(p.LEFT,p.BOTTOM);
       p.fill(255, 255, 255, 255/2);
@@ -2090,7 +2182,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     p.textFont(fontMedium);
 
     //console.log(sesh);
-    //p.pixelDensity(1);
+    p.pixelDensity(1);
 
     // Set up orthographic projection
     p.ortho(-p.windowWidth / 2, p.windowWidth / 2, -p.windowHeight / 2, p.windowHeight / 2, 0, 1000);
@@ -2112,7 +2204,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
     //if (sesh === "bin file not found") {
     session = new Session();
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 5; i++) {
       session.loops.push(new Loop(i, "myloop"+i, 120));
       session.loops[i].tracks.push(new Track(0, i, "MELODY", p.windowWidth / 2));
       for (let j = 0; j < 5; j++) {

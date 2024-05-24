@@ -40,12 +40,13 @@ timeValues.push(10);
 
 const pitchValues = [];
 let pitchAux = -12;
-
+//pitchValues.push(-24);
 while (pitchAux <= 12) {
     pitchValues.push(Math.round(pitchAux * 10) / 10);
     if (pitchAux >= -1 && pitchAux < 0.9) pitchAux += 0.1;
     else pitchAux += 1;
 }
+//pitchValues.push(24);
 
 //console.log(pitchValues); 
 

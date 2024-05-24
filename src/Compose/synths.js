@@ -113,12 +113,12 @@ function onDeviceInput({ note, vel }) {
                 }
             } else {
                 if (vel !== 0) {
-                    s.oscillators[0].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
-                    s.oscillators[1].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
+                    s.oscillators[0].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)+session.activeTab.selectedTrack.oscPitch[0]),Tone.context.currentTime);
+                    s.oscillators[1].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)+session.activeTab.selectedTrack.oscPitch[1]),Tone.context.currentTime);
                 }
                 else { 
-                    s.oscillators[0].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
-                    s.oscillators[1].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
+                    s.oscillators[0].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)+session.activeTab.selectedTrack.oscPitch[0]),Tone.context.currentTime);
+                    s.oscillators[1].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)+session.activeTab.selectedTrack.oscPitch[1]),Tone.context.currentTime);
                 }
             }
         }
@@ -276,8 +276,10 @@ Tone.Transport.scheduleRepeat((time) => {
     if (loop.currentStep === loop.nSteps-1) loop.currentStep = 0;
     else loop.currentStep++;
 
-    if (loop.currentStep%16 === 0) metronome.click[0].start(time);
-    else if (loop.currentStep%4 === 0) metronome.click[1].start(time);
+    if (loop.click.state) {
+        if (loop.currentStep%16 === 0) metronome.click[0].start(time);
+        else if (loop.currentStep%4 === 0) metronome.click[1].start(time);
+    }
     //else metronome.click[1].start();
   
     for (let t in loop.tracks) {
