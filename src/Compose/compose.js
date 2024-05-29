@@ -40,7 +40,7 @@ let loopsIcon, structsIcon, gridIcon, studioIcon, autoIcon, plus, arrowUp, arrow
 let dragging = false;
 
 let inputNotes = [];
-let maxInputNotes = 4;
+let maxInputNotes = 5;
 let currentOctave = 3;
 let minOctave = 1;
 let maxOctave = 7;
@@ -62,7 +62,7 @@ var particles = new Array(50);
 var totalFrames = 300;
 let counter = 0;
 
-let petalParticles = new Array(250);
+let petalParticles = new Array(500);
 let diagonal;
 let rotation = 0;
 
@@ -84,6 +84,8 @@ let iconSize;
 let iconCorners;
 
 const instruments = ["MELODY", "HARMONY", "DRUMS", "BASS"];
+let colors = [[100,50,100],[210,70,90],[235,160,80],[30,120,80]]; //purple, pink, yellow, green
+let white = [255,245,220]; //white
 
 let session;
 
@@ -143,7 +145,14 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         this.o = p.random(1, p.random(1, p.windowWidth / this.n));
         this.ang = p.random(0, p.TWO_PI);
         this.angInc = p.random(0.005, 0.05);
-        this.color = [p.random(0, 255), p.random(0, 255), p.random(0, 255)];
+        let aux = p.round(p.random(0,colors.length-1));
+        this.color = colors[aux];
+        switch (aux) {
+          case 0: this.petal = petal1; break;
+          case 1: this.petal = petal2; break;
+          case 2: this.petal = petal3; break;
+          case 3: this.petal = petal4; break;
+        }
     }
 
     draw() {
@@ -155,7 +164,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         p.scale(p.windowWidth / this.o / 10 / petalModelSize);
         p.rotateX(this.ang);
         p.rotateY(this.ang);
-        p.model(petal1);
+        p.model(this.petal);
         //p.ellipse(0, 0, p.windowWidth / this.o / 50, p.windowWidth / this.o / 50);
         p.pop();
         this.o -= 0.015;
@@ -247,7 +256,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         else this.logOpa -= 10;
       }
 
-      p.fill(255, 255, 255, this.logOpa);
+      p.fill(white[0], white[1], white[2], this.logOpa);
       p.noStroke();
       p.textAlign(p.RIGHT, p.TOP);
       p.textSize(p.windowHeight / 50);
@@ -292,7 +301,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       //loop drawer
       p.textAlign(p.LEFT, p.TOP);
-      p.fill(255, 255, 255, this.loopsOpa);
+      p.fill(white[0], white[1], white[2], this.loopsOpa);
       p.text("LOOPS", p.windowHeight / 30 - this.loopsOffset, p.windowHeight / 30);
 
       //loop plus
@@ -313,7 +322,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       //struct drawer
       p.textAlign(p.RIGHT, p.TOP);
-      p.fill(255, 255, 255, this.structsOpa);
+      p.fill(white[0], white[1], white[2], this.structsOpa);
       p.text("STRUCTS", p.windowWidth - p.windowHeight / 30 + this.structsOffset, p.windowHeight / 30);
 
       //drawers trigger
@@ -364,7 +373,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.loops.length === 0) {
           p.textAlign(p.LEFT, p.CENTER);
           p.textSize(p.windowHeight / 50);
-          p.fill(255, 255, 255, this.loopsOpa/3);
+          p.fill(white[0], white[1], white[2], this.loopsOpa/3);
           p.text('Click "+" to create Loop', p.windowHeight / 30 - this.loopsOffset, p.windowHeight / 2);
         }
         else {
@@ -422,12 +431,12 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
                 document.body.style.cursor = 'pointer';
                 p.noStroke();
-                p.fill(255, 255, 255, drawerOpa);
+                p.fill(white[0], white[1], white[2], drawerOpa);
                 p.textSize(p.windowHeight / 35);
                 p.textAlign(p.LEFT, p.CENTER);
                 p.textFont(fontMedium);
                 p.text(this.loops[i].name, +mouseOffsetX + p.windowHeight / 30 + loopSize*4, p.windowHeight / 2 - totalDist/2 + dist * i-p.windowHeight / 60);
-                p.fill(255, 255, 255,drawerOpa/2);
+                p.fill(white[0], white[1], white[2],drawerOpa/2);
                 p.textSize(p.windowHeight / 50);
                 p.textFont(fontLight);
                 p.text(this.loops[i].tempo+" BPM, "+this.loops[i].key, +mouseOffsetX + p.windowHeight / 30 + loopSize*4, p.windowHeight / 2 - totalDist/2 + dist * i+p.windowHeight /60);
@@ -473,7 +482,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.structs.length === 0) {
           p.textAlign(p.RIGHT, p.CENTER);
           p.textSize(p.windowHeight / 50);
-          p.fill(255, 255, 255, this.structsOpa/3);
+          p.fill(white[0], white[1], white[2], this.structsOpa/3);
           p.text('Click "+" to create Struct', p.windowWidth-p.windowHeight / 30 + this.structsOffset, p.windowHeight / 2);
         }
         else {}
@@ -545,14 +554,14 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       let dif = this.bloomTargetX - this.bloomX;
       this.bloomX += dif / 10;
 
-      p.fill(255, 255, 255, 255/4);
+      p.fill(white[0], white[1], white[2], 255/4);
       p.textFont(fontLight);
       if (this.activeTab === null) {
-        p.fill(255, 255, 255);
+        p.fill(white[0], white[1], white[2]);
         p.textFont(fontMedium);
       }
       else if (p.mouseX > p.windowWidth/2-totalDist/2-p.textWidth("BLOOM")/2 && p.mouseX < p.windowWidth/2-totalDist/2+p.textWidth("BLOOM")/2 && p.mouseY > p.windowHeight / 30 && p.mouseY < p.windowHeight / 30 * 2 && dragging === false) {
-        p.fill(255, 255, 255);
+        p.fill(white[0], white[1], white[2]);
         p.textFont(fontLight);
         document.body.style.cursor = 'pointer';
 
@@ -565,11 +574,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       for (let i = 0; i < this.tabs.length; i++) {
         if (this.activeTab === this.tabs[i]) {
-          p.fill(255, 255, 255);
+          p.fill(white[0], white[1], white[2]);
           p.textFont(fontMedium);
         }
         else if (p.mouseX > this.tabsTargetX[i]-p.textWidth(this.tabs[i].name)/2 && p.mouseX < this.tabsTargetX[i]+p.textWidth(this.tabs[i].name)/2 && p.mouseY > p.windowHeight / 30 && p.mouseY < p.windowHeight / 30 * 2 && dragging === false) {
-          p.fill(255, 255, 255);
+          p.fill(white[0], white[1], white[2]);
           p.textFont(fontLight);
           document.body.style.cursor = 'pointer';
           if (p.mouseIsPressed) {
@@ -579,7 +588,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           }
         }
         else {
-          p.fill(255, 255, 255, 255/4);
+          p.fill(white[0], white[1], white[2], 255/4);
           p.textFont(fontLight);
         }
         dif = this.tabsTargetX[i] - this.tabsX[i];
@@ -597,7 +606,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
        
       p.textAlign(p.CENTER, p.CENTER);
       p.noStroke();
-      p.fill(255, 255, 255,255/2);
+      p.fill(white[0], white[1], white[2],255/2);
       p.textSize(p.windowHeight / 30);
       p.text(obliqueStratagies[this.suggestionIndex], p.windowWidth / 2, p.windowHeight / 2);
 
@@ -744,7 +753,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
         //cursor
         if (this.play && this.currentStep >= 0) {
-          p.stroke(255, 255, 255);
+          p.stroke(white[0], white[1], white[2]);
           p.strokeWeight(0.5);
           //p.rect(marginX+this.currentStep*(p.windowWidth-marginX*2)/this.nSteps,0,(p.windowWidth-marginX*2)/this.nSteps,p.windowHeight);
           p.line(gridInitX + this.currentStep * gridStepSizeX, 0,gridInitX + this.currentStep * gridStepSizeX, p.windowHeight);
@@ -773,7 +782,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
         //grid, studio or automation
         if (this.selectedTrack !== null) {
-          if (this.view === 0) this.drawGrid();
+          if (this.view === 0) this.selectedTrack.drawGrid();
           else if (this.view === 1) this.selectedTrack.drawStudio();
           else this.selectedTrack.drawAutomation();
 
@@ -798,9 +807,9 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         this.menu.draw();
 
         //plus button
-        p.fill(255, 255, 255, this.opaPlus);
-        p.stroke(255);
-        p.strokeWeight(1);
+        //p.fill(255, 255, 255, this.opaPlus);
+        //p.stroke(white[0], white[1], white[2]);
+        //p.strokeWeight(1);
         //p.rect(this.plusX, this.plusY, iconSize, iconSize, iconCorners);
         p.image(plus, this.plusX + iconSize / 2, p.windowHeight - iconSize, p.windowHeight / 50, p.windowHeight / 50);
 
@@ -837,22 +846,6 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         p.rect(0, 0, p.windowWidth, p.windowHeight);
     }
 
-    drawGrid() {
-     
-      p.noStroke();
-      for (let i = 0; i < nSteps ; i++) {
-        const xPos = gridInitX + gridStepSizeX * i;
-        for (let j = 0; j < 12; j++) {
-            const yPos = gridInitY + gridStepSizeY * j;
-            const d = p.dist(p.mouseX,p.mouseY,xPos,yPos);
-            if (d < gridStepSizeX*nSteps/5) {
-              p.fill(255,255,255,p.map(d,0,gridStepSizeX*nSteps/5,255,255/6));
-            } else p.fill(255,255,255,255/6);
-            p.circle(xPos, yPos, 2, 2);
-        }
-      }
-    }
-
     //draw simplified representation of loop in drawer
     drawInDrawer(x, y, radius) {
       for (let i = 0; i < this.tracks.length; i++) {
@@ -875,15 +868,24 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       this.loopId = loopId;
 
-      if (this.name === "DRUMS") this.nPitches = theory.drumLabels.length;
-      else this.nPitches = 12;
+
+      if (this.name === "DRUMS") {
+        this.nPitches = theory.drumLabels.length;
+        this.color = colors[1];
+      }
+      else {
+        this.nPitches = 12;
+        if (this.name === "BASS") this.color = colors[0];
+        if (this.name === "MELODY") this.color = colors[3];
+        if (this.name === "HARMONY") this.color = colors[2];
+      }
 
       this.timeline = [];
 
       this.ang = p.random(0, p.TWO_PI);
       this.angInc = p.PI / 400;
 
-      this.color = [p.random(0, 255), p.random(0, 255), p.random(0, 255)];
+      //this.color = [p.random(0, 255), p.random(0, 255), p.random(0, 255)];
 
       this.radiusCol = p.windowHeight / 4;
 
@@ -943,7 +945,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (this.name === "DRUMS") {
         this.preset = 0;
         this.presetScroll = new Scrollable("PRESET",this.preset,0,synths.drumPresets.length-1,"",1,1);
-        //this.automationScroll = new Scrollable("AUTOMATION",0,["a","b","c"]);
+        this.octaveScroll = new Scrollable("OCTAVE",3,0,theory.octaves.length-1,"",1,1);
         this.drumKnobs = [];
         this.drumButtons = [];
         this.petal = petal2;
@@ -956,7 +958,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         }      
       } else {
         this.oscPitch = [0,0];
-        //this.transposeScroll = new Scrollable("TRANSPOSE",0,-12,12,"ST",1,1);
+        this.octaveScroll = new Scrollable("OCTAVE",0,0,0,"KIT",1,1);
         this.presetScroll = new Scrollable("PRESET",this.preset,0,synths.synthPresets.length-1,"",1,1);
 
         this.oscKnobs = [[new Knob("WAVE", 1, theory.waveTypes, ""),new Knob("PITCH",0.50, theory.pitchValues,"st"),new Knob("VOLUME",0.50,theory.defaultValues,"")],[new Knob("WAVE", 0, theory.waveTypes, ""),new Knob("PITCH",0.50, theory.pitchValues,"st"),new Knob("VOLUME",0.50,theory.defaultValues,"")]];
@@ -985,7 +987,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.knobs.push(["REVERB",this.revKnobs[1]]);
       this.automationScroll = new Scrollable("PARAMETER",this.param,0,this.knobs.length-1,"",1,1);
 
-      console.log(this.knobs);
+      //console.log(this.knobs);
 
       this.particlesX = [];
       this.particlesY = [];
@@ -1043,9 +1045,27 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
     }
 
+    drawGrid() {
+     
+      p.noStroke();
+      for (let i = 0; i < nSteps ; i++) {
+        const xPos = gridInitX + gridStepSizeX * i;
+        for (let j = 0; j < this.nPitches; j++) {
+            const yPos = gridInitY + gridStepSizeY * j;
+            const d = p.dist(p.mouseX,p.mouseY,xPos,yPos);
+            if (d < gridStepSizeX*nSteps/5) {
+              p.fill(white[0], white[1], white[2],p.map(d,0,gridStepSizeX*nSteps/5,255,255/6));
+            } else p.fill(white[0], white[1], white[2],255/6);
+            p.circle(xPos, yPos, 2, 2);
+        }
+      }
+
+      this.octaveScroll.draw(p.windowWidth/4*3,p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2);
+    }
+
     drawAutomation() {
       p.strokeWeight(maxWeightLines);
-      p.stroke(255,255,255,255/4);
+      p.stroke(white[0], white[1], white[2],255/5);
       p.rect(gridInitX,gridInitY,gridStepSizeX*(nSteps-1),gridStepSizeY*(12-1),p.windowHeight/200);
 
       p.beginShape();
@@ -1113,11 +1133,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         else this.switchPreset(synths.synthPresets[this.preset]);
       }
 
-      p.stroke(255);
+      //p.stroke(255);
       p.strokeWeight(1);
       //p.fill(0);
 
-      p.stroke(255,255,255,255/4);
+      p.stroke(white[0], white[1], white[2],255/4);
       p.noFill();
 
       //boxes
@@ -1234,7 +1254,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.radiusCol = p.windowHeight / 4;
 
       p.noFill();
-      p.stroke(255, 255, 255,previewOpa);
+      p.stroke(white[0], white[1], white[2],previewOpa);
       p.strokeWeight(maxWeightLines / (this.id + 1));
 
       p.beginShape();
@@ -1269,8 +1289,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     drawInDrawer(x, y, radius) {
 
       p.noFill();
-      if(session.loops[this.loopId].hover === true) p.stroke(255, 255, 255);
-      else p.stroke(255, 255, 255,255/3);
+      if(session.loops[this.loopId].hover === true) p.stroke(white[0], white[1], white[2]);
+      else p.stroke(white[0], white[1], white[2],255/3);
       p.strokeWeight(maxWeightLines / (this.id + 1));
 
       p.beginShape();
@@ -1431,7 +1451,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (session.activeTab.selectedTrack === null) {
         p.noFill();
         //p.ambientMaterial(255, 0, 0);
-        p.stroke(255, 255, 255, this.opaLine);
+        p.stroke(white[0], white[1], white[2], this.opaLine);
         p.strokeWeight(maxWeightLines / (this.id + 1));
         //p.strokeWeight(maxWeightLines);
 
@@ -1487,7 +1507,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //icon
       p.noStroke();
       p.textFont(fontLight);
-      p.fill(255, 255, 255, this.opaIcon);
+      p.fill(white[0], white[1], white[2], this.opaIcon);
       p.textAlign(p.CENTER, p.BOTTOM);
       p.textSize(p.windowHeight / 65);
       p.text(this.name, this.iconX + iconSize / 2, p.windowHeight - marginX);
@@ -1617,7 +1637,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     }
 
     showInfo() {
-      p.fill(255, 255, 255, this.opaInfo);
+      p.fill(white[0], white[1], white[2], this.opaInfo);
 
       if (this.opaInfo + this.opaInc > 255) this.opaInfo = 255;
       else this.opaInfo += this.opaInc;
@@ -1626,7 +1646,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         p.textAlign(p.LEFT, p.CENTER);
         p.textSize(p.windowHeight / 40);
         p.textFont(fontMedium);
-        p.text(theory.noteLabels[this.pitch] + this.octave, this.x+gridStepSizeX, this.y-gridStepSizeX*1.2);
+        if (session.activeTab.selectedTrack.name === "DRUMS") p.text(theory.drumLabels[this.pitch], this.x+gridStepSizeX, this.y-gridStepSizeX*1.2);
+        else p.text(theory.noteLabels[this.pitch] + this.octave, this.x+gridStepSizeX, this.y-gridStepSizeX*1.2);
         p.textFont(fontLight);
         p.textSize(p.windowHeight / 65);
         if (this.duration === 1) p.text("STEP "+(this.start+1), this.x+gridStepSizeX, this.y-gridStepSizeX*1.2-p.windowHeight / 50);
@@ -1637,7 +1658,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         p.textAlign(p.RIGHT, p.CENTER);
         p.textSize(p.windowHeight / 40);
         p.textFont(fontMedium);
-        p.text(theory.noteLabels[this.pitch] + this.octave, this.x-gridStepSizeX, this.y-gridStepSizeX*1.2);
+        if (session.activeTab.selectedTrack.name === "DRUMS") p.text(theory.drumLabels[this.pitch], this.x-gridStepSizeX, this.y-gridStepSizeX*1.2);
+        else p.text(theory.noteLabels[this.pitch] + this.octave, this.x-gridStepSizeX, this.y-gridStepSizeX*1.2);
         p.textFont(fontLight);
         p.textSize(p.windowHeight / 65);
         if (this.duration === 1) p.text("STEP "+(this.start+1), this.x-gridStepSizeX, this.y-gridStepSizeX*1.2-p.windowHeight / 50);
@@ -1870,7 +1892,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
             //p.stroke(255,0,0,this.optionsOpa[i]);
             //p.rect(this.x,this.y-i*this.optionH+this.optionsOffset[i],this.optionW,this.optionH);
             p.noStroke();
-            p.fill(255, 255, 255, this.optionsOpa[i]);
+            p.fill(white[0], white[1], white[2], this.optionsOpa[i]);
             p.text(this.options[i], this.x, this.y - i * this.optionH + this.optionsOffset[i]);
             if (this.optionsOffset[i] - this.offsetInc < 0) this.optionsOffset[i] = 0;
             else this.optionsOffset[i] -= this.offsetInc;
@@ -1924,7 +1946,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (typeof this.output === "string") this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))].toUpperCase();
       else this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))];
 
-      p.fill(255,255,255,opa);
+      p.fill(white[0], white[1], white[2],opa);
       p.noStroke();
       p.textSize(p.windowHeight/65);
       p.textAlign(p.CENTER,p.BOTTOM);
@@ -1934,7 +1956,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.text(this.output+this.unit,x,y+this.radius/1.7);
 
       p.noFill();
-      p.stroke(255, 255, 255,opa);
+      p.stroke(white[0], white[1], white[2],opa);
       p.strokeWeight(1);
       p.push();
       p.translate(x,y);
@@ -2003,7 +2025,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       else this.opa = 255/2;
 
       p.noFill();
-      p.stroke(255, 255, 255,this.opa);
+      p.stroke(white[0], white[1], white[2],this.opa);
       p.circle(x, y, this.radius);
       if (this.state) {
         p.noStroke();
@@ -2080,7 +2102,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       p.noStroke();
       
-      p.fill(255, 255, 255);
+      p.fill(white[0], white[1], white[2]);
       p.textSize(p.windowHeight/40);
       p.textAlign(p.LEFT,p.TOP);
       if (this.label === "PRESET") {
@@ -2095,7 +2117,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       else p.text(this.value + " " + this.unit, x-this.w/3.2, y-this.h/2);
 
       p.textAlign(p.LEFT,p.BOTTOM);
-      p.fill(255, 255, 255, 255/2);
+      p.fill(white[0], white[1], white[2], 255/2);
       p.textSize(p.windowHeight/65);
       p.text(this.label, x-this.w/3.2, y+this.h/2);
 

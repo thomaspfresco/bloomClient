@@ -1,6 +1,8 @@
 //frequency at octave 0 (0 to 8)
 const freqs = [16.35,17.32,18.35,19.45,20.6,21.83,23.12,24.5,25.96,27.5,29.14,30.87,32.70];
 
+const octaves = ["C0-B0","C1-B1","C2-B2","C3-B3","C4-B4","C5-B5","C6-B6","C7-B7","C8-B8"];
+
 const noteLabels = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 const drumLabels = ["KICK", "SNARE", "CLOSED HAT", "OPEN HAT", "HIGH TOM", "LOW TOM", "CRASH"];
@@ -77,6 +79,6 @@ function keysDecode(c) {
     }
 }
 
-let theory = { freqs, noteLabels, drumLabels, keysDecode, waveTypes, delayTimes, timeValues, pitchValues, defaultValues};
+let theory = { freqs, octaves, noteLabels, drumLabels, keysDecode, waveTypes, delayTimes, timeValues, pitchValues, defaultValues};
 
 export default theory;
