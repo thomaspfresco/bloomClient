@@ -399,11 +399,14 @@ class DrumSynth {
         this.parts = [];
 
         this.fxChain = new FxChain();
+        this.gain = new Tone.Gain();
 
         for (let i = 0; i < 7; i++) {
             this.parts.push(new Tone.Player(kit[i]));
-            this.parts[i].connect(this.fxChain.filter);
+            this.parts[i].connect(this.gain);
         }
+
+        this.gain.connect(this.fxChain.filter);
     }
 }
 

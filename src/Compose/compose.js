@@ -58,11 +58,11 @@ let noiseMax = 1;
 
 let petalModelSize = 0;
 
-var particles = new Array(50);
-var totalFrames = 300;
+var particles = new Array(100);
+var totalFrames = 360;
 let counter = 0;
 
-let petalParticles = new Array(500);
+let petalParticles = new Array(50);
 let diagonal;
 let rotation = 0;
 
@@ -161,7 +161,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         p.rotate(this.r);
         p.translate(this.drawDist()+p.windowHeight/50*p.sin(this.ang/4), p.windowHeight/50*p.sin(this.ang/2),-p.windowWidth / this.o / 5);
         p.fill(this.color[0],this.color[1],this.color[2],p.min(this.l, 255));
-        p.scale(p.windowWidth / this.o / 10 / petalModelSize);
+        p.scale(p.windowWidth / this.o / 5 / petalModelSize);
         p.rotateX(this.ang);
         p.rotateY(this.ang);
         p.model(this.petal);
@@ -210,6 +210,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.bloomTargetX = p.windowWidth / 2;
       this.tabsX = [];
       this.tabsTargetX = [];
+      this.blackoutOpa = 255;
 
       this.logMessage = "";
       this.logOpa = 0;
@@ -242,6 +243,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.structsOpa = 0;
       this.drawersOpaInc = 15;
       this.drawersOpaMax = 255;
+    }
+
+    alertLog(message) {
+      this.logMessage = message;
+      this.showLog = true;
     }
 
     drawLog() {
@@ -291,6 +297,13 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
       else this.activeTab.draw();
 
+      //tab transition animation
+      if (this.blackoutOpa - 10 < 0) this.blackoutOpa = 0;
+      else this.blackoutOpa -= 10;
+      p.noStroke();
+      p.fill(0, 0, 0, this.blackoutOpa);
+      p.rect(0, 0, p.windowWidth, p.windowHeight);
+
       //Tabs
       this.drawTabs();
 
@@ -298,6 +311,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.noStroke();
       p.fill(0, 0, 0, this.drawersDark);
       p.rect(0, 0, p.windowWidth, p.windowHeight);
+
+      p.textFont(fontLight);
 
       //loop drawer
       p.textAlign(p.LEFT, p.TOP);
@@ -311,6 +326,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
         //create loop
         if (p.mouseIsPressed) {
+          if (this.activeTab !== null) {
+            this.activeTab.selectedTrack = null;
+            this.activeTab.view = 0;
+          }
           let name = "myloop"+(this.loops.length+1);
           this.loops.push(new Loop(this.loops.length, name, 120));
           this.manageTabs(this.loops[this.loops.length-1]);
@@ -326,7 +345,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.text("STRUCTS", p.windowWidth - p.windowHeight / 30 + this.structsOffset, p.windowHeight / 30);
 
       //drawers trigger
-      if (this.loopDrawer === false && this.structDrawer === false) {
+      if (this.loopDrawer === false && this.structDrawer === false && dragging === false) {
         if (p.mouseX < p.windowWidth / 100) {
           if (this.loopDrawer === false) {
             this.drawerInstant = p.millis();
@@ -444,6 +463,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
                 this.loops[i].drawPreview();
 
                 if (p.mouseIsPressed) {
+                  if (this.activeTab !== null) {
+                    this.activeTab.selectedTrack = null;
+                    this.activeTab.view = 0;
+                  }
                   this.manageTabs(this.loops[i]);
                   this.activeTab.active = true;
                   //synths.exportLoopAudio(this.loops[i],nSteps,setLoading);
@@ -566,8 +589,13 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         document.body.style.cursor = 'pointer';
 
         if (p.mouseIsPressed) {
+          if (this.activeTab !== null) {
+            this.activeTab.selectedTrack = null;
+            this.activeTab.view = 0;
+          }
           this.activeTab = null;
           p.mouseIsPressed = false;
+          this.blackoutOpa = 255;
         }
       }
       p.text("BLOOM", this.bloomX, p.windowHeight / 30);
@@ -582,6 +610,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           p.textFont(fontLight);
           document.body.style.cursor = 'pointer';
           if (p.mouseIsPressed) {
+            if (this.activeTab !== null) {
+              this.activeTab.selectedTrack = null;
+              this.activeTab.view = 0;
+            }
             this.activeTab = this.tabs[i];
             this.activeTab.active = false;
             p.mouseIsPressed = false;
@@ -640,15 +672,19 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       this.selectedTrack = null;
 
-      this.view = 1; //0:grid, 1:studio, 2:automation
+      this.view = 0; //0:grid, 1:studio, 2:automation
       this.gridOpa = 0;
       this.studioOpa = 0;
+      
+      this.blackOpa1 = 255;
+      this.blackOpa2 = 255;
+      this.blackOpa3 = 0;
 
       this.tempoScroll = new Scrollable("TEMPO",tempo,20,400,"BPM",1,5);
       // = new Scrollable("TRANSPOSE",0,-12,12,"ST",1,1);
 
-      this.click = new Button(false, [255,255,255]);
-      this.record = new Button(false, [255,0,0]);
+      this.click = new Button("CLICK", false, [white[0], white[1], white[2]]);
+      this.record = new Button("RECORD", false, [255,0,0]);
 
       this.tempo = tempo;
       this.timeBtwSteps = 60 / tempo / 4;
@@ -661,8 +697,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       this.lastInstPlusMenu = 0;
       this.opaPlus = 0;
-      this.opaPlusInc = 5;
-      this.opaPlusMax = 50;
+      this.opaPlusInc = 10;
+      this.opaPlusMax = 255;
 
       this.plusX = p.windowWidth / 2 - iconSize / 2;
       this.plusY = p.windowHeight - iconSize / 2 - iconSize;
@@ -760,9 +796,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         }
 
         //hover plus button
-        if (p.mouseX > this.plusX && p.mouseX < this.plusX + iconSize && p.mouseY > this.plusY && p.mouseY < this.plusY + iconSize) {
+        if (p.mouseX > this.plusX && p.mouseX < this.plusX + iconSize && p.mouseY > this.plusY && p.mouseY < this.plusY + iconSize  && dragging === false && this.tracks.length < maxTracks) {
           if (this.opaPlus + this.opaPlusInc > this.opaPlusMax) this.opaPlus = this.opaPlusMax;
           else this.opaPlus += this.opaPlusInc;
+
+          document.body.style.cursor = 'pointer';
 
           if (p.mouseIsPressed) {
             //synth.triggerAttackRelease("C4", "8n");
@@ -789,12 +827,18 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           let auxY = p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2;
           let auxX = (p.windowWidth - gridInitX*2 - p.windowWidth/150*7)/8/2;
           this.tempoScroll.draw(gridInitX + auxX,auxY);
-          p.textSize(p.windowHeight / 50);
-          let tw = p.textWidth("CLICK");
+          p.textSize(p.windowHeight / 65);
+          p.textAlign(p.CENTER, p.BOTTOM);
+          //let tw = p.textWidth("CLICK");
+          if (this.click.state) p.fill(white[0], white[1], white[2]);
+          else p.fill(white[0], white[1], white[2], 255/2);
+          p.text("CLICK",gridInitX + auxX*3+p.windowWidth/150*1,auxY+p.windowHeight / 40);
+          if (this.record.state) p.fill(white[0], white[1], white[2]);
+          else p.fill(white[0], white[1], white[2], 255/2);
+          p.text("RECORD",gridInitX + auxX*5+p.windowWidth/150*2,auxY+p.windowHeight / 40);
 
-          this.click.draw(gridInitX + auxX*3+p.windowWidth/150*1,auxY);
-
-          this.record.draw(gridInitX + auxX*5+p.windowWidth/150*2,auxY);
+          this.click.draw(gridInitX + auxX*3+p.windowWidth/150*1,auxY-p.windowHeight / 120);
+          this.record.draw(gridInitX + auxX*5+p.windowWidth/150*2,auxY-p.windowHeight / 120);
           //this.transposeScroll.draw(p.windowWidth/8*2.5,auxY);
           
           if (this.tempoScroll.value !== this.tempo) {
@@ -811,7 +855,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         //p.stroke(white[0], white[1], white[2]);
         //p.strokeWeight(1);
         //p.rect(this.plusX, this.plusY, iconSize, iconSize, iconCorners);
+        p.push();
+        p.tint(255, this.opaPlus);
         p.image(plus, this.plusX + iconSize / 2, p.windowHeight - iconSize, p.windowHeight / 50, p.windowHeight / 50);
+        p.pop();
 
         //blackout animation
         if (this === session.activeTab) {
@@ -822,26 +869,53 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.active) {
           if (this.blackoutOpa - this.opaPlusInc > 0) this.blackoutOpa -= this.opaPlusInc;
           else this.blackoutOpa = 0;
+          if (this.blackOpa1 - this.opaPlusInc < 0) this.blackOpa1 = 0;
+          else this.blackOpa1 -= this.opaPlusInc;
+          if (this.blackOpa2 - this.opaPlusInc < 0) this.blackOpa2 = 0;
+          else this.blackOpa2 -= this.opaPlusInc;
+          if (this.blackOpa3 - this.opaPlusInc < 0) this.blackOpa3 = 0;
+          else this.blackOpa3 -= this.opaPlusInc;
         }
 
         //track view buttons
-        let icons = [autoIcon, studioIcon, gridIcon];
-        for (let i = 0; i < icons.length; i++) {
-          let x =  p.windowWidth - iconSize*(i+1);
-          let y = p.windowHeight - iconSize;
-          p.image(icons[i], x, y, p.windowHeight / 35, p.windowHeight / 35);
+        if (this.selectedTrack !== null) {
+          let icons = [autoIcon, studioIcon, gridIcon];
+          for (let i = 0; i < icons.length; i++) {
+            let x =  p.windowWidth - gridInitX*2 - iconSize*(i);
+            let y = p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2;
+            if ((2-i) === this.view) p.tint(255, 255);
+            else p.tint(255, 255/4);
+            p.image(icons[i], x, y, p.windowHeight / 35, p.windowHeight / 35);
 
-          if (p.mouseX > x-p.windowHeight / 35 && p.mouseX < x+p.windowHeight / 35 && p.mouseY > y-p.windowHeight / 35 && p.mouseY < y+p.windowHeight / 35 && dragging === false) {
-            document.body.style.cursor = 'pointer';
-            if (p.mouseIsPressed) {
-              if (this.view === (2-i)) this.selectedTrack = null;
-              else this.view = 2-i;
-              p.mouseIsPressed = false;
+            if (p.mouseX > x-p.windowHeight / 35 && p.mouseX < x+p.windowHeight / 35 && p.mouseY > y-p.windowHeight / 35 && p.mouseY < y+p.windowHeight / 35 && dragging === false) {
+              document.body.style.cursor = 'pointer';
+              if (p.mouseIsPressed) {
+                if (this.view === (2-i)) {
+                  this.selectedTrack = null;
+                  this.view = 0;
+                }
+                else {
+                  this.view = 2-i;
+                  this.blackOpa2 = 255;
+                  this.blackOpa3 = 255;
+                }
+                p.mouseIsPressed = false;
+              }
             }
           }
         }
 
+        //complementary black anim transition
         p.noStroke();
+        p.fill(0, 0, 0, this.blackOpa1);
+        p.rect(0,p.windowHeight-gridInitY*1.2,p.windowWidth/16*6,gridInitY*1.2);
+        p.rect(p.windowWidth-p.windowWidth/16*2.5, p.windowHeight-gridInitY*1.2,p.windowWidth/16*2.5,gridInitY*1.2);
+        p.fill(0, 0, 0, this.blackOpa2);
+        p.rect(p.windowWidth-p.windowWidth/16*2.5-p.windowWidth/16*3.5, p.windowHeight-gridInitY*1.2,p.windowWidth/16*3.5,gridInitY*1.2);
+        p.fill(0, 0, 0, this.blackOpa3);
+        p.rect(0, gridInitY-p.windowHeight/100, p.windowWidth, p.windowHeight-gridInitY*2.2);
+
+        //black anim transition
         p.fill(0, 0, 0, this.blackoutOpa);
         p.rect(0, 0, p.windowWidth, p.windowHeight);
     }
@@ -868,7 +942,6 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       this.loopId = loopId;
 
-
       if (this.name === "DRUMS") {
         this.nPitches = theory.drumLabels.length;
         this.color = colors[1];
@@ -885,8 +958,6 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.ang = p.random(0, p.TWO_PI);
       this.angInc = p.PI / 400;
 
-      //this.color = [p.random(0, 255), p.random(0, 255), p.random(0, 255)];
-
       this.radiusCol = p.windowHeight / 4;
 
       this.iconHover = false;
@@ -894,6 +965,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.hoverVolume = false;
       this.draggingVolume = false;
       this.volumeY = 0;
+      this.volumeYmax = 0;
+      this.volumeYmin = 0;
+      this.lastMouseY = 0;
+
+      this.draggingAutomation = false;
 
       this.opaLine = 255;
       this.opaLineInc = 5;
@@ -914,14 +990,14 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //fx knobs
       this.filterKnob = new Knob("POSITION",0.50,theory.defaultValues,"");
       this.distKnob = new Knob("AMOUNT",0.50,theory.defaultValues,"");
-      this.dlyKnobs = [new Knob("TIME",0.50,theory.delayTimes,""),new Knob("FEEDBACK",0.50,theory.defaultValues,""),new Knob("VOLUME",0.50,theory.defaultValues,"")];
+      this.dlyKnobs = [new Knob("TIME",0.50,theory.delayTimes,""),new Knob("FEEDBACK",0.50,theory.defaultValues,""),new Knob("DRY/WET",0.50,theory.defaultValues,"")];
       this.revKnobs = [new Knob("DECAY",0.50,theory.timeValues,"s"),new Knob("DRY/WET",0.50,theory.defaultValues,"")];
 
       //fx buttons
-      this.filterButton = new Button(true,this.color);
-      this.distButton = new Button(false,this.color);
-      this.dlyButton = new Button(false,this.color);
-      this.revButton = new Button(false,this.color);
+      this.filterButton = new Button("FILTER", true,this.color);
+      this.distButton = new Button("DISTORTION", false,this.color);
+      this.dlyButton = new Button("DELAY", false,this.color);
+      this.revButton = new Button("REVERB", false,this.color);
 
       if (this.name === "BASS") {
         this.petal = petal1;
@@ -945,41 +1021,42 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (this.name === "DRUMS") {
         this.preset = 0;
         this.presetScroll = new Scrollable("PRESET",this.preset,0,synths.drumPresets.length-1,"",1,1);
-        this.octaveScroll = new Scrollable("OCTAVE",3,0,theory.octaves.length-1,"",1,1);
+        this.octaveScroll = new Scrollable("OCTAVE",0,0,0,"",1,1);
+
         this.drumKnobs = [];
         this.drumButtons = [];
         this.petal = petal2;
         this.synth = synths.drums;
         for (let i=0; i<theory.drumLabels.length; i++) { 
           this.drumKnobs.push([new Knob("GAIN",1,theory.defaultValues,""),new Knob("PITCH",0.50, theory.pitchValues,"st")]);
-          this.drumButtons.push(new Button(true,this.color));
+          this.drumButtons.push(new Button("PART "+i,true,this.color));
           this.knobs.push([theory.drumLabels[i],this.drumKnobs[i][0]]);
           this.knobs.push([theory.drumLabels[i],this.drumKnobs[i][1]]);
         }      
       } else {
         this.oscPitch = [0,0];
-        this.octaveScroll = new Scrollable("OCTAVE",0,0,0,"KIT",1,1);
+        this.octaveScroll = new Scrollable("OCTAVE",3,0,theory.octaves.length-1,"",1,1);
         this.presetScroll = new Scrollable("PRESET",this.preset,0,synths.synthPresets.length-1,"",1,1);
 
         this.oscKnobs = [[new Knob("WAVE", 1, theory.waveTypes, ""),new Knob("PITCH",0.50, theory.pitchValues,"st"),new Knob("VOLUME",0.50,theory.defaultValues,"")],[new Knob("WAVE", 0, theory.waveTypes, ""),new Knob("PITCH",0.50, theory.pitchValues,"st"),new Knob("VOLUME",0.50,theory.defaultValues,"")]];
         this.envKnobs = [[new Knob("ATTACK",0,theory.timeValues,"s"),new Knob("DECAY",0.50,theory.timeValues,"s"),new Knob("SUSTAIN",0.50,theory.defaultValues,""),new Knob("RELEASE",0,theory.timeValues,"s")],[new Knob("ATTACK",0,theory.timeValues,"s"),new Knob("DECAY",0.50,theory.timeValues,"s"),new Knob("SUSTAIN",0.50,theory.defaultValues,""),new Knob("RELEASE",0,theory.timeValues,"s")]];
-        this.oscButtons = [new Button(true,this.color),new Button(true,this.color)];
-        this.envButtons = [new Button(true,this.color),new Button(true,this.color)];
+        this.oscButtons = [new Button("OSCILLATOR 1", true,this.color),new Button("OSCILLATOR 2", true,this.color)];
+        this.envButtons = [new Button("ENVELOPE 1", true,this.color),new Button("ENVELOPE 2", true,this.color)];
         
         for (let i = 0; i < 2; i++) {
-          this.knobs.push(["OSCILLATOR "+(i+1),this.oscKnobs[i][0]]);
-          this.knobs.push(["OSCILLATOR "+(i+1),this.oscKnobs[i][1]]);
-          this.knobs.push(["OSCILLATOR "+(i+1),this.oscKnobs[i][2]]);
-          this.knobs.push(["ENVELOPE "+(i+1),this.envKnobs[i][0]]);
-          this.knobs.push(["ENVELOPE "+(i+1),this.envKnobs[i][1]]);
-          this.knobs.push(["ENVELOPE "+(i+1),this.envKnobs[i][2]]);
-          this.knobs.push(["ENVELOPE "+(i+1),this.envKnobs[i][3]]);
+          this.knobs.push(["OSC "+(i+1),this.oscKnobs[i][0]]);
+          this.knobs.push(["OSC "+(i+1),this.oscKnobs[i][1]]);
+          this.knobs.push(["OSC "+(i+1),this.oscKnobs[i][2]]);
+          this.knobs.push(["ENV "+(i+1),this.envKnobs[i][0]]);
+          this.knobs.push(["ENV "+(i+1),this.envKnobs[i][1]]);
+          this.knobs.push(["ENV "+(i+1),this.envKnobs[i][2]]);
+          this.knobs.push(["ENV "+(i+1),this.envKnobs[i][3]]);
         }
 
       }
 
       this.knobs.push(["FILTER",this.filterKnob]);
-      this.knobs.push(["DISTORTION",this.distKnob]);
+      this.knobs.push(["DIST",this.distKnob]);
       this.knobs.push(["DELAY",this.dlyKnobs[0]]);
       this.knobs.push(["DELAY",this.dlyKnobs[1]]);
       this.knobs.push(["DELAY",this.dlyKnobs[2]]);
@@ -1049,24 +1126,37 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
      
       p.noStroke();
       for (let i = 0; i < nSteps ; i++) {
+        if (i%16 === 0 || i%4 === 0) {
+          p.strokeWeight(1);
+          if (i%16 === 0) p.stroke(white[0]/5, white[1]/5, white[2]/5);
+          else p.stroke(white[0]/8, white[1]/8, white[2]/8);
+          p.line(gridInitX+gridStepSizeX*i,gridInitY,gridInitX+gridStepSizeX*i,gridInitY+gridStepSizeY*(this.nPitches-1));
+        }
         const xPos = gridInitX + gridStepSizeX * i;
         for (let j = 0; j < this.nPitches; j++) {
             const yPos = gridInitY + gridStepSizeY * j;
             const d = p.dist(p.mouseX,p.mouseY,xPos,yPos);
-            if (d < gridStepSizeX*nSteps/5) {
-              p.fill(white[0], white[1], white[2],p.map(d,0,gridStepSizeX*nSteps/5,255,255/6));
-            } else p.fill(white[0], white[1], white[2],255/6);
-            p.circle(xPos, yPos, 2, 2);
+            p.noStroke();
+            if (d < gridStepSizeX*nSteps/6) p.fill(white[0], white[1], white[2],p.map(d,0,gridStepSizeX*nSteps/6,255,255/2.5));
+            else p.fill(white[0], white[1], white[2],255/2.5);
+            //if (i%16 === 0) p.fill(white[0]/2, white[1]/2, white[2]/2);
+            //else p.fill(white[0]/4, white[1]/4, white[2]/4);
+            p.push();
+            p.translate(0,0,-1);
+            p.circle(xPos, yPos, 1, 1);
+            p.pop();
         }
       }
 
-      this.octaveScroll.draw(p.windowWidth/4*3,p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2);
+      this.octaveScroll.draw(p.windowWidth/4*2.8,p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2);
     }
 
     drawAutomation() {
+
       p.strokeWeight(maxWeightLines);
-      p.stroke(white[0], white[1], white[2],255/5);
-      p.rect(gridInitX,gridInitY,gridStepSizeX*(nSteps-1),gridStepSizeY*(12-1),p.windowHeight/200);
+      if (this.knobs[this.automationScroll.value][1].automating) p.stroke(this.color[0],this.color[1],this.color[2],255/2);
+      else p.stroke(white[0],white[1],white[2],255/8);
+      //p.rect(gridInitX,gridInitY,gridStepSizeX*(nSteps-1),gridStepSizeY*(12-1),p.windowHeight/200);
 
       p.beginShape();
       for (let i = 0; i < nSteps; i++) {
@@ -1075,8 +1165,30 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
       p.endShape();
 
+      for (let i = 0; i < nSteps; i++) {
+        if (i%16 === 0 || i%4 === 0) {
+          p.strokeWeight(1);
+          if (i%16 === 0) p.stroke(white[0], white[1], white[2],255/5);
+          else p.stroke(white[0], white[1], white[2],255/8);
+          p.line(gridInitX+gridStepSizeX*i,gridInitY,gridInitX+gridStepSizeX*i,gridInitY+gridStepSizeY*(this.nPitches-1));
+        }
+        let aux = p.map(this.knobs[this.automationScroll.value][1].automation[i],0,1,gridInitY+gridStepSizeY*(this.nPitches-1),gridInitY);
+        if (this.knobs[this.automationScroll.value][1].automating) {
+          if (i === session.activeTab.currentStep && session.activeTab.play) {
+            p.fill(white[0], white[1], white[2]);
+            p.circle(gridInitX+gridStepSizeX*i,aux,10);
+          }
+          else {
+            p.fill(this.color[0],this.color[1],this.color[2]);
+            p.circle(gridInitX+gridStepSizeX*i,aux,5);
+          }
+        } else {
+          p.fill(white[0],white[1],white[2],255/4);
+          p.circle(gridInitX+gridStepSizeX*i,aux,5);
+        }
+      }
       //param scroll
-      this.automationScroll.draw(p.windowWidth/4*3,p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2);
+      this.automationScroll.draw(p.windowWidth/4*2.8,p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2);
       /*if (this.presetScroll.value !== this.preset) {
         this.preset = this.presetScroll.value;
         if (this.name === "DRUMS") this.switchPreset(synths.drumPresets[this.preset]);
@@ -1084,18 +1196,32 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }*/
 
       if (p.mouseX > gridInitX && p.mouseX < gridInitX + gridStepSizeX * (nSteps-1) && p.mouseY > gridInitY && p.mouseY < gridInitY + gridStepSizeY * (this.nPitches-1) && dragging === false) {
-        document.body.style.cursor = 'pointer';
+        document.body.style.cursor = 'grab';
         let posX = p.round((p.mouseX-gridInitX)/gridStepSizeX);
         let aux = p.map(this.knobs[this.automationScroll.value][1].automation[posX],0,1,gridInitY+gridStepSizeY*(this.nPitches-1),gridInitY);
         p.circle(gridInitX + posX*gridStepSizeX, aux, 5);
         if (p.mouseIsPressed) {
-          if (this.knobs[this.automationScroll.value][1].automating === false) this.knobs[this.automationScroll.value][1].automating = true;
-          this.knobs[this.automationScroll.value][1].automation[posX] = p.map(p.mouseY,gridInitY+gridStepSizeY*(this.nPitches-1),gridInitY,0,1);
+          this.draggingAutomation = true;
+          dragging = true;
         }
         //p.stroke(255,255,255,255/2);
         //p.strokeWeight(1);
         //p.line(gridInitX, this.mouseY, gridInitX + gridStepSizeX * nSteps, this.mouseY);
         //p.line(this.mouseX, gridInitY, this.mouseX, gridInitY + gridStepSizeY * this.nPitches);
+      }
+
+      if (p.mouseIsPressed === false && this.draggingAutomation) {
+        this.draggingAutomation = false;
+        dragging = false;
+      }
+
+      if (this.draggingAutomation) {
+        document.body.style.cursor = 'grabbing';
+        let posX = p.round((p.mouseX-gridInitX)/gridStepSizeX);
+        if (this.knobs[this.automationScroll.value][1].automating === false) this.knobs[this.automationScroll.value][1].automating = true;
+        this.knobs[this.automationScroll.value][1].automation[posX] = p.map(p.mouseY,gridInitY+gridStepSizeY*(this.nPitches-1),gridInitY,0,1);
+        if (this.knobs[this.automationScroll.value][1].automation[posX] < 0) this.knobs[this.automationScroll.value][1].automation[posX] = 0;
+        if (this.knobs[this.automationScroll.value][1].automation[posX] > 1) this.knobs[this.automationScroll.value][1].automation[posX] = 1;
       }
     }
 
@@ -1113,8 +1239,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (dbs[0] < -60) dbs[0] = -60;
       if (dbs[1] < -60) dbs[1] = -60;
       
-      barLeftHeight = p.map(dbs[0],-60,0,0, -(gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap));
-      barRightHeight = p.map(dbs[1],-60,0,0, -(gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap));
+      barLeftHeight = p.map(dbs[0],-60,0,0, -(gridStepSizeY*(12-1) - studioGap - auxY-13*studioGap));
+      barRightHeight = p.map(dbs[1],-60,0,0, -(gridStepSizeY*(12-1) - studioGap - auxY-13*studioGap));
       
       //this.hoverVolume = false;
       //this.draggingVolume = false;
@@ -1122,11 +1248,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       p.noStroke();
       p.fill(this.color[0],this.color[1],this.color[2]);
-      p.rect(gridInitX + p.windowWidth/9/2 - studioGap/2-studioGap*2,gridInitY+studioGap + auxY +5*studioGap + gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap,studioGap*2,barLeftHeight);
-      p.rect(gridInitX + p.windowWidth/9/2 + studioGap/2,gridInitY+studioGap + auxY +5*studioGap + gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap,studioGap*2,barRightHeight);
+      p.rect(gridInitX + p.windowWidth/9/2 - studioGap/2-studioGap*2,gridInitY+studioGap + auxY +5*studioGap + gridStepSizeY*(12-1) - studioGap - auxY-13*studioGap,studioGap*2,barLeftHeight);
+      p.rect(gridInitX + p.windowWidth/9/2 + studioGap/2,gridInitY+studioGap + auxY +5*studioGap + gridStepSizeY*(12-1) - studioGap - auxY-13*studioGap,studioGap*2,barRightHeight);
 
       //preset scroll
-      this.presetScroll.draw(p.windowWidth/4*3,p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2);
+      this.presetScroll.draw(p.windowWidth/4*2.8,p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2);
       if (this.presetScroll.value !== this.preset) {
         this.preset = this.presetScroll.value;
         if (this.name === "DRUMS") this.switchPreset(synths.drumPresets[this.preset]);
@@ -1140,17 +1266,53 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.stroke(white[0], white[1], white[2],255/4);
       p.noFill();
 
-      //boxes
+      //volume fader
+      p.rect(gridInitX + p.windowWidth/9/2 - studioGap/2-studioGap*2,gridInitY+studioGap + auxY +5*studioGap,studioGap*2, gridStepSizeY*(12-1) - studioGap - auxY-13*studioGap); //volume fader
+      p.rect(gridInitX + p.windowWidth/9/2 + studioGap/2,gridInitY+studioGap + auxY +5*studioGap,studioGap*2, gridStepSizeY*(12-1) - studioGap - auxY-13*studioGap); //volume fader
+      
+      p.fill(white[0], white[1], white[2]);
+      
+      let gainTodB = p.map(this.synth.gain.gain.value,0,1,-48,0);
+      gainTodB = Math.round(gainTodB*10)/10;
 
-      //p.fill(50,50,50,255/4);
-      //p.noStroke();
-      p.rect(gridInitX + p.windowWidth/9/2 - studioGap/2-studioGap*2,gridInitY+studioGap + auxY +5*studioGap,studioGap*2, gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap); //volume fader
-      p.rect(gridInitX + p.windowWidth/9/2 + studioGap/2,gridInitY+studioGap + auxY +5*studioGap,studioGap*2, gridStepSizeY*(12-1) - studioGap - auxY-10*studioGap); //volume fader
+      p.textSize(p.windowHeight/55);
+      p.textAlign(p.CENTER,p.TOP);
+      if (gainTodB === -48) p.text("-Inf",gridInitX+p.windowWidth/9/2,gridInitY+studioGap*2.7+auxY*2+auxY/2+p.windowHeight/15/1.7);
+      else if (gainTodB%1 === 0) p.text(gainTodB+".0dB",gridInitX+p.windowWidth/9/2,gridInitY+studioGap*2.7+auxY*2+auxY/2+p.windowHeight/15/1.7);
+      else p.text(gainTodB+"dB",gridInitX+p.windowWidth/9/2,gridInitY+studioGap*2.7+auxY*2+auxY/2+p.windowHeight/15/1.7);
+      
+      this.volumeYmax = gridInitY+studioGap + auxY +5*studioGap;
+      this.volumeYmin = gridInitY+studioGap + auxY +5*studioGap + gridStepSizeY*(12-1) - studioGap - auxY-13*studioGap;
+      this.volumeY = p.map(this.synth.gain.gain.value,1,0,this.volumeYmax,this.volumeYmin);
 
-      p.fill(0);
-      p.rect(gridInitX + p.windowWidth/9/2 - studioGap/2 -studioGap*2,gridInitY+studioGap + auxY +5*studioGap,studioGap*5, p.windowHeight/100);
+      p.rect(gridInitX + p.windowWidth/9/2 - studioGap/2 -studioGap*2,this.volumeY,studioGap*5, p.windowHeight/250);
       p.noFill();
 
+      if (p.mouseX > gridInitX + p.windowWidth/9/2 - studioGap/2 - studioGap*2 && p.mouseX < gridInitX + p.windowWidth/9/2 - studioGap/2 -studioGap*2 + studioGap*5 
+      && p.mouseY > this.volumeYmax && p.mouseY < this.volumeYmin && dragging === false) {
+        document.body.style.cursor = 'grab';
+        this.hoverVolume = true;
+        
+        if (p.mouseIsPressed) {
+          this.draggingVolume = true;
+          dragging = true;
+        }
+      } else this.hoverVolume = false;
+
+
+      if (p.mouseIsPressed === false && this.draggingVolume) {
+        this.draggingVolume = false;
+        dragging = false;
+      }
+
+      if (this.draggingVolume) {
+        document.body.style.cursor = 'grabbing';
+        this.synth.gain.gain.value = p.map(p.mouseY,this.volumeYmax,this.volumeYmin,1,0);
+        if (this.synth.gain.gain.value > 1) this.synth.gain.gain.value = 1;
+        if (this.synth.gain.gain.value < 0) this.synth.gain.gain.value = 0;
+      }
+
+      //boxes
       p.rect(gridInitX,gridInitY, p.windowWidth/9, auxY, p.windowHeight/200); //visualizer
       p.rect(gridInitX,gridInitY+studioGap + auxY,p.windowWidth/9, gridStepSizeY*(12-1) - studioGap - auxY,p.windowHeight/200); //volume fader
       p.rect(gridInitX+col1X,gridInitY+studioGap*2+auxY*2,auxXfx,auxY,p.windowHeight/200); //filter
@@ -1198,7 +1360,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.text("REVERB",gridInitX+col1X+auxXfx*5+studioGap*5+studioGap*1.2,gridInitY+studioGap*2+auxY*2+studioGap);
       
       if (this.name === "DRUMS") {
-        for(let i=0; i<this.drumKnobs.length; i++) p.text(theory.drumLabels[i],gridInitX+col1X+studioGap*1.2+(i*auxXfx)+i*studioGap,gridInitY+studioGap);
+        for(let i=0; i<this.drumKnobs.length; i++) {
+          p.fill(this.color[0],this.color[1],this.color[2],this.drumButtons[i].opa);
+          p.text(theory.drumLabels[i],gridInitX+col1X+studioGap*1.2+(i*auxXfx)+i*studioGap,gridInitY+studioGap);
+        }
       } else {
         p.fill(this.color[0],this.color[1],this.color[2],this.oscButtons[0].opa);
         p.text("OSCILLATOR 1",gridInitX+col1X+studioGap*1.2,gridInitY+studioGap);
@@ -1210,7 +1375,6 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         p.text("ENVELOPE 2",gridInitX+col1X+auxXfx*3+studioGap*3+studioGap*1.2,gridInitY+auxY+studioGap*2);
       }
 
-      this.filterKnob.draw(gridInitX+col1X+auxXfx/2,gridInitY+studioGap*2.7+auxY*2+auxY/2,this.filterButton.opa);
       //knobs and buttons
 
       this.filterKnob.draw(gridInitX+col1X+auxXfx/2,gridInitY+studioGap*2.7+auxY*2+auxY/2,this.filterButton.opa);
@@ -1257,9 +1421,12 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.stroke(white[0], white[1], white[2],previewOpa);
       p.strokeWeight(maxWeightLines / (this.id + 1));
 
+      p.push();
+      p.translate(0,0,2);
       p.beginShape();
-      for (let i = 0; i < this.particlesPreviewX.length; i++) if(i%2 !== 0) p.vertex(this.particlesPreviewX[i], this.particlesPreviewY[i]);
+      for (let i = 0; i < this.particlesPreviewX.length; i++) p.vertex(this.particlesPreviewX[i], this.particlesPreviewY[i]);
       p.endShape(p.CLOSE);
+      p.pop();
 
       let angle = -p.PI / 2;
 
@@ -1293,9 +1460,12 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       else p.stroke(white[0], white[1], white[2],255/3);
       p.strokeWeight(maxWeightLines / (this.id + 1));
 
+      p.push();
+      p.translate(0,0,2);
       p.beginShape();
       for (let i = 0; i < this.particlesDrawerX.length; i++) if(i%8 !== 0) p.vertex(this.particlesDrawerX[i], this.particlesDrawerY[i]);
       p.endShape(p.CLOSE);
+      p.pop();
       //p.circle(x, y, radius);
 
       let angle = -p.PI / 2;
@@ -1416,7 +1586,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         let dTime = session.loops[this.loopId].timeBtwSteps*(p.round(p.map(this.dlyKnobs[0].value,0,1,0,theory.delayTimes.length-1))+1);
         if (this.synth.fxChain.delay.delayTime !== dTime) this.synth.fxChain.delay.delayTime.value = dTime;
         if (this.synth.fxChain.delay.feedback !== this.dlyKnobs[1].value) this.synth.fxChain.delay.feedback.value = this.dlyKnobs[1].value;
-        if (this.synth.fxChain.delay.wet !== this.dlyKnobs[2].value/2) this.synth.fxChain.delay.wet.value = this.dlyKnobs[2].value/2;
+        if (this.synth.fxChain.delay.wet !== this.dlyKnobs[2].value) this.synth.fxChain.delay.wet.value = this.dlyKnobs[2].value;
       }
       else if (this.synth.fxChain.delay.wet !== 0) {
         this.synth.fxChain.delay.wet.value = 0;
@@ -1439,6 +1609,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
     draw() {
       this.updateSynthParams();
+      for (let i=0; i<this.knobs.length; i++) this.knobs[i][1].knobAutomate();
 
       if (session.activeTab.selectedTrack !== null && session.activeTab.selectedTrack !== this) {
         if (this.opaLine - this.opaLineInc < 255/6) this.opaLine = 255/6;
@@ -1456,7 +1627,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         //p.strokeWeight(maxWeightLines);
 
         p.beginShape();
-        for (let i = 0; i < this.particlesX.length; i++) if(i%2 !== 0 || i===0) {
+        for (let i = 0; i < this.particlesX.length; i++) {
           //let dif = session.loops[this.loopId].currentStep - i;
           //let aux = p.map(dif, -session.loops[this.loopId].nSteps, session.loops[this.loopId].nSteps, 0, 255);
           //p.stroke(255, 255, 255,aux);
@@ -1474,7 +1645,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       let index = 1;
 
-      for (let x = gridInitX; x <= gridInitX + (gridStepSizeX * (nSteps-1)); x += gridStepSizeX) {
+      //error with (nSteps-1) instead of nSteps
+      for (let x = gridInitX; x <= gridInitX + (gridStepSizeX * nSteps); x += gridStepSizeX) {
         n = p.noise(x * 0.0005, this.id * 0.3, p.frameCount * 0.002);
         y = p.map(n, 0, 1, -p.windowHeight / 10, p.windowHeight / 10);
         this.targetXexp[index] = x;
@@ -1527,17 +1699,23 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.pop();
 
       //hover and track select
-      if (p.mouseX > this.iconX && p.mouseX < this.iconX+p.windowHeight/30*2 && p.mouseY > p.windowHeight - marginX -p.windowHeight / 45 - p.windowHeight/30*2 && p.mouseY < p.windowHeight - marginX -p.windowHeight / 45) {
+      if (p.mouseX > this.iconX && p.mouseX < this.iconX+p.windowHeight/30*2 && p.mouseY > p.windowHeight - marginX -p.windowHeight / 45 - p.windowHeight/30*2 && p.mouseY < p.windowHeight - marginX -p.windowHeight / 45 && dragging === false) {
         document.body.style.cursor = 'pointer';
+        if (this.iconHover === false) this.angInc = p.PI / 20;
         this.iconHover = true;
         
         if (p.mouseIsPressed) {
+          session.loops[this.loopId].blackOpa1 = 255;
+          session.loops[this.loopId].blackOpa2 = 255;
+          session.loops[this.loopId].blackOpa3 = 255;
           session.activeTab.selectedTrack = this;
           p.mouseIsPressed = false;
 
         }
       }
       else this.iconHover = false;
+
+      if (this.angInc > p.PI / 400) this.angInc -= 0.002;
       
       /*p.strokeWeight(1);
       p.stroke(255, 255, 255, this.opaIcon);
@@ -1582,6 +1760,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //this.pitch = theory.freqs[p.floor(p.random(0, theory.freqs.length))]*8;
       this.pitch = pitch;
 
+      this.colorOrig = color;
       this.color = color;
 
       this.loopId = loopId;
@@ -1611,6 +1790,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.angInc = p.PI / 12;
       this.animOpa = 255;
       this.animR = this.size;
+      this.color = [this.colorOrig[0]+100,this.colorOrig[1]+100,this.colorOrig[2]+100];
+
       if (session.activeTab.tracks[this.trackId].name === "DRUMS") {
         session.activeTab.tracks[this.trackId].synth.parts[this.pitch].start();
         if (this.pitch === 2) session.activeTab.tracks[this.trackId].synth.parts[3].stop();
@@ -1627,12 +1808,13 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.angInc = p.PI / 12;
       this.animOpa = 255;
       this.animR = this.size;
+      this.color = [this.colorOrig[0]+100,this.colorOrig[1]+100,this.colorOrig[2]+100];
       //synth.triggerAttackRelease("C3", "16n");
       if (session.activeTab.tracks[this.trackId].name === "DRUMS") {
         session.activeTab.tracks[this.trackId].synth.parts[this.pitch].start();
       } else {
-        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[0].triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave),"16n");
-        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave),"16n");
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[0].triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave),0.1);
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave),0.1);
       }
     }
 
@@ -1646,26 +1828,26 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         p.textAlign(p.LEFT, p.CENTER);
         p.textSize(p.windowHeight / 40);
         p.textFont(fontMedium);
-        if (session.activeTab.selectedTrack.name === "DRUMS") p.text(theory.drumLabels[this.pitch], this.x+gridStepSizeX, this.y-gridStepSizeX*1.2);
-        else p.text(theory.noteLabels[this.pitch] + this.octave, this.x+gridStepSizeX, this.y-gridStepSizeX*1.2);
+        if (session.activeTab.selectedTrack.name === "DRUMS") p.text(theory.drumLabels[this.pitch], this.x+gridStepSizeX, this.y-gridStepSizeX*1.4);
+        else p.text(theory.noteLabels[this.pitch] + this.octave, this.x+gridStepSizeX, this.y-gridStepSizeX*1.4);
         p.textFont(fontLight);
         p.textSize(p.windowHeight / 65);
-        if (this.duration === 1) p.text("STEP "+(this.start+1), this.x+gridStepSizeX, this.y-gridStepSizeX*1.2-p.windowHeight / 50);
-        else p.text("STEP "+(this.start+1)+"-"+(this.duration+1), this.x+gridStepSizeX, this.y-gridStepSizeX*1.2-p.windowHeight / 50);
+        if (this.duration === 1) p.text("STEP "+(this.start+1), this.x+gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
+        else p.text("STEP "+(this.start+1)+"-"+(this.duration+1), this.x+gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
         p.fill(this.color[0], this.color[1], this.color[2], this.opaInfo);
-        p.text(session.activeTab.tracks[this.trackId].name, this.x+gridStepSizeX, this.y-gridStepSizeX*1.2+p.windowHeight / 42);
+        p.text(session.activeTab.tracks[this.trackId].name, this.x+gridStepSizeX, this.y-gridStepSizeX*1.4+p.windowHeight / 42);
       } else {
         p.textAlign(p.RIGHT, p.CENTER);
         p.textSize(p.windowHeight / 40);
         p.textFont(fontMedium);
-        if (session.activeTab.selectedTrack.name === "DRUMS") p.text(theory.drumLabels[this.pitch], this.x-gridStepSizeX, this.y-gridStepSizeX*1.2);
-        else p.text(theory.noteLabels[this.pitch] + this.octave, this.x-gridStepSizeX, this.y-gridStepSizeX*1.2);
+        if (session.activeTab.selectedTrack.name === "DRUMS") p.text(theory.drumLabels[this.pitch], this.x-gridStepSizeX, this.y-gridStepSizeX*1.4);
+        else p.text(theory.noteLabels[this.pitch] + this.octave, this.x-gridStepSizeX, this.y-gridStepSizeX*1.4);
         p.textFont(fontLight);
         p.textSize(p.windowHeight / 65);
-        if (this.duration === 1) p.text("STEP "+(this.start+1), this.x-gridStepSizeX, this.y-gridStepSizeX*1.2-p.windowHeight / 50);
-        else p.text("STEP "+(this.start+1)+"-"+(this.duration+1), this.x-gridStepSizeX, this.y-gridStepSizeX*1.2-p.windowHeight / 50);
+        if (this.duration === 1) p.text("STEP "+(this.start+1), this.x-gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
+        else p.text("STEP "+(this.start+1)+"-"+(this.duration+1), this.x-gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
         p.fill(this.color[0], this.color[1], this.color[2], this.opaInfo);
-        p.text(session.activeTab.tracks[this.trackId].name, this.x-gridStepSizeX, this.y-gridStepSizeX*1.2+p.windowHeight / 42);
+        p.text(session.activeTab.tracks[this.trackId].name, this.x-gridStepSizeX, this.y-gridStepSizeX*1.4+p.windowHeight / 42);
       }
     }
 
@@ -1683,6 +1865,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         //console.log(this.loopId,this.trackId);
         this.triggerRelease();
       }*/
+
+      for (let i = 0; i < this.color.length; i++) {
+        if (this.color[i] - 5 < this.colorOrig[i]) this.color[i] = this.colorOrig[i];
+        else this.color[i] -= 5;
+      }
 
       this.size = p.windowHeight / 60;
 
@@ -1778,7 +1965,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.noStroke();
       //p.circle(this.x, this.y, this.size, this.size);
 
-      if (session.activeTab.selectedTrack === null || session.activeTab.selectedTrack !== null && session.activeTab.view === 0) {
+      if (session.activeTab.selectedTrack === null || session.activeTab.selectedTrack !== null && session.activeTab.view === 0 && session.activeTab.selectedTrack.octaveScroll.value === this.octave) {
         p.push();
         if (session.activeTab.selectedTrack === session.activeTab.tracks[this.trackId]) p.translate(this.x,this.y,p.windowHeight/60);
         else p.translate(this.x,this.y,-p.windowHeight/60*(session.activeTab.tracks[this.trackId].id+1));
@@ -1929,7 +2116,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.options = options;
       this.unit = unit;
 
-      this.automation = new Array(nSteps).fill(value);
+      this.automation = new Array(nSteps).fill(0.5);
       this.automating = false;
 
       this.hover = false;
@@ -1937,14 +2124,26 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))];
     }
+
+    knobAutomate() {
+      if (this.automating && session.activeTab.currentStep !== -1) this.value = this.automation[session.activeTab.currentStep];
+      if (typeof this.output === "string") this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))].toUpperCase();
+      else this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))];
+    }
+
+    findKnob() {
+      for(let i=0;i<session.activeTab.selectedTrack.knobs.length;i++) {
+        if (session.activeTab.selectedTrack.knobs[i][1] === this) return i;
+      }
+    }
  
     draw(x,y,opa) {
       this.radius = p.windowHeight / 15;
-
-      if (this.automating && session.activeTab.currentStep !== -1) this.value = this.automation[session.activeTab.currentStep];
     
-      if (typeof this.output === "string") this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))].toUpperCase();
-      else this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))];
+      if (this.automating === false) { 
+        if (typeof this.output === "string") this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))].toUpperCase();
+        else this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))];
+      }
 
       p.fill(white[0], white[1], white[2],opa);
       p.noStroke();
@@ -1955,7 +2154,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.textSize(p.windowHeight/55);
       p.text(this.output+this.unit,x,y+this.radius/1.7);
 
-      p.noFill();
+      if (this.automating) p.fill(session.activeTab.selectedTrack.color[0], session.activeTab.selectedTrack.color[1], session.activeTab.selectedTrack.color[2],opa/2);
+      else p.noFill();
       p.stroke(white[0], white[1], white[2],opa);
       p.strokeWeight(1);
       p.push();
@@ -1963,7 +2163,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //console.log(this.value,p.PI/2+p.PI/4,p.PI+p.PI/4);
       p.rotate(p.map(this.value,0,1,-p.PI/2-p.PI/4, 3*(p.PI/2)-p.PI/2-p.PI/4));
       p.translate(-x,-y);
+      p.push();
+      p.translate(0,0,-1);
       p.circle(x, y, this.radius);
+      p.pop();
       p.line(x,y,x,y-this.radius/2);
       p.pop();
 
@@ -1974,6 +2177,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           this.hover = true;
 
           if (p.mouseIsPressed && this.dragging === false) {
+            if (this.automating) {
+              session.alertLog('Automation "'+this.label+'" disabled.');
+              this.automating = false;
+            }
+            session.activeTab.selectedTrack.automationScroll.value = this.findKnob();
             this.lastY = p.mouseY;
             this.dragging = true;
             dragging = true;
@@ -2007,30 +2215,47 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
   //on/off button
   class Button {
-    constructor(state,color) {
+    constructor(label,state,color) {
+      this.label = label;
       this.state = state;
       this.color = color;
       this.radius = p.windowWidth / 100;
 
+      this.clickOpa = 255;
+
       this.hover = false;
 
       if (state) this.opa = 255;
-      else this.opa = 255/2;
+      else this.opa = 255/3;
     }
 
     draw(x,y) {
       this.radius = p.windowWidth / 100;
 
       if (this.state) this.opa = 255;
-      else this.opa = 255/2;
+      else this.opa = 255/3;
+
+      if (session.activeTab.currentStep%4 === 0) {
+        this.clickOpa = 255;
+        this.lastClick = session.activeTab.currentStep;
+      }
+
+      if (this.clickOpa - 50 < 0) this.clickOpa = 0;
+      else this.clickOpa -= 50;
 
       p.noFill();
+      p.strokeWeight(1);
       p.stroke(white[0], white[1], white[2],this.opa);
       p.circle(x, y, this.radius);
       if (this.state) {
         p.noStroke();
         p.fill(this.color[0], this.color[1], this.color[2],this.opa);
         p.circle(x, y, this.radius/1.8);
+        if (this.label === "CLICK" && session.activeTab.play) {
+          let c = session.activeTab.selectedTrack.color;
+          p.fill(c[0], c[1], c[2],this.clickOpa);
+          p.circle(x, y, this.radius/1.8);
+        }
       }
 
       if (p.mouseX > x -this.radius/2 && p.mouseX < x+this.radius/2 && p.mouseY > y -this.radius/2 && p.mouseY < y +this.radius/2  && dragging === false) {
@@ -2071,7 +2296,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     }
 
     increment(inc) {
-      if (this.label === "TEMPO") {
+      if (this.label === "TEMPO" || this.label === "OCTAVE") {
         if (this.value + inc <= this.max) this.value += inc;
         else this.value = this.max;
       } else {
@@ -2082,7 +2307,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     }
 
     decrement(inc) {
-      if (this.label === "TEMPO") {
+      if (this.label === "TEMPO" || this.label === "OCTAVE") {
         if (this.value - inc >= this.min) this.value -= inc;
         else this.value = this.min;
       } else {
@@ -2097,8 +2322,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //if (this.opa + this.opaInc > this.opaMax) this.opa = this.opaMax;
       //else this.opa += this.opaInc;
 
-      p.fill(255, 0, 0, this.opa/2);
-      p.rect(x-this.w/2,y-this.h/2,this.w,this.h);
+      //p.fill(255, 0, 0, this.opa/2);
+      //p.rect(x-this.w/2,y-this.h/2,this.w,this.h);
 
       p.noStroke();
       
@@ -2113,6 +2338,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       else if (this.label === "PARAMETER") {
         let knob = session.activeTab.selectedTrack.knobs[this.value];
         p.text(knob[0] + " - " + knob[1].label, x-this.w/3.2, y-this.h/2);
+      }
+      else if (this.label === "OCTAVE") {
+        if (session.activeTab.selectedTrack.name === "DRUMS") p.text("KICK-CRASH", x-this.w/3.2, y-this.h/2);
+        else p.text(theory.octaves[this.value], x-this.w/3.2, y-this.h/2);
+        
       }
       else p.text(this.value + " " + this.unit, x-this.w/3.2, y-this.h/2);
 
@@ -2130,12 +2360,21 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
           this.hover = true;
           if (p.mouseX < x - this.w/2 + this.h/2) {
-            document.body.style.cursor = 'pointer';
             if (p.mouseY < y) {
-              p.tint(255,this.opa);
+              if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE")) {
+                p.tint(255,this.opa);
+                document.body.style.cursor = 'pointer';
+              } else if (this.value > this.min && this.label !== "TEMPO" && this.label !== "OCTAVE") {
+                p.tint(255,this.opa);
+                document.body.style.cursor = 'pointer';
+              } else p.tint(255,this.opa/4);
+
               p.image(arrowUp, x-this.w/2+this.h/4, y-this.h/4, this.h/2, this.h/2);
-              p.tint(255,this.opa/2);
+              if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE")) p.tint(255,this.opa/2);
+              else if (this.value < this.max && this.label !== "TEMPO" && this.label !== "OCTAVE") p.tint(255,this.opa/2);
+              else p.tint(255,this.opa/4);
               p.image(arrowDown, x-this.w/2+this.h/4, y+this.h/4, this.h/2, this.h/2);
+
               if (p.mouseIsPressed) {
                 if (this.pressing === false) {
                   this.increment(this.inc);
@@ -2145,10 +2384,20 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
               } else this.pressing = false;
             }
             else {
-              p.tint(255,this.opa);
+              if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE")) {
+                p.tint(255,this.opa);
+                document.body.style.cursor = 'pointer';
+              } else if (this.value < this.max && this.label !== "TEMPO" && this.label !== "OCTAVE") {
+                p.tint(255,this.opa);
+                document.body.style.cursor = 'pointer';
+              } else p.tint(255,this.opa/4);
+
               p.image(arrowDown, x-this.w/2+this.h/4, y+this.h/4, this.h/2, this.h/2);
-              p.tint(255,this.opa/2);
+              if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE")) p.tint(255,this.opa/2);
+              else if (this.value > this.min && this.label !== "TEMPO" && this.label !== "OCTAVE") p.tint(255,this.opa/2);
+              else p.tint(255,this.opa/4);
               p.image(arrowUp, x-this.w/2+this.h/4, y-this.h/4, this.h/2, this.h/2);
+
               if (p.mouseIsPressed) {
                 if (this.pressing === false) {
                   this.decrement(this.inc);
@@ -2158,13 +2407,23 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
               } else this.pressing = false;
             }
           } else {
-            p.tint(255,this.opa/2);
+            if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE")) p.tint(255,this.opa/2);
+            else if (this.value > this.min && this.label !== "TEMPO" && this.label !== "OCTAVE") p.tint(255,this.opa/2);
+            else p.tint(255,this.opa/4);
             p.image(arrowUp, x-this.w/2+this.h/4, y-this.h/4, this.h/2, this.h/2);
+            if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE")) p.tint(255,this.opa/2);
+            else if (this.value < this.max && this.label !== "TEMPO" && this.label !== "OCTAVE") p.tint(255,this.opa/2);
+            else p.tint(255,this.opa/4);
             p.image(arrowDown, x-this.w/2+this.h/4, y+this.h/4, this.h/2, this.h/2);
           }
       } else {
-        p.tint(255,this.opa/2);
+        if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE")) p.tint(255,this.opa/2);
+        else if (this.value > this.min && this.label !== "TEMPO" && this.label !== "OCTAVE") p.tint(255,this.opa/2);
+        else p.tint(255,this.opa/4);
         p.image(arrowUp, x-this.w/2+this.h/4, y-this.h/4, this.h/2, this.h/2);
+        if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE")) p.tint(255,this.opa/2);
+        else if (this.value < this.max && this.label !== "TEMPO" && this.label !== "OCTAVE") p.tint(255,this.opa/2);
+        else p.tint(255,this.opa/4);
         p.image(arrowDown, x-this.w/2+this.h/4, y+this.h/4, this.h/2, this.h/2);
         this.hover = false;
         if (this.opa - 15 > 0) this.opa -= 15;
@@ -2201,10 +2460,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
     p.frameRate(60);
     p.imageMode(p.CENTER);
-    p.textFont(fontMedium);
+    p.textFont(fontLight);
 
     //console.log(sesh);
-    p.pixelDensity(1);
+    p.pixelDensity(3);
 
     // Set up orthographic projection
     p.ortho(-p.windowWidth / 2, p.windowWidth / 2, -p.windowHeight / 2, p.windowHeight / 2, 0, 1000);
@@ -2275,7 +2534,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
     p.translate(-p.windowWidth/2,-p.windowHeight/2);
     p.background(0);
-    //drawParticles();
+
+    p.push();
+    p.translate(0,0,2);
+    drawParticles();
+    p.pop();
 
     session.draw();
     //p.fill(255, 255, 255);
