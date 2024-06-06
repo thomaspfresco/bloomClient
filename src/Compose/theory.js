@@ -1,7 +1,7 @@
 //frequency at octave 0 (0 to 8)
 const freqs = [16.35,17.32,18.35,19.45,20.6,21.83,23.12,24.5,25.96,27.5,29.14,30.87,32.70];
 
-const octaves = ["C0-B0","C1-B1","C2-B2","C3-B3","C4-B4","C5-B5","C6-B6","C7-B7"];
+const octaves = ["C0-B1","C2-B3","C4-B5","C6-B7","OVERVIEW"];
 
 const noteLabels = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -10,7 +10,7 @@ const drumLabels = ["KICK", "SNARE", "CLOSED HAT", "OPEN HAT", "HIGH TOM", "LOW 
 //const waveTypes = ["sine", "triangle", "square", "sawtooth", "white", "pink", "brown"];
 const waveTypes = ["sine", "triangle", "square", "sawtooth"];
 
-const delayTimes = ["1/64","1/32","1/16","1/8","1/4","1/2","1","2"];
+const delayTimes = ["1/64","1/32","1/16","1/8","1/4","1/2"];
 
 const timeValues = [];
 let timeAux = 0;
@@ -41,16 +41,16 @@ timeValues.push(5);
 timeValues.push(10);
 
 const pitchValues = [];
-let pitchAux = -12;
+let pitchAux = -1200;
+//let pitchAux = -12;
 //pitchValues.push(-24);
-while (pitchAux <= 12) {
-    pitchValues.push(Math.round(pitchAux * 10) / 10);
-    if (pitchAux >= -1 && pitchAux < 0.9) pitchAux += 0.1;
-    else pitchAux += 1;
+while (pitchAux <= 1200) {
+    pitchValues.push(pitchAux);
+    if (pitchAux >= -100 && pitchAux < 100) pitchAux += 10;
+    else pitchAux += 100;
 }
 //pitchValues.push(24);
-
-//console.log(pitchValues); 
+//console.log(pitchValues);
 
 const defaultValues = [];
 let defaultAux = 0;

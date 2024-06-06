@@ -283,11 +283,31 @@ Tone.Transport.scheduleRepeat((time) => {
     //else metronome.click[1].start();
   
     for (let t in loop.tracks) {
+      for (let n in loop.tracks[t].notes) {
+        if (loop.tracks[t].notes[n].start === loop.currentStep) loop.tracks[t].notes[n].play(time);
+      }
+    }
+}, "16n");
+
+/*
+Tone.Transport.scheduleRepeat((time) => {
+    let loop = session.activeTab;
+    if (loop.currentStep === loop.nSteps-1) loop.currentStep = 0;
+    else loop.currentStep++;
+
+    if (loop.click.state) {
+        if (loop.currentStep%16 === 0) metronome.click[0].start(time);
+        else if (loop.currentStep%4 === 0) metronome.click[1].start(time);
+    }
+    //else metronome.click[1].start();
+  
+    for (let t in loop.tracks) {
       for (let n in loop.tracks[t].timeline[loop.currentStep]) {
         if (loop.tracks[t].timeline[loop.currentStep][n] !== null) loop.tracks[t].timeline[loop.currentStep][n].play();
       }
     }
 }, "16n");
+*/
 
 // ---------------------------------------------------------------
 // PRESETS
@@ -367,11 +387,12 @@ class FxChain {
         this.delay = new Tone.PingPongDelay();
         this.reverb = new Tone.Reverb({preDelay: 0});
         this.limiter = new Tone.Limiter(0);
+        this.gain = new Tone.Gain();
         this.splitter = new Tone.Split();
         this.left = new Tone.Meter();
         this.right = new Tone.Meter();
 
-        this.filter = new Tone.Filter().chain(this.distortion, this.delay, this.reverb, this.limiter, this.splitter);
+        this.filter = new Tone.Filter().chain(this.distortion, this.delay, this.reverb, this.limiter, this.gain, this.splitter);
 
         this.splitter.connect(this.left, 0, 0);
         this.splitter.connect(this.right, 1, 0);
@@ -383,13 +404,11 @@ class FxChain {
 class Synth {
     constructor() {
         this.oscillators = [new Tone.PolySynth(Tone.Synth), new Tone.PolySynth(Tone.Synth)];
-        this.gain = new Tone.Gain();
 
         this.fxChain = new FxChain();
 
-        this.oscillators[0].connect(this.gain);
-        this.oscillators[1].connect(this.gain);
-        this.gain.connect(this.fxChain.filter);
+        this.oscillators[0].connect(this.fxChain.filter);
+        this.oscillators[1].connect(this.fxChain.filter);
     }
 }
 
@@ -399,14 +418,11 @@ class DrumSynth {
         this.parts = [];
 
         this.fxChain = new FxChain();
-        this.gain = new Tone.Gain();
 
         for (let i = 0; i < 7; i++) {
             this.parts.push(new Tone.Player(kit[i]));
-            this.parts[i].connect(this.gain);
+            this.parts[i].connect(this.fxChain.filter);
         }
-
-        this.gain.connect(this.fxChain.filter);
     }
 }
 
