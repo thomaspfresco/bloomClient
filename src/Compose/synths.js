@@ -113,12 +113,12 @@ function onDeviceInput({ note, vel }) {
                 }
             } else {
                 if (vel !== 0) {
-                    s.oscillators[0].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)+session.activeTab.selectedTrack.oscPitch[0]),Tone.context.currentTime);
-                    s.oscillators[1].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)+session.activeTab.selectedTrack.oscPitch[1]),Tone.context.currentTime);
+                    s.oscillators[0].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
+                    s.oscillators[1].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
                 }
                 else { 
-                    s.oscillators[0].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)+session.activeTab.selectedTrack.oscPitch[0]),Tone.context.currentTime);
-                    s.oscillators[1].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)+session.activeTab.selectedTrack.oscPitch[1]),Tone.context.currentTime);
+                    s.oscillators[0].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
+                    s.oscillators[1].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
                 }
             }
         }
@@ -285,6 +285,7 @@ Tone.Transport.scheduleRepeat((time) => {
     for (let t in loop.tracks) {
       for (let n in loop.tracks[t].notes) {
         if (loop.tracks[t].notes[n].start === loop.currentStep) loop.tracks[t].notes[n].play(time);
+        if (loop.tracks[t].name !== "DRUMS" && loop.tracks[t].notes[n].start+loop.tracks[t].notes[n].duration === loop.currentStep) loop.tracks[t].notes[n].stop(time);
       }
     }
 }, "16n");
@@ -386,7 +387,7 @@ class FxChain {
         this.distortion = new Tone.Distortion({wet: 0.5});
         this.delay = new Tone.PingPongDelay();
         this.reverb = new Tone.Reverb({preDelay: 0});
-        this.limiter = new Tone.Limiter(0);
+        this.limiter = new Tone.Limiter(-1);
         this.gain = new Tone.Gain();
         this.splitter = new Tone.Split();
         this.left = new Tone.Meter();
