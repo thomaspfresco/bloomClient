@@ -1,7 +1,8 @@
 //frequency at octave 0 (0 to 8)
 const freqs = [16.35,17.32,18.35,19.45,20.6,21.83,23.12,24.5,25.96,27.5,29.14,30.87,32.70];
 
-const octaves = ["C0-B1","C1-B2","C2-B3","C3-B4","C4-B5","C5-B6","C6-B7","C7-B8","OVERVIEW"];
+//const octaves = ["C0-B1","C1-B2","C2-B3","C3-B4","C4-B5","C5-B6","C6-B7","C7-B8","OVERVIEW"];
+const octaves = ["C0-B1","C1-B2","C2-B3","C3-B4","C4-B5","C5-B6","C6-B7","C7-B8"];
 
 const noteLabels = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 

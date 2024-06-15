@@ -272,21 +272,34 @@ class Metronome {
 const metronome = new Metronome();
 
 Tone.Transport.scheduleRepeat((time) => {
-    let loop = session.activeTab;
-    if (loop.currentStep === loop.nSteps-1) loop.currentStep = 0;
-    else loop.currentStep++;
+    let loop = null;
+    
+    if (session.loopDrawer) {
+        for (let l in session.loops) {
+            if (session.loops[l].hover) {
+                loop = session.loops[l];
+                break;
+            }
+        }
+    } else loop = session.activeTab;
 
-    if (loop.click.state) {
-        if (loop.currentStep%16 === 0) metronome.click[0].start(time);
-        else if (loop.currentStep%4 === 0) metronome.click[1].start(time);
-    }
-    //else metronome.click[1].start();
-  
-    for (let t in loop.tracks) {
-      for (let n in loop.tracks[t].notes) {
-        if (loop.tracks[t].notes[n].start === loop.currentStep) loop.tracks[t].notes[n].play(time);
-        if (loop.tracks[t].name !== "DRUMS" && loop.tracks[t].notes[n].start+loop.tracks[t].notes[n].duration === loop.currentStep) loop.tracks[t].notes[n].stop(time);
-      }
+    if (loop !== null) {
+        if (loop.currentStep === loop.nSteps-1) loop.currentStep = 0;
+        else loop.currentStep++;
+
+        if (loop.click.state && session.loopDrawer === false) {
+            if (loop.currentStep%16 === 0) metronome.click[0].start(time);
+            else if (loop.currentStep%4 === 0) metronome.click[1].start(time);
+        }
+        //else metronome.click[1].start();
+    
+        for (let t in loop.tracks) {
+        for (let n in loop.tracks[t].notes) {
+            if (loop.currentStep === 0 && loop.tracks[t].notes[n].start !== 0 || loop.currentStep === 0 && loop.tracks[t].notes[n].duration === loop.nSteps) loop.tracks[t].notes[n].stop(time);
+            if (loop.tracks[t].notes[n].start === loop.currentStep) loop.tracks[t].notes[n].play(time);
+            if (loop.tracks[t].name !== "DRUMS" && loop.tracks[t].notes[n].start+loop.tracks[t].notes[n].duration === loop.currentStep) loop.tracks[t].notes[n].stop(time);
+        }
+        }
     }
 }, "16n");
 
@@ -432,10 +445,20 @@ const harmony = new Synth();
 const bass = new Synth();
 const drums = new DrumSynth(acoustic);
 
+function releaseAll() {
+    melody.oscillators[0].releaseAll();
+    melody.oscillators[1].releaseAll();
+    bass.oscillators[0].releaseAll();
+    bass.oscillators[1].releaseAll();
+    harmony.oscillators[0].releaseAll();
+    harmony.oscillators[1].releaseAll();
+}
+
+
 // ---------------------------------------------------------------
 // EXPORT DEFAULT
 // ---------------------------------------------------------------
 
-const synths = { setSession, exportLoopAudio, synthPresets, drumPresets, melody, harmony, bass, drums };
+const synths = { setSession, exportLoopAudio, synthPresets, drumPresets, melody, harmony, bass, drums, releaseAll };
 
 export default synths;

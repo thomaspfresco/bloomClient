@@ -41,6 +41,8 @@ let petal1, petal2, petal3, petal4;
 let loopsIcon, structsIcon, gridIcon, studioIcon, autoIcon, plus, arrowUp, arrowDown;
 
 let dragging = false;
+let selectX = 0;
+let selectY = 0;
 
 let recordedNotes = [];
 
@@ -260,6 +262,9 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.tabsTargetX = [];
       this.blackoutOpa = 255;
 
+      this.loopsIconX = 0;
+      this.structsIconX = p.windowWidth / 2;
+
       this.logMessage = "";
       this.logOpa = 0;
       this.logInstant = 0;
@@ -346,6 +351,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
       else this.activeTab.draw();
 
+      //loop and struct drawers icons
+      p.tint(255, 255/4);
+      p.image(loopsIcon, gridInitX*2,  gridInitY/2, p.windowHeight / 35, p.windowHeight / 35);
+      p.image(structsIcon, p.windowWidth - gridInitX*2,  gridInitY/2, p.windowHeight / 35, p.windowHeight / 35);
+
       //tab transition animation
       if (this.blackoutOpa - 10 < 0) this.blackoutOpa = 0;
       else this.blackoutOpa -= 10;
@@ -383,10 +393,12 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           this.loops.push(new Loop(this.loops.length, name, 120));
           this.manageTabs(this.loops[this.loops.length-1]);
           p.mouseIsPressed = false;
+          Tone.Transport.stop();
+          synths.releaseAll();
         }
       }
       else p.tint(255, this.loopsOpa/3);
-      p.image(plus, p.windowHeight/30+p.windowHeight/30/2 - this.loopsOffset, p.windowHeight-p.windowHeight/30-p.windowHeight/30/2, p.windowHeight / 30, p.windowHeight / 30);
+      p.image(plus, p.windowHeight/30+p.windowHeight/30/2 - this.loopsOffset, p.windowHeight-p.windowHeight/30-p.windowHeight/30/2, p.windowHeight / 35, p.windowHeight / 35);
 
       //struct drawer
       p.textAlign(p.RIGHT, p.TOP);
@@ -412,6 +424,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           drawerOpa = 0;
           previewInstant = p.millis();
           this.loopDrawer = true;
+          if (session.activeTab !== null) session.activeTab.play = false;
+          Tone.Transport.start();
         }
         else if (p.mouseX > p.windowWidth - p.windowWidth / 100) this.structDrawer = true;
         if (this.drawersDark - this.drawersDarkInc < 0) this.drawersDark = 0;
@@ -422,7 +436,13 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
 
       //drawers detrigger
-      if (p.mouseX > p.windowWidth / 5) this.loopDrawer = false;
+      if (p.mouseX > p.windowWidth / 5) {
+        if (this.loopDrawer) {
+          Tone.Transport.stop();
+          synths.releaseAll();
+        }
+        this.loopDrawer = false;
+      }
       if (p.mouseX < p.windowWidth - p.windowWidth / 5) this.structDrawer = false;
 
       //loop drawer
@@ -445,10 +465,6 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           p.text('Click "+" to create Loop', p.windowHeight / 30 - this.loopsOffset, p.windowHeight / 2);
         }
         else {
-
-          if (this.loops.length === 1) this.loops[0].drawInDrawer(p.windowHeight / 30 + p.windowHeight/30, p.windowHeight / 2,p.windowHeight/30);
-          else {
-            
             let dist = 0;
             let loopSize = 0;
 
@@ -477,7 +493,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
               }
               if (this.drawerInterval/(this.loops.length/10) * i < (p.millis() - this.drawerInstant)) {
                 this.loops[i].drawInDrawer(mouseOffsetX + p.windowHeight / 30 + loopSize, p.windowHeight / 2 - totalDist / 2 + dist*i, loopSize+sizeOffset);
-              }
+              } else this.loops[i].emptyOpa = 0;
 
               //text info and preview
               if (p.mouseY > p.windowHeight / 2 - totalDist/2 + dist * i - dist / 2 && p.mouseY < p.windowHeight / 2 - totalDist/2 + dist * i + dist / 2) {
@@ -487,6 +503,9 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
                   drawerOpa = 0;
                   previewOpa = 0;
                   previewInstant = p.millis();
+                  synths.releaseAll();
+                  this.loops[i].play = false;
+                  this.loops[i].currentStep = -1;
                 }
                 
                 if (drawerOpa + this.drawersDarkInc > 255) drawerOpa = 255;
@@ -495,7 +514,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
                 if (p.millis() - previewInstant > previewDelay) {
                   if (previewOpa + this.drawersDarkInc/2 > 255) previewOpa = 255;
                   else previewOpa += this.drawersDarkInc;
-                }
+                } else this.loops[i].currentStep = -2;
 
                 document.body.style.cursor = 'pointer';
                 p.noStroke();
@@ -503,7 +522,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
                 p.textSize(p.windowHeight / 35);
                 p.textAlign(p.LEFT, p.CENTER);
                 p.textFont(fontMedium);
-                p.text(this.loops[i].name, +mouseOffsetX + p.windowHeight / 30 + loopSize*4, p.windowHeight / 2 - totalDist/2 + dist * i-p.windowHeight / 60);
+                p.text(this.loops[i].name, mouseOffsetX + p.windowHeight / 30 + loopSize*4, p.windowHeight / 2 - totalDist/2 + dist * i-p.windowHeight / 60);
                 p.fill(white[0], white[1], white[2],drawerOpa/2);
                 p.textSize(p.windowHeight / 50);
                 p.textFont(fontLight);
@@ -512,12 +531,22 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
                 this.loops[i].drawPreview();
 
                 if (p.mouseIsPressed) {
+                  synths.releaseAll();
+                  Tone.Transport.stop();
                   if (this.activeTab !== null) {
                     this.activeTab.selectedTrack = null;
                     this.activeTab.view = 0;
                   }
                   this.manageTabs(this.loops[i]);
                   this.activeTab.active = true;
+                  this.drawersDark = 0;
+                  for (let t in this.loops[i].tracks) {
+                    //this.loops[i].tracks[t].opaLine = 255;
+                    for (let n in this.loops[i].tracks[t].notes){
+                      this.loops[i].tracks[t].notes[n].x = this.loops[i].tracks[t].particlesPreviewX[nSteps-this.loops[i].tracks[t].notes[n].start+1];
+                      this.loops[i].tracks[t].notes[n].y = this.loops[i].tracks[t].particlesPreviewY[ nSteps-this.loops[i].tracks[t].notes[n].start+1];
+                    } 
+                  }
                   //synths.exportLoopAudio(this.loops[i],nSteps,setLoading);
                   //setLoading(true);
                   
@@ -532,9 +561,12 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
                   p.mouseIsPressed = false;
                 }
               }
-              else this.loops[i].hover = false;
+              else{
+                if (this.loops[i].hover) synths.releaseAll();
+                this.loops[i].hover = false;
+              }
             }
-          }
+          
       }
       
       } else {
@@ -595,11 +627,14 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         //this.tabsTargetX.shift();
       }
 
+      synths.releaseAll();
+      Tone.Transport.stop();
       this.loopDrawer = false;
       this.structDrawer = false;
     }
 
     drawTabs() {
+
       p.noStroke();
       p.textSize(p.windowHeight / 40);
       p.textAlign(p.CENTER, p.TOP);
@@ -639,19 +674,27 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
         if (p.mouseIsPressed) {
           if (this.activeTab !== null) {
+            this.activeTab.play = false;
             this.activeTab.selectedTrack = null;
             this.activeTab.view = 0;
           }
           this.activeTab = null;
           p.mouseIsPressed = false;
           this.blackoutOpa = 255;
+          synths.releaseAll();
+          Tone.Transport.stop();
+
         }
       }
       p.text("BLOOM", this.bloomX, p.windowHeight / 30);
 
       for (let i = 0; i < this.tabs.length; i++) {
+
+        if (this.loops[i].tabOpa + 5 > 255) this.loops[i].tabOpa = 255;
+        else this.loops[i].tabOpa += 5;
+
         if (this.activeTab === this.tabs[i]) {
-          p.fill(white[0], white[1], white[2]);
+          p.fill(white[0], white[1], white[2],this.loops[i].tabOpa);
           p.textFont(fontMedium);
         }
         else if (p.mouseX > this.tabsTargetX[i]-p.textWidth(this.tabs[i].name)/2 && p.mouseX < this.tabsTargetX[i]+p.textWidth(this.tabs[i].name)/2 && p.mouseY > p.windowHeight / 30 && p.mouseY < p.windowHeight / 30 * 2 && dragging === false) {
@@ -669,7 +712,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           }
         }
         else {
-          p.fill(white[0], white[1], white[2], 255/4);
+          p.fill(white[0], white[1], white[2],255/4);
           p.textFont(fontLight);
         }
         dif = this.tabsTargetX[i] - this.tabsX[i];
@@ -723,6 +766,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.view = 0; //0:grid, 1:studio, 2:automation
       this.gridOpa = 0;
       this.studioOpa = 0;
+      this.tabOpa = 0;
+      this.emptyOpa = 0;
       
       this.blackOpa1 = 255;
       this.blackOpa2 = 255;
@@ -794,7 +839,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //}
       //console.log(this.loopId,this.trackId);
       //REVER
-      for (let i = 0; i < 5; i++) {
+      /*for (let i = 0; i < 5; i++) {
         let start = p.floor(p.random(0, nSteps));
         let pitch = p.floor(p.random(0,this.tracks[this.tracks.length - 1].nPitches));
         //let duration = p.random(1,4);
@@ -803,7 +848,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.name === "DRUMS") oct = 0;
         else oct = 3;
         this.tracks[this.tracks.length - 1].notes.push(new Note(pitch, this.id, this.tracks.length - 1, start, duration, oct, this.tracks[this.tracks.length - 1].color));
-      }
+      }*/
       //saveSession(session);
     }
 
@@ -839,17 +884,17 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         this.plusX += dif / 10;
 
         //cursor
-        if (this.play && this.currentStep >= 0 && (this.view !==1)) {
+        if (this.play && this.currentStep >= 0 && (this.view !==1) && session.activeTab.selectedTrack !== null) {
           p.stroke(white[0], white[1], white[2]);
           p.strokeWeight(0.5);
           //p.rect(marginX+this.currentStep*(p.windowWidth-marginX*2)/this.nSteps,0,(p.windowWidth-marginX*2)/this.nSteps,p.windowHeight);
-          p.line(gridInitX + this.currentStep * gridStepSizeX, 0,gridInitX + this.currentStep * gridStepSizeX, p.windowHeight);
+          //p.line(gridInitX + this.currentStep * gridStepSizeX, 0,gridInitX + this.currentStep * gridStepSizeX, p.windowHeight);
+          p.line(gridInitX + this.currentStep * gridStepSizeX, gridInitY,gridInitX + this.currentStep * gridStepSizeX, gridInitY+gridStepSizeY*11);
         }
 
         //hover plus button
         if (p.mouseX > this.plusX && p.mouseX < this.plusX + iconSize && p.mouseY > this.plusY && p.mouseY < this.plusY + iconSize  && dragging === false && this.tracks.length < maxTracks) {
-          if (this.opaPlus + this.opaPlusInc > this.opaPlusMax) this.opaPlus = this.opaPlusMax;
-          else this.opaPlus += this.opaPlusInc;
+          this.opaPlus = this.opaPlusMax;
 
           document.body.style.cursor = 'pointer';
 
@@ -863,8 +908,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
             p.mouseIsPressed = false;
             //myFunction();
           }
-        }
-        else {
+        } else if ((p.mouseY > gridInitY+11*gridStepSizeY && this.selectedTrack === null || this.selectedTrack !== null) && this.tracks.length < maxTracks || this.tracks.length===0) {
+          if (this.opaPlus + this.opaPlusInc > this.opaPlusMax/2) this.opaPlus = this.opaPlusMax/2;
+          else this.opaPlus += this.opaPlusInc;
+        } else {
           if (this.opaPlus - this.opaPlusInc < 0) this.opaPlus = 0;
           else this.opaPlus -= this.opaPlusInc;
         }
@@ -906,9 +953,12 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         //p.stroke(white[0], white[1], white[2]);
         //p.strokeWeight(1);
         //p.rect(this.plusX, this.plusY, iconSize, iconSize, iconCorners);
+
+        let y = p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2;
+
         p.push();
         p.tint(255, this.opaPlus);
-        p.image(plus, this.plusX + iconSize / 2, p.windowHeight - iconSize, p.windowHeight / 50, p.windowHeight / 50);
+        p.image(plus, this.plusX + iconSize / 2, y, p.windowHeight / 40, p.windowHeight / 40);
         p.pop();
 
         //blackout animation
@@ -933,7 +983,6 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           let icons = [autoIcon, studioIcon, gridIcon];
           for (let i = 0; i < icons.length; i++) {
             let x =  p.windowWidth - gridInitX*2 - iconSize*(i);
-            let y = p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2;
             if ((2-i) === this.view) p.tint(255, 255);
             else p.tint(255, 255/4);
             p.image(icons[i], x, y, p.windowHeight / 35, p.windowHeight / 35);
@@ -973,8 +1022,20 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
     //draw simplified representation of loop in drawer
     drawInDrawer(x, y, radius) {
-      for (let i = 0; i < this.tracks.length; i++) {
-        this.tracks[i].drawInDrawer(x, y, radius);
+      if (this.tracks.length === 0) {
+
+        if (this.emptyOpa + this.opaPlusInc > 255) this.emptyOpa = 255;
+        else this.emptyOpa += this.opaPlusInc;
+
+        p.textAlign(p.CENTER, p.CENTER);
+        p.textSize(p.windowHeight / 60);
+        if (this.hover) p.fill(white[0], white[1], white[2],this.emptyOpa);
+        else p.fill(white[0], white[1], white[2], this.emptyOpa/2);
+        p.text("EMPTY", x, y);
+      } else {
+        for (let i = 0; i < this.tracks.length; i++) {
+          this.tracks[i].drawInDrawer(x, y, radius);
+        }
       }
     }
 
@@ -1018,14 +1079,16 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.volumeY = 0;
       this.volumeYmax = 0;
       this.volumeYmin = 0;
-      this.lastMouseY = 0;
 
       this.draggingAutomation = false;
 
       this.draggingGrid = false;
+      this.draggingSelect = false;
       this.lastGridX = 0;
       this.lastGridY = 0;
       this.tempNote = null;
+
+      this.opaInfoAutomation = 0;
 
       this.opaLine = 255;
       this.opaLineInc = 5;
@@ -1042,6 +1105,9 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       this.knobs = [];
       this.param = 0;
+
+      //check if preset is equal to original preset
+      this.presetChanged = false;
 
       //fx knobs
       this.filterKnob = new Knob("POSITION",0.50,theory.defaultValues,"");
@@ -1174,6 +1240,49 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
     }
 
+    ajustNotes(note) {
+      let auxY = 0;
+
+      if (this.name === "DRUMS") auxY = this.nPitches-p.round((p.mouseY - gridInitY) / ((gridStepSizeY*11)/(this.nPitches-1)))-1;
+      else auxY = this.nPitches-p.round((p.mouseY - gridInitY) / ((gridStepSizeY*11)/(this.nPitches-1)))-1;
+
+      for (let i = 0; i < this.notes.length; i++) {
+        //same octave and pitch
+        if (this.notes[i].pitch === note.pitch && this.notes[i].octave === note.octave) {
+          
+          //remove a note that starts beetween the start of the new note and its start+duration, as well as its end
+          if (this.notes[i].start >= note.start && this.notes[i].start+this.notes[i].duration <= note.start + note.duration) {
+            this.notes.splice(i,1);
+            i--;
+          //shorten a note that starts beetween the start of the new note and its start+duration, but ends after the new note's end
+          } 
+          else if (this.notes[i].start >= note.start && this.notes[i].start+this.notes[i].duration > note.start + note.duration && this.notes[i].start < note.start + note.duration) {
+            this.notes[i].duration = this.notes[i].duration - (note.start + note.duration - this.notes[i].start);
+            this.notes[i].start = note.start + note.duration;
+            this.notes[i].x = this.particlesX[this.notes[i].start+1];
+          //create a new note between the start of the new note and its start+duration
+          } 
+          
+          else if (this.notes[i].start < note.start && this.notes[i].start+this.notes[i].duration > note.start + note.duration) {
+            let aux = this.notes[i].duration;
+            this.notes[i].duration = note.start - this.notes[i].start;
+            let newNote = new Note(this.notes[i].pitch, this.loopId, this.id, note.start + note.duration, aux - (note.start + note.duration - this.notes[i].start), this.notes[i].octave, this.color);
+            newNote.x = this.particlesX[newNote.start+1];
+            if (auxY > 11) newNote.y = gridInitY + (this.nPitches-newNote.pitch-1)*(gridStepSizeY*11)/(this.nPitches-1) - gridStepSizeY*11/2-gridStepSizeY/4;
+            else newNote.y = gridInitY + (this.nPitches-newNote.pitch-1)*(gridStepSizeY*11)/(this.nPitches-1);
+            //if (auxY > 11) newNote.y = gridInitY + (this.nPitches-newNote.pitch-1)*(gridStepSizeY*11)/(this.nPitches-1) - gridStepSizeY*11/2-gridStepSizeY/4;
+            //else this.notes[i].y = gridInitY + (this.nPitches-this.notes[i].pitch-1)*(gridStepSizeY*11)/(this.nPitches-1);
+            this.notes.push(newNote);
+          //shorten a note that starts before the new note and ends after the new note start but before its end
+          } 
+          else if (this.notes[i].start < note.start && this.notes[i].start+this.notes[i].duration > note.start && this.notes[i].start+this.notes[i].duration >= note.start + note.duration) {
+            this.notes[i].duration = note.start - this.notes[i].start;
+            this.notes[i].x = this.particlesX[this.notes[i].start+1];
+          }
+        }
+      }
+    }
+
     drawGrid() {
       p.stroke(white[0]/5, white[1]/5, white[2]/5);
       p.strokeWeight(1);
@@ -1183,7 +1292,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           p.strokeWeight(1);
           if (i%16 === 0) p.stroke(white[0]/5, white[1]/5, white[2]/5);
           else p.stroke(white[0]/8, white[1]/8, white[2]/8);
+          p.push();
+          p.translate(0,0,-1);
           p.line(gridInitX+gridStepSizeX*i,gridInitY,gridInitX+gridStepSizeX*i,gridInitY+(gridStepSizeY * 11));
+          p.pop();
         }
         if (this.octaveScroll.value !== 8) {
           const xPos = gridInitX + gridStepSizeX * i;
@@ -1211,27 +1323,47 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.name === "DRUMS") auxY = this.nPitches-p.round((p.mouseY - gridInitY) / ((gridStepSizeY*11)/(this.nPitches-1)))-1;
         else auxY = this.nPitches-p.round((p.mouseY - gridInitY) / ((gridStepSizeY*11)/(this.nPitches-1)))-1;
 
-        if (auxX >= 0 && auxX < nSteps && auxY >= 0 && auxY < this.nPitches && dragging === false) {
-          document.body.style.cursor = 'pointer';
+        if (auxX >= 0 && auxX < nSteps && auxY >= 0 && auxY < this.nPitches && dragging === false && session.loopDrawer === false) {
+          if (this.isNote(auxX, auxY) === false) document.body.style.cursor = 'pointer';
 
-          if (p.mouseIsPressed && this.draggingGrid === false && this.isNote(auxX, auxY) === false) {
-            this.draggingGrid = true;
+          if (p.mouseIsPressed && this.draggingGrid === false && this.draggingSelect === false && this.isNote(auxX, auxY) === false) {
             dragging = true;
-            this.lastGridX = auxX;
-            this.lastGridY = auxY;
-            console.log(auxX,auxY,this.tempNote);
-            if (auxY>11) this.tempNote = new Note(auxY-12, this.loopId, this.id, auxX, 1, this.octaveScroll.value+1, this.color);
-            else this.tempNote = new Note(auxY, this.loopId, this.id, auxX, 1, this.octaveScroll.value, this.color);
-            this.tempNote.playShort();
-            console.log(this.tempNote);
+
+            if (p.mouseButton === p.LEFT) {
+              this.lastGridX = auxX;
+              this.lastGridY = auxY;
+              this.draggingGrid = true;
+              //console.log(auxX,auxY,this.tempNote);
+              if (auxY>11) {
+                this.tempNote = new Note(auxY-12, this.loopId, this.id, auxX, 1, this.octaveScroll.value+1, this.color);
+                this.tempNote.y = gridInitY + (this.nPitches-this.tempNote.pitch-1)*(gridStepSizeY*11)/(this.nPitches-1) - gridStepSizeY*11/2-gridStepSizeY/4;
+              } else {
+                this.tempNote = new Note(auxY, this.loopId, this.id, auxX, 1, this.octaveScroll.value, this.color);
+                this.tempNote.y = gridInitY + (this.nPitches-this.tempNote.pitch-1)*(gridStepSizeY*11)/(this.nPitches-1);
+              }
+              this.tempNote.x = this.particlesX[this.tempNote.start+1];
+              this.tempNote.playShort();
+              //console.log(this.tempNote);
+              //draw rectangle of selection
+            } else if (p.mouseButton === p.RIGHT) {
+              for(let n in this.notes) this.notes[n].selected = false;
+              this.draggingSelect = true;
+              selectX = p.mouseX;
+              selectY = p.mouseY;
+            }
           }   
         }
           
-
-      if (p.mouseIsPressed === false && this.draggingGrid === true) {
-        dragging = false;
-        this.draggingGrid = false;
-        this.notes.push(this.tempNote);
+      if (p.mouseIsPressed === false && this.draggingGrid) {
+          dragging = false;
+          this.draggingGrid = false;
+          this.ajustNotes(this.tempNote);
+          this.notes.push(this.tempNote);
+       } 
+      
+       if (p.mouseIsPressed === false && this.draggingSelect) {
+          dragging = false;
+          this.draggingSelect = false;
       }
 
       if (this.draggingGrid) {
@@ -1241,14 +1373,42 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           else if (this.tempNote.octave === this.octaveScroll.value+1) this.tempNote.draw(this.particlesX[this.tempNote.start+1], gridInitY + (this.nPitches-this.tempNote.pitch-1)*(gridStepSizeY*11/(this.nPitches-1)) - gridStepSizeY*11/2-gridStepSizeY/4);
         }
 
-        if (this.lastGridX < auxX) this.tempNote.duration = auxX - this.lastGridX+1;
-        else this.tempNote.duration = auxX - this.lastGridX + 1;
+        if (auxX >= 0 && auxX <= nSteps) {
+          if (this.lastGridX < auxX) this.tempNote.duration = auxX - this.lastGridX;
+          else {
+            this.tempNote.start = auxX;
+            this.tempNote.duration = this.lastGridX - auxX + 1;
+            this.tempNote.x = this.particlesX[this.tempNote.start+1];
+          }
+        }
         // this.tempNote.duration = auxX - this.lastGridX + 1; 
 
         this.tempNote.showInfo();
+      } 
+
+      if (this.draggingSelect) {
+        document.body.style.cursor = 'grabbing';
+
+        for (let n in this.notes) {
+          if (this.notes[n].x > selectX && this.notes[n].x < p.mouseX && this.notes[n].y > selectY && this.notes[n].y < p.mouseY && p.mouseX > selectX && p.mouseY > selectY
+            || this.notes[n].x > selectX && this.notes[n].x < p.mouseX && this.notes[n].y < selectY && this.notes[n].y > p.mouseY && p.mouseX > selectX && p.mouseY < selectY
+            || this.notes[n].x < selectX && this.notes[n].x > p.mouseX && this.notes[n].y > selectY && this.notes[n].y < p.mouseY && p.mouseX < selectX && p.mouseY > selectY
+            || this.notes[n].x < selectX && this.notes[n].x > p.mouseX && this.notes[n].y < selectY && this.notes[n].y > p.mouseY && p.mouseX < selectX && p.mouseY < selectY
+          ) {
+            if (this.notes[n].selected === false) {
+              this.notes[n].playShort();
+              this.notes[n].selected = true;
+            }
+          }  else this.notes[n].selected = false;
+        }
+
+        p.stroke(this.color[0],this.color[1],this.color[2], 255);
+        p.fill(this.color[0],this.color[1],this.color[2], 255/6);
+        let aux = p.mouseY-selectY;
+        if (p.mouseY > gridInitY+11*gridStepSizeY + gridStepSizeY/4) aux = gridInitY+11*gridStepSizeY + gridStepSizeY/2-selectY;
+        if (p.mouseY < gridInitY) aux = gridInitY- gridStepSizeY/2-selectY;
+        p.rect(selectX, selectY, p.mouseX-selectX, aux);
       }
-
-
 
           /*if (p.mouseIsPressed) {
 
@@ -1280,14 +1440,16 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
     //check if there is a note in the same position
     isNote(x,y) {
+      if (y > 11) y = y - 12;
       for (let i = 0; i < this.notes.length; i++) {
-        if (this.notes[i].start === x && this.notes[i].pitch === y) return true;
+        if (this.notes[i].start <= x && this.notes[i].start+this.notes[i].duration > x && this.notes[i].pitch === y) return true;
       }
       return false;
     }
 
     drawAutomation() {
 
+      p.noFill();
       p.strokeWeight(maxWeightLines);
       if (this.knobs[this.automationScroll.value][1].automating) p.stroke(this.color[0],this.color[1],this.color[2],255/2);
       else p.stroke(white[0],white[1],white[2],255/8);
@@ -1298,7 +1460,12 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         let aux = p.map(this.knobs[this.automationScroll.value][1].automation[i],0,1,gridInitY+gridStepSizeY*11,gridInitY);
         p.vertex(gridInitX+gridStepSizeX*i,aux);
       }
+      p.vertex(gridInitX+gridStepSizeX*64,p.map(this.knobs[this.automationScroll.value][1].automation[0],0,1,gridInitY+gridStepSizeY*11,gridInitY));
       p.endShape();
+
+      p.stroke(white[0], white[1], white[2],255/5);
+      p.strokeWeight(1);
+      p.line(p.windowWidth-gridInitX,gridInitY,p.windowWidth-gridInitX,gridInitY+(gridStepSizeY * 11));
 
       for (let i = 0; i < nSteps; i++) {
         if (i%16 === 0 || i%4 === 0) {
@@ -1311,17 +1478,27 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.knobs[this.automationScroll.value][1].automating) {
           if (i === session.activeTab.currentStep && session.activeTab.play) {
             p.fill(white[0], white[1], white[2]);
-            p.circle(gridInitX+gridStepSizeX*i,aux,10);
+            p.circle(gridInitX+gridStepSizeX*i,aux,p.windowHeight/90);
+          } else if (i === p.round((p.mouseX-gridInitX)/gridStepSizeX) && dragging === false) {
+            p.fill(white[0], white[1], white[2],255/2);
+            p.circle(gridInitX+gridStepSizeX*i,aux,p.windowHeight/90);
           }
           else {
             p.fill(this.color[0],this.color[1],this.color[2]);
             p.circle(gridInitX+gridStepSizeX*i,aux,5);
           }
         } else {
-          p.fill(white[0],white[1],white[2],255/4);
-          p.circle(gridInitX+gridStepSizeX*i,aux,5);
+          if (i === p.round((p.mouseX-gridInitX)/gridStepSizeX)) {
+            p.fill(white[0], white[1], white[2],255/2);
+            p.circle(gridInitX+gridStepSizeX*i,aux,p.windowHeight/90);
+          } else {
+            p.fill(white[0],white[1],white[2],255/4);
+            p.circle(gridInitX+gridStepSizeX*i,aux,5);
+          }
         }
       }
+
+
       //param scroll
       this.automationScroll.draw(p.windowWidth/4*2.8,p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2);
       /*if (this.presetScroll.value !== this.preset) {
@@ -1330,20 +1507,68 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         else this.switchPreset(synths.synthPresets[this.preset]);
       }*/
 
-      if (p.mouseX > gridInitX && p.mouseX < gridInitX + gridStepSizeX * (nSteps-1) && p.mouseY > gridInitY && p.mouseY < gridInitY + (gridStepSizeY * 11) && dragging === false) {
-        document.body.style.cursor = 'grab';
+      if (p.mouseX >= gridInitX-gridStepSizeX/2 && p.mouseX < gridInitX + gridStepSizeX * (nSteps-1)+gridStepSizeX/2 && p.mouseY > gridInitY-gridStepSizeX && p.mouseY < gridInitY + (gridStepSizeY * 11)+gridStepSizeX && session.loopDrawer === false && session.structDrawer === false) {
         let posX = p.round((p.mouseX-gridInitX)/gridStepSizeX);
         let aux = p.map(this.knobs[this.automationScroll.value][1].automation[posX],0,1,gridInitY+(gridStepSizeY*11),gridInitY);
-        p.circle(gridInitX + posX*gridStepSizeX, aux, 5);
-        if (p.mouseIsPressed) {
-          this.draggingAutomation = true;
-          dragging = true;
+
+        if (this.opaInfoAutomation + 10 > 255) this.opaInfoAutomation = 255;
+        else this.opaInfoAutomation += 10;
+
+        if (dragging === false) {
+          document.body.style.cursor = 'grab';
+          //p.circle(gridInitX + posX*gridStepSizeX, aux, 5);
+          if (p.mouseIsPressed) {
+            this.draggingAutomation = true;
+            dragging = true;
+          }
         }
         //p.stroke(255,255,255,255/2);
         //p.strokeWeight(1);
         //p.line(gridInitX, this.mouseY, gridInitX + gridStepSizeX * nSteps, this.mouseY);
         //p.line(this.mouseX, gridInitY, this.mouseX, gridInitY + gridStepSizeY * this.nPitches);
-      }
+        
+        p.push();
+        p.translate(0,0,p.windowHeight/30);
+        if (this.knobs[this.automationScroll.value][1].automating) p.fill(white[0], white[1], white[2],this.opaInfoAutomation);
+        else p.fill(white[0], white[1], white[2],this.opaInfoAutomation/2);
+
+        let knob = this.knobs[this.automationScroll.value][1];
+        let text = "";
+
+        if (typeof knob.output === "string") text = knob.options[p.round(p.map(knob.automation[posX],0,1,0,knob.options.length-1))].toUpperCase();
+        else if (knob.unit === "st") text = knob.options[p.round(p.map(knob.automation[posX],0,1,0,knob.options.length-1))]/100+knob.unit;
+        else text = knob.options[p.round(p.map(knob.automation[posX],0,1,0,knob.options.length-1))]+knob.unit;
+
+        //soften the y position with vector
+        
+        if (p.mouseX <= p.windowWidth / 2) {
+          p.textAlign(p.LEFT, p.CENTER);
+          p.textSize(p.windowHeight / 40);
+          p.textFont(fontMedium);
+          if (dragging) p.text(text,gridInitX+posX*gridStepSizeX+gridStepSizeX,p.mouseY-gridStepSizeX*1.4);
+          else p.text(text,gridInitX+posX*gridStepSizeX+gridStepSizeX,aux - gridStepSizeX*1.4);
+          p.textFont(fontLight);
+          p.textSize(p.windowHeight / 65);
+          if (dragging) p.text("STEP "+posX, gridInitX+posX*gridStepSizeX+gridStepSizeX, p.mouseY-gridStepSizeX*1.4-p.windowHeight / 50);
+          else p.text("STEP "+posX, gridInitX+posX*gridStepSizeX+gridStepSizeX, aux-gridStepSizeX*1.4-p.windowHeight / 50);
+        } else {
+
+          p.textAlign(p.RIGHT, p.CENTER);
+          p.textSize(p.windowHeight / 40);
+          p.textFont(fontMedium);
+          if (dragging) p.text(text,gridInitX+posX*gridStepSizeX-gridStepSizeX,p.mouseY-gridStepSizeX*1.4);
+          else p.text(text,gridInitX+posX*gridStepSizeX-gridStepSizeX,aux - gridStepSizeX*1.4);
+          p.textFont(fontLight);
+          p.textSize(p.windowHeight / 65);
+          if (dragging) p.text("STEP "+posX, gridInitX+posX*gridStepSizeX-gridStepSizeX, p.mouseY-gridStepSizeX*1.4-p.windowHeight / 50);
+          else p.text("STEP "+posX, gridInitX+posX*gridStepSizeX-gridStepSizeX, aux-gridStepSizeX*1.4-p.windowHeight / 50);
+        }
+        p.pop();
+
+       // console.log(this.knobs[this.automationScroll.value][1].automation[posX]);
+
+      } else this.opaInfoAutomation = 0;
+      
 
       if (p.mouseIsPressed === false && this.draggingAutomation) {
         this.draggingAutomation = false;
@@ -1365,7 +1590,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       let auxY = (gridStepSizeY*(12-1) - studioGap*2) / 3;
       let col1X = studioGap+p.windowWidth/9;
-      let auxX = gridStepSizeX*(nSteps-1)-col1X;
+      let auxX = gridStepSizeX*(nSteps)-col1X;
       let auxXfx = (auxX-studioGap*6)/7;
 
       let barLeftHeight = 0;
@@ -1374,9 +1599,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (dbs[0] < -60) dbs[0] = -60;
       if (dbs[1] < -60) dbs[1] = -60;
       
-      barLeftHeight = p.map(dbs[0],-60,0,0, -(gridStepSizeY*(12-1) - studioGap - auxY-13*studioGap));
-      barRightHeight = p.map(dbs[1],-60,0,0, -(gridStepSizeY*(12-1) - studioGap - auxY-13*studioGap));
-      
+      //barLeftHeight = p.map(dbs[0],-60,0,0, -(gridStepSizeY*(11) - studioGap - auxY-13*studioGap));
+      //barRightHeight = p.map(dbs[1],-60,0,0, -(gridStepSizeY*(11) - studioGap - auxY-13*studioGap));
+      barLeftHeight = p.map(dbs[0],-60,0,0, this.volumeY-(gridInitY+studioGap + auxY +5*studioGap + gridStepSizeY*(12-1) - studioGap - auxY-13*studioGap));
+      barRightHeight = p.map(dbs[1],-60,0,0, this.volumeY-(gridInitY+studioGap + auxY +5*studioGap + gridStepSizeY*(12-1) - studioGap - auxY-13*studioGap));
       //this.hoverVolume = false;
       //this.draggingVolume = false;
       //this.volumeY = 0;
@@ -1557,24 +1783,53 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.strokeWeight(maxWeightLines / (this.id + 1));
 
       p.push();
-      p.translate(0,0,2);
+      p.translate(0, 0, 2);
       p.beginShape();
-      for (let i = 0; i < this.particlesPreviewX.length; i++) p.vertex(this.particlesPreviewX[i], this.particlesPreviewY[i]);
+
+      let fadeLength = 6; // Length of the fade
+      let shapeLength = this.particlesPreviewX.length-1;
+      let currentStep = (session.loops[this.loopId].currentStep - 1 + shapeLength) % shapeLength; // One step behind
+
+      for (let i = 0; i < shapeLength; i++) {
+        // Calculate the difference to currentStep considering wrap-around
+        let dif = Math.min(
+          Math.abs(currentStep - i),
+          Math.abs(currentStep - (i + shapeLength)),
+          Math.abs(currentStep - (i - shapeLength))
+        );
+
+        if (dif > fadeLength) dif = fadeLength;
+
+        // Calculate the opacity based on dif and apply a smooth transition
+        let opacity = previewOpa * (fadeLength - dif) / fadeLength;
+
+        if (opacity < previewOpa/6) opacity = previewOpa/6;
+
+        p.stroke(white[0], white[1], white[2], opacity);
+
+        // Use modulo for indices to handle wrap-around
+        let index = (shapeLength - i + shapeLength) % shapeLength;
+        p.vertex(this.particlesPreviewX[index], this.particlesPreviewY[index]);
+      }
+
       p.endShape(p.CLOSE);
       p.pop();
 
       let angle = -p.PI / 2;
+      let angles = [];
+      angles.push(angle);
 
       for (let i = 0; i < this.targetXpreview.length; i++) {
 
         let xoff = p.map(p.cos(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
         let yoff = p.map(p.sin(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
-        let r = p.map(p.noise(xoff, yoff, zoff), 0, 1, 0, this.radiusCol/3);
+        let r = p.map(p.noise(xoff, yoff, zoff), 0, 1, 0, this.radiusCol/2.5);
 
         this.targetXpreview[i] = this.x + p5.Vector.fromAngle(angle, this.radiusCol + r).x;
         this.targetYpreview[i] = this.y + p5.Vector.fromAngle(p.PI - angle, this.radiusCol + r).y;
 
         angle -= p.TWO_PI / this.targetXpreview.length + p.TWO_PI / this.targetXpreview.length / this.targetXpreview.length;
+        angles.push(angle);
       }
 
       //for (let i = 0; i<this.targetXcol.length;i++) p.point(this.targetXcol[i], this.targetYcol[i]);
@@ -1585,6 +1840,22 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
         this.particlesPreviewX[i] -= p5.Vector.fromAngle(a, d / 6).y;
         this.particlesPreviewY[i] -= p5.Vector.fromAngle(p.PI - a, d / 6).x;
+      }
+
+      for (let i = 0; i<this.notes.length; i++) {
+        this.notes[i].drawCollapsed(angles,this.particlesPreviewX[nSteps-this.notes[i].start+1]+p5.Vector.fromAngle(angles[nSteps-this.notes[i].start+1], p.sin(this.notes[i].ang/2)*p.windowHeight/50).x,this.particlesPreviewY[nSteps-this.notes[i].start+1]+p5.Vector.fromAngle(p.PI - angles[nSteps-this.notes[i].start+1], p.sin(this.notes[i].ang/2)*p.windowHeight/50).y);
+      }
+
+      //prevent param updating when not needed
+      if (session.activeTab === null) {
+        this.updateSynthParams();
+        for (let i=0; i<this.knobs.length; i++) this.knobs[i][1].knobAutomate(session.loops[this.loopId])
+      } 
+      else if (session.activeTab.selectedTrack !== null) {
+        if (session.activeTab.selectedTrack === this){
+          this.updateSynthParams();
+          for (let i=0; i<this.knobs.length; i++) this.knobs[i][1].knobAutomate(session.loops[this.loopId])
+        }
       }
     }
 
@@ -1610,7 +1881,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         let xoff = p.map(p.cos(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
         let yoff = p.map(p.sin(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
         let r = p.map(p.noise(xoff, yoff, zoff), 0, 1, 0, radius/3);
-        phase += 0.000001;
+        phase += 0.000006;
         zoff += 0.000002;
 
         this.targetXdrawer[i] = x + p5.Vector.fromAngle(angle, radius + r).x;
@@ -1747,7 +2018,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
     draw() {
       this.updateSynthParams();
-      for (let i=0; i<this.knobs.length; i++) this.knobs[i][1].knobAutomate();
+      for (let i=0; i<this.knobs.length; i++) this.knobs[i][1].knobAutomate(session.loops[this.loopId]);
 
       if (session.activeTab.selectedTrack !== null && session.activeTab.selectedTrack !== this) {
         if (this.opaLine - this.opaLineInc < 255/6) this.opaLine = 255/6;
@@ -1770,8 +2041,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           //let aux = p.map(dif, -session.loops[this.loopId].nSteps, session.loops[this.loopId].nSteps, 0, 255);
           //p.stroke(255, 255, 255,aux);
           let dif = p.abs(session.activeTab.currentStep-i);
-          if (session.activeTab.play === false) dif = 8;
-          else if (dif > 8) dif = 8;
+          if (session.activeTab.play === false) dif = 6;
+          else if (dif > 6) dif = 6;
           p.stroke(white[0], white[1], white[2], this.opaLine/dif);
           p.vertex(this.particlesX[i], this.particlesY[i],-p.windowHeight/50*(maxTracks+2));
         }
@@ -1883,7 +2154,40 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
             else if (this.notes[i].octave === this.octaveScroll.value+1) this.notes[i].draw(this.particlesX[this.notes[i].start+1], gridInitY + (this.nPitches-this.notes[i].pitch-1)*(gridStepSizeY*11/(this.nPitches-1)) - gridStepSizeY*11/2-gridStepSizeY/4);
           }
         }
-        else this.notes[i].draw(this.particlesX[this.notes[i].start+1], this.particlesY[this.notes[i].start+1]);
+        else {
+          this.notes[i].draw(this.particlesX[this.notes[i].start+1], this.particlesY[this.notes[i].start+1]);
+        }
+      }
+
+      //loop ends and recorded notes are pending
+      if (session.loops[this.loopId].currentStep === nSteps-1) {
+        if (recordedNotes.length !== 0) {
+          for (let i = 0; i < recordedNotes.length; i++) {
+            if (recordedNotes[i].trackId === this.id) {
+              recordedNotes[i].duration = session.loops[this.loopId].currentStep - recordedNotes[i].start+1;
+              if (recordedNotes[i].duration === 0) recordedNotes[i].duration = 1;
+              this.ajustNotes(recordedNotes[i]);
+              this.notes.push(recordedNotes[i]);
+              recordedNotes.splice(i,1);
+              i--;
+            }
+          }
+        }
+      } 
+
+      //draw recording notes
+      for (let i = 0; i < recordedNotes.length; i++) {
+        if (recordedNotes[i].trackId === this.id) {
+          recordedNotes[i].x = this.particlesX[recordedNotes[i].start+1];
+
+          recordedNotes[i].duration = session.loops[this.loopId].currentStep - recordedNotes[i].start;
+          
+          if (recordedNotes[i].octave === this.octaveScroll.value) recordedNotes[i].y = gridInitY + (this.nPitches-recordedNotes[i].pitch-1)*(gridStepSizeY*11/(this.nPitches-1));
+          else if (recordedNotes[i].octave === this.octaveScroll.value+1) recordedNotes[i].y = gridInitY + (this.nPitches-recordedNotes[i].pitch-1)*(gridStepSizeY*11/(this.nPitches-1)) - gridStepSizeY*11/2-gridStepSizeY/4;
+      
+          recordedNotes[i].draw(this.particlesX[recordedNotes[i].start+1], recordedNotes[i].y);
+          if (session.loops[this.loopId].currentStep >= recordedNotes[i].start && session.loops[this.loopId].currentStep <= recordedNotes[i].start+recordedNotes[i].duration) recordedNotes[i].spawnParticles(gridInitX+session.loops[this.loopId].currentStep*gridStepSizeX, recordedNotes[i].y);
+        }
       }
     }
   }
@@ -1898,6 +2202,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       this.hover = false;
       this.dragging = false;
+      this.selected = false;
+      this.offsetDrag = 0;
 
       //this.pitch = theory.freqs[p.floor(p.random(0, theory.freqs.length))]*8;
       this.pitch = pitch;
@@ -1914,7 +2220,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.y = p.random(0, p.windowHeight);
 
       this.opa = 255;
-      this.opaInc = 5;
+      this.opaInc = 10;
 
       this.opaInfo = 0;
 
@@ -1959,9 +2265,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       let pitch = this.pitch;
       if (pitch > 11) pitch = pitch-12;
 
-      if (session.activeTab.tracks[this.trackId].name !== "DRUMS") {
-        session.activeTab.tracks[this.trackId].synth.oscillators[0].triggerRelease(theory.freqs[pitch]*p.pow(2,this.octave),time);
-        session.activeTab.tracks[this.trackId].synth.oscillators[1].triggerRelease(theory.freqs[pitch]*p.pow(2,this.octave),time);
+      if (session.loops[this.loopId].tracks[this.trackId].name !== "DRUMS") {
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[0].triggerRelease(theory.freqs[pitch]*p.pow(2,this.octave),time);
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerRelease(theory.freqs[pitch]*p.pow(2,this.octave),time); 
+    
       }
     }
 
@@ -1971,16 +2278,17 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.animR = this.size;
       this.color = [this.colorOrig[0]+100,this.colorOrig[1]+100,this.colorOrig[2]+100];
 
-      if (session.activeTab.tracks[this.trackId].name === "DRUMS") {
-        session.activeTab.tracks[this.trackId].synth.parts[this.pitch].start(time);
-        if (this.pitch === 2) session.activeTab.tracks[this.trackId].synth.parts[3].stop(time);
+
+      if (session.loops[this.loopId].tracks[this.trackId].name === "DRUMS") {
+        session.loops[this.loopId].tracks[this.trackId].synth.parts[this.pitch].start(time);
+        if (this.pitch === 2) session.loops[this.loopId].tracks[this.trackId].synth.parts[3].stop(time);
       }
       else {
         //let t = session.loops[this.loopId].timeBtwSteps*this.duration;
         let pitch = this.pitch;
         if (pitch > 11) pitch = pitch-12;
         session.loops[this.loopId].tracks[this.trackId].synth.oscillators[0].triggerAttack(theory.freqs[pitch]*p.pow(2,this.octave),time);
-        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerAttack (theory.freqs[pitch]*p.pow(2,this.octave),time);
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerAttack(theory.freqs[pitch]*p.pow(2,this.octave),time);
       }
       //synths.melody.triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave), session.activeTab.timeBtwSteps);
     }
@@ -2022,8 +2330,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         p.textSize(p.windowHeight / 65);
         if (this.duration === 1) p.text("STEP "+(this.start+1), this.x+gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
         else p.text("STEP "+(this.start+1)+"-"+(this.start+this.duration), this.x+gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
-        p.fill(this.color[0], this.color[1], this.color[2], this.opaInfo);
-        p.text(session.activeTab.tracks[this.trackId].name, this.x+gridStepSizeX, this.y-gridStepSizeX*1.4+p.windowHeight / 42);
+        //p.fill(this.color[0], this.color[1], this.color[2], this.opaInfo);
+        //p.text(session.activeTab.tracks[this.trackId].name, this.x+gridStepSizeX, this.y-gridStepSizeX*1.4+p.windowHeight / 42);
       } else {
         p.textAlign(p.RIGHT, p.CENTER);
         p.textSize(p.windowHeight / 40);
@@ -2034,8 +2342,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         p.textSize(p.windowHeight / 65);
         if (this.duration === 1) p.text("STEP "+(this.start+1), this.x-gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
         else p.text("STEP "+(this.start+1)+"-"+(this.start+this.duration), this.x-gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
-        p.fill(this.color[0], this.color[1], this.color[2], this.opaInfo);
-        p.text(session.activeTab.tracks[this.trackId].name, this.x-gridStepSizeX, this.y-gridStepSizeX*1.4+p.windowHeight / 42);
+        //p.fill(this.color[0], this.color[1], this.color[2], this.opaInfo);
+        //p.text(session.activeTab.tracks[this.trackId].name, this.x-gridStepSizeX, this.y-gridStepSizeX*1.4+p.windowHeight / 42);
       }
       p.pop();
     }
@@ -2045,6 +2353,75 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerRelease(theory.freqs[this.pitch]*p.pow(2,this.octave));
       }
     }*/
+
+    drawCollapsed(angles,targetX, targetY) {
+      if (session.loops[this.loopId].play && this.start <= session.loops[this.loopId].currentStep && this.start+this.duration >= session.loops[this.loopId].currentStep) {
+        if (session.activeTab !== null) {
+          if (this.loopId !== session.activeTab.id) this.angInc = p.PI / 12;
+        } else this.angInc = p.PI / 12;        //this.animOpa = 255;
+        this.color = [this.colorOrig[0]+100,this.colorOrig[1]+100,this.colorOrig[2]+100];
+        if(this.start+this.duration > session.loops[this.loopId].currentStep) this.spawnParticles(targetX,targetY);
+      }
+
+      for ( let i = 0; i < this.particles.length; i++) {
+        if (this.particles[i].alive) {
+          this.particles[i].move();
+          p.push();
+          p.translate(0,0,1);
+          this.particles[i].show();
+          p.pop();
+        } else this.pool.push(this.particles.splice( i, 1 )[0]);  
+      } 
+
+      for (let i = 0; i < this.color.length; i++) {
+        if (this.color[i] - 5 < this.colorOrig[i]) this.color[i] = this.colorOrig[i];
+        else this.color[i] -= 5;
+      }
+      if (session.activeTab !== null) {
+        if (this.loopId !== session.activeTab.id)  {
+          if (this.angInc > p.PI / 200) this.angInc -= 0.005;
+          if (this.animOpa - this.animOpaInc < 0) this.animOpa = 0;
+          else this.animOpa -= this.animOpaInc;
+          if (this.animR < p.windowHeight/15) this.animR += this.animRInc;
+          this.ang += this.angInc;
+        }
+      } else {
+        if (this.angInc > p.PI / 200) this.angInc -= 0.005;
+        if (this.animOpa - this.animOpaInc < 0) this.animOpa = 0;
+        else this.animOpa -= this.animOpaInc;
+        if (this.animR < p.windowHeight/15) this.animR += this.animRInc;
+        this.ang += this.angInc;
+      }
+
+      //while is playing, set bright and rotatation to max
+      if (this.start <= session.loops[this.loopId].currentStep && this.start+this.duration >= session.loops[this.loopId].currentStep) {
+        if (session.activeTab !== null) {
+          if (this.loopId !== session.activeTab.id) this.angInc = p.PI / 12;
+        } else this.angInc = p.PI / 12;
+        this.color = [this.colorOrig[0]+100,this.colorOrig[1]+100,this.colorOrig[2]+100];
+        if(this.start+this.duration > session.loops[this.loopId].currentStep) this.spawnParticles(
+          session.loops[this.loopId].tracks[this.trackId].particlesPreviewX[session.loops[this.loopId].tracks[this.trackId].particlesPreviewX.length-session.loops[this.loopId].currentStep-1]+p5.Vector.fromAngle(angles[nSteps-this.start+1], p.sin(this.ang/2)*p.windowHeight/50).x,
+          session.loops[this.loopId].tracks[this.trackId].particlesPreviewY[session.loops[this.loopId].tracks[this.trackId].particlesPreviewY.length-session.loops[this.loopId].currentStep-1]+p5.Vector.fromAngle(angles[nSteps-this.start+1], p.sin(p.PI/2-this.ang/2)*p.windowHeight/50).y);
+      }
+
+      p.fill(this.color[0],this.color[1],this.color[2],previewOpa);
+      p.noStroke();
+      p.push();
+      p.translate(targetX,targetY,p.windowHeight/60);
+      p.scale(p.windowHeight/50 / petalModelSize);
+      p.rotateX(this.ang);
+      p.rotateY(this.ang);
+      p.model(session.loops[this.loopId].tracks[this.trackId].petal);
+      p.pop();
+
+      p.push();
+      p.noFill();
+      p.translate(0,0,2);
+      p.stroke(this.color[0], this.color[1], this.color[2], this.animOpa);
+      p.strokeWeight(this.size / 12);
+      if (this.animOpa > 0) p.circle(targetX,targetY, this.animR, this.animR);
+      p.pop();
+    }
 
     draw(targetX, targetY) {
 
@@ -2061,20 +2438,22 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       this.size = p.windowHeight / 60;
 
-      if (p.mouseX > targetX - gridStepSizeX/2 && p.mouseX < targetX + gridStepSizeX/2 
+      if (p.mouseX > targetX - gridStepSizeX/2 && p.mouseX < targetX + gridStepSizeX*(this.duration-1) + gridStepSizeX/2 
         && p.mouseY > targetY - gridStepSizeX/2 && p.mouseY < targetY + gridStepSizeX/2
-        && session.activeTab.selectedTrack === session.activeTab.tracks[this.trackId] && session.activeTab.view === 0 && dragging === false) {
+        && session.activeTab.selectedTrack === session.activeTab.tracks[this.trackId] && session.activeTab.view === 0 && dragging === false && session.loopDrawer === false && session.structDrawer  === false) {
           document.body.style.cursor = 'grab';
           
           if (this.hover === false) {
             this.opaInfo = 0;
             this.angInc = p.PI / 12;
+            this.offsetDrag = 1;
           }
 
           this.hover = true;
 
           if (p.mouseIsPressed && this.dragging === false) {
             this.playShort();
+            this.selected = true;
             this.dragging = true;
             dragging = true;
           }
@@ -2096,7 +2475,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         //console.log(auxX,auxY);
 
         //console.log(session.loops[this.loopId].tracks[this.trackId].nPitches,this.start,this.pitch,auxX,auxY);
-        if (auxX >= 0 && auxX < nSteps && auxY >= 0 && auxY < session.loops[this.loopId].tracks[this.trackId].nPitches) {
+        if (auxX >= 0 && auxX < nSteps-(this.duration+1) && auxY >= 0 && auxY < session.loops[this.loopId].tracks[this.trackId].nPitches) {
           /*if (session.activeTab.selectedTrack.timeline[this.start][this.pitch] !== session.activeTab.selectedTrack.timeline[auxX][auxY]) {
             session.activeTab.selectedTrack.timeline[auxX][auxY] = this;
             session.activeTab.selectedTrack.timeline[this.start][this.pitch] = null;*/
@@ -2158,7 +2537,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //p.circle(this.x, this.y, this.size, this.size);
       //if (session.loops[this.loopId].tracks[this.trackId].notes.includes(this) === false) console.log("ai", this.octave);
 
-      if (session.activeTab.selectedTrack === null || session.activeTab.selectedTrack !== null && session.activeTab.view === 0 && (session.activeTab.selectedTrack.octaveScroll.value === this.octave || session.activeTab.selectedTrack.octaveScroll.value+1 === this.octave)) {
+      if (session.activeTab.selectedTrack === null || session.activeTab.selectedTrack !== null && session.activeTab.view === 0 && (session.activeTab.selectedTrack.octaveScroll.value === this.octave || session.activeTab.selectedTrack.octaveScroll.value+1 === this.octave) && session.activeTab.selectedTrack.id === this.trackId) {
         for ( let i = 0; i < this.particles.length; i++) {
           if (this.particles[i].alive) {
             this.particles[i].move();
@@ -2179,37 +2558,49 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           if(this.start+this.duration > session.activeTab.currentStep) this.spawnParticles(gridInitX+session.activeTab.currentStep*gridStepSizeX,this.y);
         }
         p.noStroke();
+
+        //selected
+        if (this.selected) {
+          this.color = [this.colorOrig[0]+100,this.colorOrig[1]+100,this.colorOrig[2]+100];
+          if (this.animOpa === 0) {
+            this.animOpa = 255;
+            this.animR = this.size;
+          }
+        } 
         
         p.push();
-        if (session.activeTab.selectedTrack === session.activeTab.tracks[this.trackId]) p.translate(this.x,this.y,p.windowHeight/60);
-        else p.translate(this.x,this.y,-p.windowHeight/60*(session.activeTab.tracks[this.trackId].id+1));
+        if (session.activeTab.selectedTrack === session.activeTab.tracks[this.trackId]) p.translate(this.x,this.y,-p.windowHeight/60);
+        else p.translate(this.x,this.y,-p.windowHeight/60*(session.activeTab.tracks[this.trackId].id+2));
         p.scale(p.windowHeight/60 / petalModelSize);
         p.rotateX(this.ang);
         p.rotateY(this.ang);
         p.model(session.activeTab.tracks[this.trackId].petal);
         p.pop();
 
-        //duration > 1
-        if (this.duration > 1 && session.activeTab.selectedTrack !== null && session.activeTab.view === 0) {
+        if (session.activeTab.selectedTrack !== null && session.activeTab.view === 0) {
           p.noFill();
           p.stroke(this.color[0], this.color[1], this.color[2], this.opa);
+          p.strokeWeight(p.windowHeight/120);
           p.beginShape();
-          for (let i = 0; i < this.duration; i++) {
-            p.stroke(this.color[0], this.color[1], this.color[2], (this.opa / this.duration)*(this.duration-i-1));
+          for (let i = 0; i < this.duration+1; i++) {
+            //p.stroke(this.color[0], this.color[1], this.color[2], (this.opa / this.duration)*(this.duration-i-1));
+            p.stroke(this.color[0], this.color[1], this.color[2], 100);
             p.vertex(this.x+i*gridStepSizeX, this.y);
           }
           p.endShape();
 
           //p.noStroke();
-          p.stroke(this.color[0], this.color[1], this.color[2], 100);
+          /*p.stroke(this.color[0], this.color[1], this.color[2], 100);
 
           p.push();
-          p.translate(this.x+(this.duration-1)*gridStepSizeX,this.y,-p.windowHeight/60*(session.activeTab.tracks[this.trackId].id+1));
+          p.translate(this.x+(this.duration)*gridStepSizeX,this.y,-p.windowHeight/60*(session.activeTab.tracks[this.trackId].id+1));
           p.scale(p.windowHeight/60 / petalModelSize);
-          p.rotateX(this.ang+p.PI);
-          p.rotateY(this.ang+p.PI);
+          //p.rotateX(this.ang+p.PI);
+          //p.rotateY(this.ang+p.PI);
+          p.rotateX(this.ang);
+          p.rotateY(this.ang);
           p.model(session.activeTab.tracks[this.trackId].petal);
-          p.pop();
+          p.pop();*/
         }
 
           /*p.push();
@@ -2371,10 +2762,12 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))];
     }
 
-    knobAutomate() {
-      if (this.automating && session.activeTab.currentStep !== -1) this.value = this.automation[session.activeTab.currentStep];
-      if (typeof this.output === "string") this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))].toUpperCase();
-      else this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))];
+    knobAutomate(loop) {
+      if (this.automating && loop.currentStep > -1) {
+        this.value = this.automation[loop.currentStep];
+        if (typeof this.output === "string") this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))].toUpperCase();
+        else this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))];
+      }
     }
 
     findKnob() {
@@ -2424,6 +2817,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           this.hover = true;
 
           if (p.mouseIsPressed && this.dragging === false) {
+            session.activeTab.selectedTrack.presetChanged = true;
+
             if (this.automating) {
               session.alertLog('Automation "'+this.label+'" disabled.');
               this.automating = false;
@@ -2511,6 +2906,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         this.hover = true;
 
         if (p.mouseIsPressed) {
+          if (this.label !== "CLICK" && this.label !== "RECORD") session.activeTab.selectedTrack.presetChanged = true;
           this.state = !this.state;
           p.mouseIsPressed = false;
         }
@@ -2547,10 +2943,13 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.value + inc <= this.max) this.value += inc;
         else this.value = this.max;
       } else {
-        if (this.value - inc >= this.min) this.value -= inc;
+        if (this.value - inc >= this.min) {
+          this.value -= inc;
+          if (this.label === "PRESET") session.activeTab.selectedTrack.presetChanged = false;
+
+        }
         else this.value = this.min;
       }
-
     }
 
     decrement(inc) {
@@ -2558,7 +2957,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.value - inc >= this.min) this.value -= inc;
         else this.value = this.min;
       } else {
-        if (this.value + inc <= this.max) this.value += inc;
+        if (this.value + inc <= this.max) {
+          this.value += inc;
+          if (this.label === "PRESET") session.activeTab.selectedTrack.presetChanged = false;
+        }
         else this.value = this.max;
       }
     }
@@ -2579,8 +2981,13 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.textAlign(p.LEFT,p.TOP);
       if (this.label === "PRESET") {
         //console.log(session.activeTab.selectedTrack);
-        if (session.activeTab.selectedTrack.name === "DRUMS") p.text(synths.drumPresets[this.value].name, x-this.w/3.2, y-this.h/2);
-        else p.text(synths.synthPresets[this.value].name, x-this.w/3.2, y-this.h/2);
+        if (session.activeTab.selectedTrack.presetChanged) {
+          if (session.activeTab.selectedTrack.name === "DRUMS") p.text(synths.drumPresets[this.value].name+"*", x-this.w/3.2, y-this.h/2);
+          else p.text(synths.synthPresets[this.value].name+"*", x-this.w/3.2, y-this.h/2);
+        } else {
+          if (session.activeTab.selectedTrack.name === "DRUMS") p.text(synths.drumPresets[this.value].name, x-this.w/3.2, y-this.h/2);
+          else p.text(synths.synthPresets[this.value].name, x-this.w/3.2, y-this.h/2);
+        }
       }
       else if (this.label === "PARAMETER") {
         let knob = session.activeTab.selectedTrack.knobs[this.value];
@@ -2804,12 +3211,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (session.activeTab.play) {
         session.activeTab.play = false;
         Tone.Transport.stop();
-        for (let i = 0; i < session.activeTab.tracks.length; i++) {
-          if (session.activeTab.tracks[i].name !== "DRUMS") {
-            session.activeTab.tracks[i].synth.oscillators[0].releaseAll();
-            session.activeTab.tracks[i].synth.oscillators[1].releaseAll();
-          }
-        }
+        synths.releaseAll();
       }
       else {
         session.activeTab.currentStep = -1;
@@ -2819,6 +3221,18 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     }
     if (p.keyCode === p.BACKSPACE) {
       if (session.loopDrawer) loopSearch = loopSearch.slice(0, -1);
+      else if (session.activeTab !== null) {
+        if (session.activeTab.selectedTrack !== null) {
+          let notes = session.activeTab.selectedTrack.notes;
+          for (let i = 0; i < notes.length; i++) {
+            if (notes[i].selected) {
+              notes[i].stop();
+              notes.splice(i, 1);
+              i--;
+            }
+          }
+        }
+      }
     }
 
     if (inputNotes.length < maxInputNotes) {
@@ -2826,7 +3240,16 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (input !== -1 && inputNotes.indexOf(input) === -1) {
         inputNotes.push(input);
         if (session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack.playInputNote(input);
-        if (session.activeTab.record.state && session.activeTab.play) recordedNotes.push(new Note(input, session.activeTab.id, session.activeTab.selectedTrack.id, session.activeTab.currentStep, 1, currentOctave, session.activeTab.selectedTrack.color)); 
+        if (session.activeTab.record.state && session.activeTab.play && session.activeTab.currentStep > -1) {
+          let check = false;
+          for (let n in recordedNotes) {
+            if (recordedNotes[n].pitch === input && recordedNotes[n].octave === currentOctave && recordedNotes[n].trackId === session.activeTab.selectedTrack.id) {
+              check = true;
+              break;
+            }  
+          }
+          if (check === false) recordedNotes.push(new Note(input, session.activeTab.id, session.activeTab.selectedTrack.id, session.activeTab.currentStep, 1, currentOctave, session.activeTab.selectedTrack.color)); 
+        }
       }
     }
   }
@@ -2840,6 +3263,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         for (let i = 0; i < inputNotes.length; i++) {
           session.activeTab.selectedTrack.releaseInputNote(inputNotes[i]);
           inputNotes.splice(i, 1);
+          i--;
         }
       }
       if (p.key.toUpperCase() === 'X') if (currentOctave < maxOctave) {
@@ -2848,6 +3272,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         for (let i = 0; i < inputNotes.length; i++) {
           session.activeTab.selectedTrack.releaseInputNote(inputNotes[i]);
           inputNotes.splice(i, 1);
+          i--;
         }
       }
       if (p.keyCode === p.LEFT_ARROW) if (session.activeTab.view > 0) {
@@ -2876,7 +3301,20 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (session.activeTab.record && session.activeTab.play) {
           for (let i = 0; i < recordedNotes.length; i++) {
             if (recordedNotes[i].pitch === input && recordedNotes[i].trackId === session.activeTab.selectedTrack.id) {
-              recordedNotes[i].duration = session.activeTab.currentStep - recordedNotes[i].start;
+              //recordedNotes[i].duration = session.activeTab.currentStep - recordedNotes[i].start;
+              
+              //let track = session.activeTab.tracks[recordedNotes[i].trackId];
+
+              //recordedNotes[i].x = gridInitX + recordedNotes[i].start * gridStepSizeX;
+
+              //if (recordedNotes[i].octave === track.octaveScroll.value) recordedNotes[i].y = gridInitY + (track.nPitches-recordedNotes[i].pitch-1)*(gridStepSizeY*11/(track.nPitches-1));
+              //else if (recordedNotes[i].octave === track.octaveScroll.value+1) recordedNotes[i].y = gridInitY + (track.nPitches-recordedNotes[i].pitch-1)*(gridStepSizeY*11/(track.nPitches-1)) - gridStepSizeY*11/2-gridStepSizeY/4;
+
+              //if (recordedNotes[i].octave === track.octaveScroll.value) recordedNotes[i].draw(this.particlesX[this.tempNote.start+1], gridInitY + (this.nPitches-this.tempNote.pitch-1)*(gridStepSizeY*11/(this.nPitches-1)));
+              //else if (recordedNotes[i].octave === track.octaveScroll.value+1) recordedNotes[i].draw(this.particlesX[this.tempNote.start+1], gridInitY + (this.nPitches-this.tempNote.pitch-1)*(gridStepSizeY*11/(this.nPitches-1)) - gridStepSizeY*11/2-gridStepSizeY/4);
+
+              if (recordedNotes[i].duration === 0) recordedNotes[i].duration = 1;
+              session.activeTab.selectedTrack.ajustNotes(recordedNotes[i]);
               session.activeTab.selectedTrack.notes.push(recordedNotes[i]);
               recordedNotes.splice(i, 1);
               break;
