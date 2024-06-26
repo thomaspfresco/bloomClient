@@ -29,6 +29,13 @@ import aiPNG from '../Assets/ai.png';
 import singPNG from '../Assets/sing.png';
 import scratchPNG from '../Assets/scratch.png';
 
+import dice1PNG from '../Assets/dice1.png';
+import dice2PNG from '../Assets/dice2.png';
+import dice3PNG from '../Assets/dice3.png';
+import dice4PNG from '../Assets/dice4.png';
+import dice5PNG from '../Assets/dice5.png';
+import dice6PNG from '../Assets/dice6.png';
+
 import petalOBJ1 from '../Assets/petal1.obj';
 import petalOBJ2 from '../Assets/petal2.obj';
 import petalOBJ3 from '../Assets/petal3.obj';
@@ -42,6 +49,7 @@ import p5 from 'p5';
 let fontLight, fontMedium, fontBold;
 let petal1, petal2, petal3, petal4;
 let loopsIcon, structsIcon, gridIcon, studioIcon, autoIcon, plus, arrowUp, arrowDown, ai, sing, scratch;
+let diceIcons = [];
 
 let menuOpened = false;
 let dragging = false;
@@ -52,6 +60,7 @@ let recordedNotes = [];
 
 let inputNotes = [];
 let maxInputNotes = 5;
+let maxLoopsPerStruct = 5;
 let currentOctave = 3;
 let minOctave = 0;
 let maxOctave = 8;
@@ -73,7 +82,7 @@ var particles = new Array(100);
 var totalFrames = 360;
 let counter = 0;
 
-let petalParticles = new Array(50);
+let petalParticles = new Array(100);
 let diagonal;
 let rotation = 0;
 
@@ -322,9 +331,9 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.fill(white[0], white[1], white[2], this.logOpa);
       p.noStroke();
       p.textAlign(p.RIGHT, p.CENTER);
-      p.textSize(p.windowHeight / 55);
+      p.textSize(p.windowHeight / 60);
       p.textFont(fontLight);
-      p.text(this.logMessage, p.windowWidth - gridInitX*1.2, gridInitY/2.1);
+      p.text(this.logMessage, p.windowWidth - gridInitX*1.2, gridInitY/2);
 
       if (p.millis() - this.logInstant > this.logDelay) this.showLog = false;
     }
@@ -351,13 +360,14 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (this.activeTab === null) {
         this.drawPetalParticles();
         this.showSuggestions();
+
+        //loop and struct drawers icons
+        p.tint(255, 255/4);
+        p.image(loopsIcon, p.windowHeight/30 + p.windowHeight / 35 / 2 - p.windowHeight / 25*2+this.loopsOffset*2, p.windowHeight/2, p.windowHeight / 35, p.windowHeight / 35);
+        p.tint(255, 255/4);
+        p.image(structsIcon, p.windowWidth - p.windowHeight/30 - p.windowHeight / 35 / 2 + p.windowHeight / 25*2-this.structsOffset*2,  p.windowHeight/2, p.windowHeight / 35, p.windowHeight / 35);
       }
       else this.activeTab.draw();
-
-      //loop and struct drawers icons
-      //p.tint(255, 255/4);
-      //p.image(loopsIcon, gridInitX*2,  gridInitY/2, p.windowHeight / 35, p.windowHeight / 35);
-      //p.image(structsIcon, p.windowWidth - gridInitX*2,  gridInitY/2, p.windowHeight / 35, p.windowHeight / 35);
 
       //tab transition animation
       if (this.blackoutOpa - 10 < 0) this.blackoutOpa = 0;
@@ -379,8 +389,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //loop drawer
       p.textSize(p.windowHeight/40);
       p.textAlign(p.LEFT, p.TOP);
+      
       p.fill(white[0], white[1], white[2], this.loopsOpa);
-      p.text("LOOPS", p.windowHeight / 30 - this.loopsOffset, p.windowHeight / 30);
+      p.text("LOOPS", p.windowHeight / 30 + p.windowHeight / 45*1.7 - this.loopsOffset, p.windowHeight/30);
+      p.tint(255, this.loopsOpa);
+      p.image(loopsIcon,  p.windowHeight / 30 + p.windowHeight / 45 / 2 - this.loopsOffset, p.windowHeight / 30 + p.windowHeight / 40 / 2 + p.windowHeight / 30 / 7, p.windowHeight / 45, p.windowHeight / 45);
 
       //loop plus
       if (p.mouseX > p.windowHeight/30 && p.mouseX < p.windowHeight/30+p.windowHeight/30 && p.mouseY > p.windowHeight-p.windowHeight/30-p.windowHeight/30 && p.mouseY < p.windowHeight-p.windowHeight/30 && dragging === false && menuOpened === false) {
@@ -393,7 +406,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
             this.activeTab.selectedTrack = null;
             this.activeTab.view = 0;
           }
-          let name = "myloop"+(this.loops.length+1);
+          let name = "myLoop"+(this.loops.length+1);
+          name = session.generateNameLoop(name);
           this.loops.push(new Loop(this.loops.length, name, 120));
           this.manageTabs(this.loops[this.loops.length-1]);
           p.mouseIsPressed = false;
@@ -407,8 +421,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //struct drawer
       p.textSize(p.windowHeight/40);
       p.textAlign(p.RIGHT, p.TOP);
+
       p.fill(white[0], white[1], white[2], this.structsOpa);
-      p.text("STRUCTS", p.windowWidth - p.windowHeight / 30 + this.structsOffset, p.windowHeight / 30);
+      p.text("STRUCTS", p.windowWidth - p.windowHeight / 30 - p.windowHeight / 45*1.7 + this.structsOffset, p.windowHeight / 30);
+      p.tint(255, this.structsOpa);
+      p.image(structsIcon,  p.windowWidth - p.windowHeight / 30 - p.windowHeight / 45 / 2 + this.structsOffset, p.windowHeight / 30 + p.windowHeight / 40 / 2 + p.windowHeight / 30 / 7, p.windowHeight / 45, p.windowHeight / 45);
 
       //struct plus
       if (p.mouseX < p.windowWidth-p.windowHeight/30 && p.mouseX >  p.windowWidth-p.windowHeight/30-p.windowHeight/30 && p.mouseY > p.windowHeight-p.windowHeight/30-p.windowHeight/30 && p.mouseY < p.windowHeight-p.windowHeight/30 && dragging === false && menuOpened === false) {
@@ -424,6 +441,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
             }
           }
           let name = "myStruct"+(this.structs.length+1);
+          name = session.generateNameStruct(name);
           this.structs.push(new Structure(this.structs.length, name));
           this.manageTabs(this.structs[this.structs.length-1]);
           p.mouseIsPressed = false;
@@ -444,8 +462,6 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
             for (let i = 0; i < this.loops.length; i++) {
               for (let j = 0; j < this.loops[i].tracks.length; j++) {
                   this.loops[i].tracks[j].particlesDrawerX.fill(-p.windowWidth/5);
-                  //this.loops[i].tracks[j].particlesPreviewX = this.loops[i].tracks[j].targetXpreview.concat();
-                  //this.loops[i].tracks[j].particlesPreviewY = this.loops[i].tracks[j].targetYpreview.concat();
               }
             }
           }
@@ -453,10 +469,49 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           drawerOpa = 0;
           previewInstant = p.millis();
           this.loopDrawer = true;
+          if (session.activeTab !== null) {
+            session.activeTab.play = false;
+            if (session.activeTab.type === "struct" && session.activeTab.sequence.length > 0) session.activeTab.sequence[session.activeTab.currentLoop].play = false;
+          }
+          Tone.Transport.start();
+        }
+        else if (p.mouseX > p.windowWidth - p.windowWidth / 100 && dragging === false && menuOpened === false) {
+          if (this.structDrawer === false) {
+            this.drawerInstant = p.millis();
+            structSearch = "";
+            
+            //reset structs position on drawer
+            //for (let s in this.structs) this.structs[s].update();
+
+            for (let i = 0; i < this.structs.length; i++) {
+              this.structs[i].update();
+
+              this.structs[i].currentLoop = 0;
+              this.structs[i].currentRepeat = 0;
+
+              for (let j = 0; j < this.structs[i].sequence.length; j++) {
+                for (let t in this.structs[i].sequence[j].tracks) {
+                  this.structs[i].sequence[j].tracks[t].particlesDrawerX.fill(p.windowWidth+p.windowWidth/5);
+                }
+              }
+            }
+            
+            /*for (let i = 0; i < this.structs.length; i++) {
+              for (let j = 0; j < this.loops[i].tracks.length; j++) {
+                  this.loops[i].tracks[j].particlesDrawerX.fill(-p.windowWidth/5);
+                  //this.loops[i].tracks[j].particlesPreviewX = this.loops[i].tracks[j].targetXpreview.concat();
+                  //this.loops[i].tracks[j].particlesPreviewY = this.loops[i].tracks[j].targetYpreview.concat();
+              }
+            }*/
+          }
+          previewOpa = 0;
+          drawerOpa = 0;
+          previewInstant = p.millis();
+          this.structDrawer = true;
           if (session.activeTab !== null) session.activeTab.play = false;
           Tone.Transport.start();
         }
-        else if (p.mouseX > p.windowWidth - p.windowWidth / 100) this.structDrawer = true;
+
         if (this.drawersDark - this.drawersDarkInc < 0) this.drawersDark = 0;
         else this.drawersDark -= this.drawersDarkInc;
       } else if (this.loopDrawer || this.structDrawer) {
@@ -472,8 +527,19 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         }
         this.loopDrawer = false;
       }
-      if (p.mouseX < p.windowWidth - p.windowWidth / 5) this.structDrawer = false;
-
+      if (p.mouseX < p.windowWidth - p.windowWidth / 5) {
+        if (this.structDrawer) {
+          if (this.activeTab !== null) {
+            if (this.activeTab.type === "struct") {
+              this.activeTab.play = false;
+              for (let i = 0; i < this.activeTab.sequence.length; i++) this.activeTab.sequence[i].play = false;
+            }
+          }
+          Tone.Transport.stop();
+          synths.releaseAll();
+        }
+        this.structDrawer = false;
+      }
       //loop drawer
       if (this.loopDrawer) {
         if (this.loopsOffset - this.drawersOffsetInc < 0) this.loopsOffset = 0;
@@ -481,8 +547,9 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.loopsOpa + this.drawersOpaInc > this.drawersOpaMax) this.loopsOpa = this.drawersOpaMax;
         else this.loopsOpa += this.drawersOpaInc;
 
-        p.fill(255, 0, 0);
+        p.fill(white[0], white[1], white[2], this.loopsOpa/3);
         p.textAlign(p.RIGHT, p.TOP);
+        p.textSize(p.windowHeight / 45);
         if (loopSearch === "") p.text("Type something...", p.windowWidth - p.windowHeight / 30, p.windowHeight / 30);
         else p.text(loopSearch, p.windowWidth - p.windowHeight / 30, p.windowHeight / 30);
 
@@ -491,24 +558,34 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           p.textAlign(p.LEFT, p.CENTER);
           p.textSize(p.windowHeight / 50);
           p.fill(white[0], white[1], white[2], this.loopsOpa/3);
-          p.text('Click "+" to create Loop', p.windowHeight / 30 - this.loopsOffset, p.windowHeight / 2);
+          p.text('Click "+" to create a Loop', p.windowHeight / 30 - this.loopsOffset, p.windowHeight / 2);
         }
         else {
+            let loops = this.searchLoops();
+
             let dist = 0;
             let loopSize = 0;
 
-            if (this.loops.length < 8) {
+            if (loops.length < 8) {
               dist = p.windowHeight/1.3/(8-1);
               loopSize = p.windowHeight/35;
             }
             else {
-              dist = p.windowHeight/(1.4-0.004*this.loops.length)/(this.loops.length-1);
+              dist = p.windowHeight/(1.4-0.004*loops.length)/(loops.length-1);
               loopSize = dist/4;
             }
 
-            let totalDist = dist*(this.loops.length-1);
+            let totalDist = dist*(loops.length-1);
 
-            for (let i = 0; i < this.loops.length; i++) {
+            if (loops.length === 0) {
+              p.textAlign(p.LEFT, p.CENTER);
+              p.textSize(p.windowHeight / 50);
+              p.fill(white[0], white[1], white[2], this.loopsOpa/3);
+              p.text('No results', p.windowHeight / 30 - this.loopsOffset, p.windowHeight / 2);
+              
+            }
+
+            for (let i = 0; i < loops.length; i++) {
               
               let aux = p.abs(p.windowHeight / 2 - totalDist/2 + dist * i - p.mouseY);
               if (aux > (dist * 2)) aux = dist * 2;
@@ -520,21 +597,21 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
                   mouseOffsetX = 0;
                   sizeOffset = 0;
               }
-              if (this.drawerInterval/(this.loops.length/10) * i < (p.millis() - this.drawerInstant)) {
-                if (this.loops[i].drawerDragging === false) this.loops[i].drawInDrawer(mouseOffsetX + p.windowHeight / 30 + loopSize, p.windowHeight / 2 - totalDist / 2 + dist*i, loopSize+sizeOffset);
-              } else this.loops[i].emptyOpa = 0;
+              if (this.drawerInterval/(loops.length/10) * i < (p.millis() - this.drawerInstant)) {
+                if (loops[i].drawerDragging === false) loops[i].drawInDrawer(mouseOffsetX + p.windowHeight / 30 + loopSize, p.windowHeight / 2 - totalDist / 2 + dist*i, loopSize+sizeOffset);
+              } else loops[i].emptyOpa = 0;
 
               //text info and preview
               if (p.mouseY > p.windowHeight / 2 - totalDist/2 + dist * i - dist / 2 && p.mouseY < p.windowHeight / 2 - totalDist/2 + dist * i + dist / 2 && dragging === false) {
                 
-                if (this.loops[i].hover === false) {
-                  this.loops[i].hover = true;
+                if (loops[i].hover === false) {
+                  loops[i].hover = true;
                   drawerOpa = 0;
                   previewOpa = 0;
                   previewInstant = p.millis();
                   synths.releaseAll();
-                  this.loops[i].play = false;
-                  this.loops[i].currentStep = -1;
+                  loops[i].play = false;
+                  loops[i].currentStep = -1;
                 }
                 
                 if (drawerOpa + this.drawersDarkInc > 255) drawerOpa = 255;
@@ -543,70 +620,77 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
                 if (p.millis() - previewInstant > previewDelay) {
                   if (previewOpa + this.drawersDarkInc/2 > 255) previewOpa = 255;
                   else previewOpa += this.drawersDarkInc;
-                } else this.loops[i].currentStep = -2;
+                } else loops[i].currentStep = -2;
 
                 document.body.style.cursor = 'pointer';
                 p.noStroke();
                 p.fill(white[0], white[1], white[2], drawerOpa);
-                p.textSize(p.windowHeight / 35);
+                p.textSize(p.windowHeight / 40);
                 p.textAlign(p.LEFT, p.CENTER);
                 p.textFont(fontMedium);
-                p.text(this.loops[i].name, mouseOffsetX + p.windowHeight / 30 + loopSize*4, p.windowHeight / 2 - totalDist/2 + dist * i-p.windowHeight / 60);
+                p.text(loops[i].name, mouseOffsetX + p.windowHeight / 30 + loopSize*4, p.windowHeight / 2 - totalDist/2 + dist * i-p.windowHeight / 70);
                 p.fill(white[0], white[1], white[2],drawerOpa/2);
-                p.textSize(p.windowHeight / 50);
+                p.textSize(p.windowHeight / 65);
                 p.textFont(fontLight);
-                p.text(this.loops[i].tempo+" BPM", +mouseOffsetX + p.windowHeight / 30 + loopSize*4, p.windowHeight / 2 - totalDist/2 + dist * i+p.windowHeight /60);
+                p.text(loops[i].tempo+" BPM", +mouseOffsetX + p.windowHeight / 30 + loopSize*4, p.windowHeight / 2 - totalDist/2 + dist * i+p.windowHeight /70);
                 
-                this.loops[i].drawPreview();
+                loops[i].drawPreview(p.windowWidth/2+p.windowWidth/8, p.windowHeight/2, p.windowHeight/6);
 
                 if (p.mouseIsPressed) {
-                  if (this.loops[i].drawerDragging === false) this.loops[i].dragInstant = p.millis();
+                  if (loops[i].drawerDragging === false) loops[i].dragInstant = p.millis();
                   document.body.style.cursor = 'grabbing';
-                  if (p.abs(p.dist(p.mouseX, p.mouseY,mouseOffsetX + p.windowHeight / 30 + loopSize, p.windowHeight / 2 - totalDist / 2 + dist*i)) > loopSize*1.5) {
+                  if (p.abs(p.dist(p.mouseX, p.mouseY,mouseOffsetX + p.windowHeight / 30 + loopSize, p.windowHeight / 2 - totalDist / 2 + dist*i)) > loopSize*2) {
                     dragging = true;
-                    this.loops[i].drawerDragging = true;
+                    loops[i].drawerDragging = true;
                   }
                 }
               }
               else{
-                if (this.loops[i].hover) synths.releaseAll();
-                this.loops[i].hover = false;
+                if (loops[i].hover) synths.releaseAll();
+                loops[i].hover = false;
               }
 
-              if (this.loops[i].drawerDragging) {
+              if (loops[i].drawerDragging) {
                 document.body.style.cursor = 'grabbing';
-                this.loops[i].drawInDrawer(p.mouseX, p.mouseY, loopSize);
+                loops[i].drawInDrawer(p.mouseX, p.mouseY, loopSize);
               }
 
               if (p.mouseIsPressed === false) {
-                this.loops[i].drawerDragging = false;
+                loops[i].drawerDragging = false;
                 dragging = false;
                 //if (p.mous)
-                if (p.millis() - this.loops[i].dragInstant < 100 && this.loops[i].drawerDragging === false) {
+                if (p.millis() - loops[i].dragInstant < 100 && loops[i].drawerDragging === false) {
                 synths.releaseAll();
                 Tone.Transport.stop();
 
                 //this.loops[i].drawerDragging = true; 
 
                 if (this.activeTab !== null) {
-                  this.activeTab.selectedTrack = null;
-                  this.activeTab.view = 0;
+                  if (this.activeTab.type === "loop") {
+                    this.activeTab.selectedTrack = null;
+                    this.activeTab.view = 0;
+                  } else {
+                    if (this.activeTab.sequence.length > 0) {
+                      this.activeTab.sequence[this.activeTab.currentLoop].play = false;
+                      this.activeTab.sequence[this.activeTab.currentLoop].currentStep = -1;
+                      this.activeTab.currentLoop = 0;
+                      this.activeTab.currentRepeat = 0;
+                    }
+                  }
                 }
-                this.manageTabs(this.loops[i]);
+                this.manageTabs(loops[i]);
                 this.activeTab.active = true;
                 this.drawersDark = 0;
-                for (let t in this.loops[i].tracks) {
-                  //this.loops[i].tracks[t].opaLine = 255;
-                  for (let n in this.loops[i].tracks[t].notes){
-                    this.loops[i].tracks[t].notes[n].x = this.loops[i].tracks[t].particlesPreviewX[nSteps-this.loops[i].tracks[t].notes[n].start+1];
-                    this.loops[i].tracks[t].notes[n].y = this.loops[i].tracks[t].particlesPreviewY[ nSteps-this.loops[i].tracks[t].notes[n].start+1];
+                for (let t in loops[i].tracks) {
+                  //loops[i].tracks[t].opaLine = 255;
+                  for (let n in loops[i].tracks[t].notes){
+                    loops[i].tracks[t].notes[n].x = loops[i].tracks[t].particlesPreviewX[nSteps-loops[i].tracks[t].notes[n].start+1];
+                    loops[i].tracks[t].notes[n].y = loops[i].tracks[t].particlesPreviewY[ nSteps-loops[i].tracks[t].notes[n].start+1];
                   } 
                 }
-                //synths.exportLoopAudio(this.loops[i],nSteps,setLoading);
-                //setLoading(true);
                 
                 //reset loops position
-                for (let j = 0; j < this.loops[i].tracks.length; j++) {
+                for (let j = 0; j < loops[i].tracks.length; j++) {
                   this.loops[i].tracks[j].particlesX = this.loops[i].tracks[j].targetXpreview.concat();
                   this.loops[i].tracks[j].particlesY = this.loops[i].tracks[j].targetYpreview.concat();
                 }
@@ -633,14 +717,178 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.structsOpa + this.drawersOpaInc > this.drawersOpaMax) this.structsOpa = this.drawersOpaMax;
         else this.structsOpa += this.drawersOpaInc;
 
+        p.fill(white[0], white[1], white[2], this.structsOpa/3);
+        p.textAlign(p.LEFT, p.TOP);
+        p.textSize(p.windowHeight / 45);
+        if (structSearch === "") p.text("Type something...", p.windowHeight / 30, p.windowHeight / 30);
+        else p.text(structSearch, p.windowHeight / 30, p.windowHeight / 30);
+
         //draw simplified/colapsed loops
         if (this.structs.length === 0) {
           p.textAlign(p.RIGHT, p.CENTER);
           p.textSize(p.windowHeight / 50);
           p.fill(white[0], white[1], white[2], this.structsOpa/3);
-          p.text('Click "+" to create Struct', p.windowWidth-p.windowHeight / 30 + this.structsOffset, p.windowHeight / 2);
+          p.text('Click "+" to create a Struct', p.windowWidth-p.windowHeight / 30 + this.structsOffset, p.windowHeight / 2);
         }
-        else {}
+        else {
+  
+          //draw colapsed loops
+
+              let structs = this.searchStructs();
+  
+              let dist = 0;
+              let structSize = 0;
+  
+              if (structs.length < 8) {
+                dist = p.windowHeight/1.3/(8-1);
+                structSize = p.windowHeight/60;
+              }
+              else {
+                dist = p.windowHeight/(1.4-0.004*structs.length)/(structs.length-1);
+                structSize = dist/5;
+              }
+  
+              let totalDist = dist*(structs.length-1);
+  
+              if (structs.length === 0) {
+                p.textAlign(p.RIGHT, p.CENTER);
+                p.textSize(p.windowHeight / 50);
+                p.fill(white[0], white[1], white[2], this.structsOpa/3);
+                p.text('No results', p.windowWidth - p.windowHeight / 30 + this.structsOffset, p.windowHeight / 2);
+                
+              }
+  
+              for (let i = 0; i < structs.length; i++) {
+                
+                let aux = p.abs(p.windowHeight / 2 - totalDist/2 + dist * i - p.mouseY);
+                if (aux > (dist * 2)) aux = dist * 2;
+                let mouseOffsetX = p.map(aux, dist * 2, 0, 0, structSize*3);
+                let sizeOffset = p.map(aux, dist * 2, 0, 0, structSize/3);
+                if (mouseOffsetX < 0 
+                  || p.mouseY < p.windowHeight / 2 - totalDist/2 - dist/2
+                  || p.mouseY > p.windowHeight / 2 + totalDist/2 + dist/2) {
+                    mouseOffsetX = 0;
+                    sizeOffset = 0;
+                }
+                if (this.drawerInterval/(structs.length/10) * i < (p.millis() - this.drawerInstant)) {
+                  if (structs[i].drawerDragging === false) structs[i].drawInDrawer(p.windowWidth-(mouseOffsetX + p.windowHeight / 30 + structSize), p.windowHeight / 2 - totalDist / 2 + dist*i, structSize+sizeOffset);
+                } else structs[i].emptyOpa = 0;
+  
+                //text info and preview
+                if (p.mouseY > p.windowHeight / 2 - totalDist/2 + dist * i - dist / 2 && p.mouseY < p.windowHeight / 2 - totalDist/2 + dist * i + dist / 2 && dragging === false) {
+                  
+                  if (structs[i].hover === false) {
+                    this.structs[i].currentLoop = 0;
+                    this.structs[i].currentRepeat = 0;
+  
+                    structs[i].hover = true;
+                    for (let l in structs[i].sequence) structs[i].sequence[l].hover = true;
+                    drawerOpa = 0;
+                    previewOpa = 0;
+                    previewInstant = p.millis();
+                    synths.releaseAll();
+                    structs[i].play = false;
+                    structs[i].currentStep = -1;
+                  }
+                  
+                  if (drawerOpa + this.drawersDarkInc > 255) drawerOpa = 255;
+                  else drawerOpa += this.drawersDarkInc;
+  
+                  if (p.millis() - previewInstant > previewDelay) {
+                    if (previewOpa + this.drawersDarkInc/2 > 255) previewOpa = 255;
+                    else previewOpa += this.drawersDarkInc;
+                  } else {
+                    if (structs[i].sequence.length > 0) structs[i].sequence[structs[i].currentLoop].currentStep = -2;
+                  }
+
+                  let offset = 0;
+                  if (structs[i].sequence.length === 0) offset = structSize*3.6;
+                  else offset = structSize*3.6*structs[i].sequence.length;
+  
+                  document.body.style.cursor = 'pointer';
+                  p.noStroke();
+                  p.fill(white[0], white[1], white[2], drawerOpa);
+                  p.textSize(p.windowHeight / 40);
+                  p.textAlign(p.RIGHT, p.CENTER);
+                  p.textFont(fontMedium);
+                  p.text(structs[i].name, p.windowWidth-(mouseOffsetX + p.windowHeight / 30 + offset), p.windowHeight / 2 - totalDist/2 + dist * i-p.windowHeight / 70);
+                  p.fill(white[0], white[1], white[2],drawerOpa/2);
+                  p.textSize(p.windowHeight / 65);
+                  p.textFont(fontLight);
+                  p.text(structs[i].tempoScroll.value+" BPM, "+structs[i].transposeScroll.value+ "st", p.windowWidth-(mouseOffsetX + p.windowHeight / 30 + offset), p.windowHeight / 2 - totalDist/2 + dist * i+p.windowHeight /70);
+                  
+                  structs[i].drawPreview(p.windowWidth/2-p.windowWidth/7, p.windowHeight/2, p.windowHeight/16);
+  
+                  if (p.mouseIsPressed) {
+                    if (structs[i].drawerDragging === false) structs[i].dragInstant = p.millis();
+                    document.body.style.cursor = 'grabbing';
+                    if (p.abs(p.dist(p.mouseX, p.mouseY,p.windowWidth - (mouseOffsetX + p.windowHeight / 30 + structSize), p.windowHeight / 2 - totalDist / 2 + dist*i)) > structSize*2) {
+                      dragging = true;
+                      structs[i].drawerDragging = true;
+                    }
+                  }
+                }
+                else{
+                  if (structs[i].hover) synths.releaseAll();
+                  structs[i].hover = false;
+                  for (let l in structs[i].sequence) structs[i].sequence[l].hover = false;
+                }
+  
+                if (structs[i].drawerDragging) {
+                  document.body.style.cursor = 'grabbing';
+                  structs[i].drawInDrawer(p.mouseX, p.mouseY, structSize);
+                }
+  
+                if (p.mouseIsPressed === false) {
+                  structs[i].drawerDragging = false;
+                  dragging = false;
+                  //if (p.mous)
+                  if (p.millis() - structs[i].dragInstant < 100 && structs[i].drawerDragging === false) {
+                  synths.releaseAll();
+                  Tone.Transport.stop();
+  
+                  //this.loops[i].drawerDragging = true; 
+  
+                  if (this.activeTab !== null) {
+                    if (this.activeTab.type === "loop") {
+                      this.activeTab.selectedTrack = null;
+                      this.activeTab.view = 0;
+                    } else {
+                      if (this.activeTab.sequence.length > 0) {
+                        this.activeTab.sequence[this.activeTab.currentLoop].play = false;
+                        this.activeTab.sequence[this.activeTab.currentLoop].currentStep = -1;
+                        this.activeTab.currentLoop = 0;
+                        this.activeTab.currentRepeat = 0;
+                      }
+                    }
+                  }
+                  this.manageTabs(structs[i]);
+                  this.activeTab.active = true;
+                  //this.drawersDark = 0;
+
+                  /*for (let t in loops[i].tracks) {
+                    //loops[i].tracks[t].opaLine = 255;
+                    for (let n in loops[i].tracks[t].notes){
+                      loops[i].tracks[t].notes[n].x = loops[i].tracks[t].particlesPreviewX[nSteps-loops[i].tracks[t].notes[n].start+1];
+                      loops[i].tracks[t].notes[n].y = loops[i].tracks[t].particlesPreviewY[ nSteps-loops[i].tracks[t].notes[n].start+1];
+                    } 
+                  }*/
+                  
+                  //reset loops position
+                  /*for (let j = 0; j < structs[i].sequence.length; j++) {
+                    for (let t in structs[i].sequence[j].tracks) {
+                      structs[i].sequence[j].tracks[t].particlesX = structs[i].sequence[j].tracks[t].targetXpreview.concat();
+                      structs[i].sequence[j].tracks[t].particlesY = structs[i].sequence[j].tracks[t].targetYpreview.concat();
+                    }
+                  }*/
+  
+                  //change mouse position to avoid imediate retriggering
+                  p.mouseX = p.windowWidth / 2;
+                  //p.mouseIsPressed = false;
+                }
+              }
+            }      
+        }
 
       } else {
         if (this.structsOffset + this.drawersOffsetInc > p.windowHeight / 25) this.structsOffset = p.windowHeight / 25;
@@ -655,13 +903,43 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           if (this.loops[l].drawerDragging) {
             if (session.activeTab !== null) {
               if (session.activeTab.type === "loop") document.body.style.cursor = 'not-allowed';
-              else document.body.style.cursor ='grabbing';
+              else {
+                if (session.activeTab.sequence.length < maxLoopsPerStruct) {
+                  document.body.style.cursor ='grabbing';
+                  session.activeTab.updateOffset(this.loops[l],p.mouseX,p.mouseY);
+                }
+                else document.body.style.cursor = 'not-allowed';
+              }
             } else document.body.style.cursor = 'not-allowed';
             this.loops[l].drawInDrawer(p.mouseX, p.mouseY, p.windowHeight / 15);
           }
+
           if (p.mouseIsPressed === false && this.loops[l].drawerDragging) {
+            if (this.loops[l].drawerDragging) if (session.activeTab !== null) if (session.activeTab.type === "struct" && session.activeTab.sequence.length < maxLoopsPerStruct) session.activeTab.addSectionLoop(this.loops[l],p.mouseX,p.mouseY);
             dragging = false;
             this.loops[l].drawerDragging = false;
+          }
+        }
+
+        for (let s in this.structs) {
+          if (this.structs[s].drawerDragging) {
+            if (session.activeTab !== null) {
+              if (session.activeTab.type === "loop") document.body.style.cursor = 'not-allowed';
+              else {
+                if (session.activeTab.sequence.length + this.structs[s].sequence.length <= maxLoopsPerStruct) {
+                  document.body.style.cursor ='grabbing';
+                  session.activeTab.updateOffset(this.structs[s],p.mouseX,p.mouseY);
+                }
+                else document.body.style.cursor = 'not-allowed';
+              }
+            } else document.body.style.cursor = 'not-allowed';
+            this.structs[s].drawInDrawer(p.mouseX, p.mouseY, p.windowHeight / 30);
+          }
+          
+          if (p.mouseIsPressed === false && this.structs[s].drawerDragging) {
+            if (this.structs[s].drawerDragging) if (session.activeTab !== null) if (session.activeTab.type === "struct" && session.activeTab.sequence.length + this.structs[s].sequence.length <= maxLoopsPerStruct) session.activeTab.addSectionStruct(this.structs[s],p.mouseX,p.mouseY);
+            dragging = false;
+            this.structs[s].drawerDragging = false;
           }
         }
       }
@@ -670,8 +948,84 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.drawLog();
     }
 
+    generateNameLoop(name) {
+      for (let l in this.loops) {
+        if (this.loops[l].name === name && name[name.length-1] !== ")") name = name + "(1)";
+        else if (this.loops[l].name === name && name[name.length-1] === ")") {
+          let index = name.lastIndexOf("(");
+          let number = parseInt(name.substring(index+1, name.length-1));
+          name = name.substring(0, index) + "(" + (number+1) + ")";
+        }
+      }
+      return name;
+    }
+
+    generateNameStruct(name) {
+      for (let s in this.structs) {
+        if (this.structs[s].name === name && name[name.length-1] !== ")") name = name + "(1)";
+        else if (this.structs[s].name === name && name[name.length-1] === ")") {
+          let index = name.lastIndexOf("(");
+          let number = parseInt(name.substring(index+1, name.length-1));
+          name = name.substring(0, index) + "(" + (number+1) + ")";
+        }
+      }
+      return name;
+    }
+
+    searchLoops() {
+      if (loopSearch !== prevLoopSearch) {
+        synths.releaseAll();
+        prevLoopSearch = loopSearch;
+      }
+      if (loopSearch === "") return this.loops;
+
+      let loops = [];
+
+      for (let i = 0; i < this.loops.length; i++) {
+        //if (this.loops[i].name === loopSearch) loops.push(this.loops[i]);
+        if ((this.loops[i].name.toLowerCase()).includes(loopSearch.toLowerCase())) loops.push(this.loops[i]);
+        else if (String(this.loops[i].tempo).includes(loopSearch)) loops.push(this.loops[i]);
+        else this.loops[i].hover = false;
+      }
+
+      return loops;
+    }
+
+    searchStructs() {
+      if (structSearch !== prevStructSearch) {
+        synths.releaseAll();
+        if (session.structs.length > 0) {
+          for (let s in session.structs) {
+            for (let l in session.structs[s].sequence) {
+              session.structs[s].sequence[l].play = false;
+              session.structs[s].sequence[l].currentStep = -1;
+              session.structs[s].currentLoop = 0;
+              session.structs[s].currentRepeat = 0;
+            }
+          }
+        }
+        prevStructSearch = structSearch;
+      }
+      if (structSearch === "") return this.structs;
+
+      let structs = [];
+
+      for (let i = 0; i < this.structs.length; i++) {
+        //if (this.loops[i].name === loopSearch) loops.push(this.loops[i]);
+        if ((this.structs[i].name.toLowerCase()).includes(structSearch.toLowerCase())) structs.push(this.structs[i]);
+        else if (String(this.structs[i].tempoScroll.value).includes(structSearch)) structs.push(this.structs[i]);
+        else {
+          this.structs[i].hover = false;
+          for (let l in this.structs[i].sequence) this.structs[i].sequence[l].hover = false;
+        }
+      }
+
+      return structs;
+    }
+
     duplicateLoop(loopId) {
-      let newLoop = new Loop(this.loops.length,this.loops[loopId].name + "Copy", this.loops[loopId].tempo);
+      let name = this.generateNameLoop(this.loops[loopId].name);
+      let newLoop = new Loop(this.loops.length,name, this.loops[loopId].tempo);
 
       //buttons
       newLoop.click.state = this.loops[loopId].click.state;
@@ -680,6 +1034,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       for (let t in this.loops[loopId].tracks) {
 
         let newTrack = new Track(this.loops[loopId].tracks[t].id, newLoop.id, this.loops[loopId].tracks[t].name, this.loops[loopId].tracks[t].iconTargetX);
+
+        newTrack.muted = this.loops[loopId].tracks[t].muted;
         
         //knobs
         for (let k in newTrack.knobs) {
@@ -725,11 +1081,51 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.manageTabs(this.loops[this.loops.length-1]);
     }
 
+    duplicateStruct(structId) {
+      let name = this.generateNameStruct(this.structs[structId].name);
+      let newStruct = new Structure(this.structs.length,name);
+
+      for (let s in this.structs[structId].sequence) {
+        let newLoop = this.copyLoop(this.structs[structId].sequence[s]);
+        newStruct.sequence.push(newLoop);
+        newStruct.repeats.push(new Scrollable("REPEATS",this.structs[structId].repeats[s].value,1,8,"x",1,1));
+        newStruct.menus.push(new Menu(newStruct.id, s, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPDOWN"));
+        newStruct.angle.push(this.structs[structId].angle[s]);
+        newStruct.angInc.push(this.structs[structId].angInc[s]);
+      }
+
+      newStruct.tempoScroll.value = this.structs[structId].tempoScroll.value;
+      newStruct.transposeScroll.value = this.structs[structId].transposeScroll.value;
+      newStruct.tempoButton.state = this.structs[structId].tempoButton.state;
+      newStruct.transposeButton.state = this.structs[structId].transposeButton.state;
+
+      this.structs.push(newStruct);
+      this.manageTabs(this.structs[this.structs.length-1]);
+    }
+
+    deleteStruct(structId) {
+      this.activeTab = null;
+
+      for (let s in this.tabs) {
+        if (this.tabs[s].id === structId && this.tabs[s].type === "struct") {
+          this.tabs.splice(s, 1);
+          break;
+        }
+      }
+
+      this.structs.splice(structId, 1);
+
+      for (let s in this.structs) {
+        this.structs[s].id = s;
+        this.structs[s].menu.tabId = s;
+      }
+    }
+
     deleteLoop(loopId) {
       this.activeTab = null;
 
       for (let l in this.tabs) {
-        if (this.tabs[l].id === loopId) {
+        if (this.tabs[l].id === loopId && this.tabs[l].type === "loop") {
           this.tabs.splice(l, 1);
           break;
         }
@@ -755,40 +1151,98 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.blackoutOpa = 255;
     }
 
-    closeTab(tabId) {
+    copyLoop(loop) {
+      let newLoop = new Loop(loop.id, loop.name, loop.tempo);
+
+      //buttons
+      newLoop.click.state = loop.click.state;
+      newLoop.record.state = loop.record.state;
+
+      for (let t in loop.tracks) {
+
+        let newTrack = new Track(loop.tracks[t].id, newLoop.id, loop.tracks[t].name, loop.tracks[t].iconTargetX);
+        newTrack.muted = loop.tracks[t].muted;
+        
+        //knobs
+        for (let k in newTrack.knobs) {
+          //console.log(newTrack.knobs[k][1]);
+          newTrack.knobs[k][1].value = loop.tracks[t].knobs[k][1].value;
+          newTrack.knobs[k][1].output = loop.tracks[t].knobs[k][1].output;
+          newTrack.knobs[k][1].automating = loop.tracks[t].knobs[k][1].automating;
+          newTrack.knobs[k][1].automation = loop.tracks[t].knobs[k][1].automation;
+        }
+
+        //buttons
+        if (newTrack.name === "DRUMS") for (let b in newTrack.drumButtons) newTrack.drumButtons[b].state = loop.tracks[t].drumButtons[b].state;
+        else {
+          for (let b in newTrack.oscButtons) {
+            newTrack.oscButtons[b].state = loop.tracks[t].oscButtons[b].state;
+            newTrack.envButtons[b].state = loop.tracks[t].envButtons[b].state;
+          }
+        }
+        newTrack.filterButton.state = loop.tracks[t].filterButton.state;
+        newTrack.distButton.state = loop.tracks[t].distButton.state;
+        newTrack.dlyButton.state = loop.tracks[t].dlyButton.state;
+        newTrack.revButton.state = loop.tracks[t].revButton.state;
+
+        //scrolls
+        newTrack.presetScroll.value = loop.tracks[t].presetScroll.value;
+        newTrack.octaveScroll.value = loop.tracks[t].octaveScroll.value;
+        newTrack.automationScroll.value = loop.tracks[t].automationScroll.value;
+
+        //gain
+        newTrack.gain = loop.tracks[t].gain;
+
+        newTrack.presetChanged = loop.tracks[t].presetChanged;
+
+        newLoop.tracks.push(newTrack);
+
+        for (let n in loop.tracks[t].notes) {
+          let newNote = new Note(loop.tracks[t].notes[n].pitch, newLoop.id, newTrack.id, loop.tracks[t].notes[n].start, loop.tracks[t].notes[n].duration,  loop.tracks[t].notes[n].octave, loop.tracks[t].notes[n].color);
+          newLoop.tracks[t].notes.push(newNote);
+        }
+      }
+
+      return newLoop;
+    }
+
+    closeTab(type, tabId) {
       for (let l in this.tabs) {
-        if (this.tabs[l].id === tabId) {
+        if (this.tabs[l].id === tabId && this.tabs[l].type === type) {
           this.tabs.splice(l, 1);
           break;
         }
       }
+      session.activeTab = null;
     }
 
     //manage tabs
-    manageTabs(loop) {
-      //tabs list is not full and loop is not in tabs
-      if (this.tabs.length < this.maxTabs && !this.tabs.includes(loop)) {
-        this.tabs.push(loop);
-        this.activeTab = loop;
+    manageTabs(tab) {
+      //tabs list is not full and tab is not in tabs
+
+      if (this.tabs.length < this.maxTabs && !this.tabs.includes(tab)) {
+        this.tabs.push(tab);
+        this.activeTab = tab;
         //console.log(this.tabsX, this.tabsTargetX);
         //this.tabsX[this.tabs.length - 1] = this.tabsTargetX[this.tabs.length - 1];
         //console.log(this.tabsX, this.tabsTargetX);
       }
          
-      //tabs include loop
-      else if (this.tabs.includes(loop)) {
-        this.activeTab = loop;
+      //tabs include tab
+      else if (this.tabs.includes(tab)) {
+        this.activeTab = tab;
       }
 
-      //tabs full and loop is not in tabs
-      else if (this.tabs.length === this.maxTabs && !this.tabs.includes(loop)) {
+      //tabs full and tab is not in tabs
+      else if (this.tabs.length === this.maxTabs && !this.tabs.includes(tab)) {
         this.tabs.shift();
-        this.tabs.push(loop);
-        this.activeTab = loop;
+        this.tabs.push(tab);
+        this.activeTab = tab;
         //this.tabsTargetX.push(this.tabsTargetX[this.tabsTargetX.length-1]);
         //this.tabsTargetX.shift();
       }
 
+      tab.play = false;
       synths.releaseAll();
       Tone.Transport.stop();
       this.loopDrawer = false;
@@ -837,8 +1291,18 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (p.mouseIsPressed) {
           if (this.activeTab !== null) {
             this.activeTab.play = false;
+            if (this.activeTab.type === "loop") {
             this.activeTab.selectedTrack = null;
             this.activeTab.view = 0;
+            } else {
+
+              if (this.activeTab.sequence.length > 0) {
+                this.activeTab.sequence[this.activeTab.currentLoop].play = false;
+                this.activeTab.sequence[this.activeTab.currentLoop].currentStep = -1;
+                this.activeTab.currentLoop = 0;
+                this.activeTab.currentRepeat = 0;
+              }
+            }
           }
           this.activeTab = null;
           p.mouseIsPressed = false;
@@ -855,11 +1319,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       for (let i = 0; i < this.tabs.length; i++) {
 
-        if (this.loops[i].tabOpa + 5 > 255) this.loops[i].tabOpa = 255;
-        else this.loops[i].tabOpa += 5;
+        if (this.tabs[i].tabOpa + 5 > 255) this.tabs[i].tabOpa = 255;
+        else this.tabs[i].tabOpa += 5;
 
         if (this.activeTab === this.tabs[i]) {
-          p.fill(white[0], white[1], white[2],this.loops[i].tabOpa);
+          p.fill(white[0], white[1], white[2],this.tabs[i].tabOpa);
           p.textFont(fontMedium);
         }
 
@@ -874,14 +1338,20 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
                 this.activeTab.selectedTrack = null;
                 this.activeTab.view = 0;
               }
+              if (this.tabs[i].type === "struct") this.tabs[i].update();
               this.activeTab = this.tabs[i];
               this.activeTab.active = false;
+              
+              this.activeTab.play = false;
+              synths.releaseAll();
+              Tone.Transport.stop();
+              
               p.mouseIsPressed = false;
             }
           }
           else {
             if (p.mouseIsPressed) {
-              this.tabs[i].menu.open();
+              if (p.mouseButton === p.RIGHT) this.tabs[i].menu.open();
               p.mouseIsPressed = false;
             }
           }
@@ -912,7 +1382,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.textAlign(p.CENTER, p.CENTER);
       p.noStroke();
       p.fill(white[0], white[1], white[2],255/2);
-      p.textSize(p.windowHeight / 30);
+      p.textSize(p.windowHeight / 35);
       p.text(obliqueStratagies[this.suggestionIndex], p.windowWidth / 2, p.windowHeight / 2);
 
       //p.text("LOOP: "+loopSearch, p.windowWidth/2, p.windowHeight/30+p.windowHeight/30);
@@ -924,62 +1394,580 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     constructor(id, name) {
       this.type = "struct";
 
-      this.name = name;
       this.id = id;
+      this.name = name;
+
+      for (let s in session.structs) {
+        if (session.structs[s].name === this.name && this.name[this.name.length-1] !== ")") this.name = this.name + "(1)";
+        else if (session.structs[s].name === this.name && this.name[this.name.length-1] === ")") {
+          let index = this.name.lastIndexOf("(");
+          let number = parseInt(this.name.substring(index+1, this.name.length-1));
+          this.name = this.name.substring(0, index) + "(" + (number+1) + ")";
+        }
+      }
        
       this.tempo = 120;
-      this.overrideTempo = false;
       this.transpose = 0;
-      this.overrideTranspose = false;
 
-      this.sequence = [session.loops[0],session.loops[1],session.loops[2],session.loops[3],session.loops[4]];
-      this.currentLoop = this.sequence[0];
+      this.sequence = [];
+
       this.repeats = [];
+      this.menus = [];
+      this.dragging = [];
+      this.loopsHover = [];
+
+      for (let i=0; i<maxLoopsPerStruct; i++) {
+        this.dragging.push(false);
+        this.loopsHover.push(false);
+      }
+
+      this.diceAngle = 4*p.PI;
+      this.diceAnginc = p.PI/12;
+      this.diceSizeOffset = 0;
+
+      this.tabOpa = 0;
+      //for (let i=0; i < this.sequence.length; i++) this.repeats.push(new Scrollable("REPEATS",2,1,8,"x",1,1));
+
+      this.currentLoop = 0;
+      this.currentRepeat = 0;
 
       this.gap = p.windowWidth / 6;
       this.totalDist = 0;
       this.y = 0;
 
+      this.previewX = p.windowWidth / 2;
+
+      this.lastX = 0;
+
+      this.offset = 0;
+      this.insertPos = 0;
+      this.swapPos = -1;
+
+      this.yOffset = p.windowHeight / 150;
+      this.angle = [];
+      this.angInc = [];
+
+      this.loopRadius = p.windowWidth / 20;
+
       this.play = false;
+      this.hover = false;
+      this.drawerDragging = false;
+
+      this.emptyOpa = 0;
+      this.dragInstant = 0;
 
       this.blackoutOpa = 0;
       this.active = false;
 
       this.tempoScroll = new Scrollable("TEMPO",120,20,400,"BPM",1,5);
-      this.transposeScroll = new Scrollable("TRANSPOSE",0,-12,12,"ST",1,1);
+      this.transposeScroll = new Scrollable("TRANSPOSE",0,-11,11,"ST",1,1);
 
       this.tempoButton = new Button("TEMPO", false, white);
       this.transposeButton = new Button("TRANSPOSE", false, white);
 
-      this.menu = new Menu(this.id, null, "menu",["EXPORT","RENAME","DUPLICATE", "CLOSE TAB", "DELETE"],"DROPDOWN");
+      this.menu = new Menu(this.id, null, "structMenu", ["EXPORT","RENAME","DUPLICATE", "CLOSE TAB", "DELETE"],"DROPDOWN");
+    }
+
+    createFromLoop(loop) {
+      let newLoop = session.copyLoop(loop);
+      this.sequence.push(newLoop);
+      this.repeats.push(new Scrollable("REPEATS",1,1,8,"x",1,1));
+      this.angle.push(p.random(0,2*p.PI));
+      this.angInc.push(p.random(0.01,0.02));
+      this.menus.push(new Menu(this.id, 0, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPDOWN"));
+    }
+
+    update() {
+      console.log("update struct");
+      for (let i = 0; i < this.sequence.length; i++) {
+        let check = false;
+        for (let l in session.loops) {
+          if (session.loops[l].name === this.sequence[i].name) {
+            check = true;
+            let loopCopy = session.copyLoop(session.loops[l]);
+            for (let t in this.sequence[i].tracks) {
+              loopCopy.tracks[t].particlesStructX = this.sequence[i].tracks[t].particlesStructX.concat();
+              loopCopy.tracks[t].particlesStructY = this.sequence[i].tracks[t].particlesStructY.concat();
+              for (let n in this.sequence[i].tracks[t].notes) loopCopy.tracks[t].notes[n].ang = this.sequence[i].tracks[t].notes[n].ang;
+              //loopCopy.tracks[t].angle = this.sequence[i].tracks[t].angle;
+            }
+            this.sequence[i] = loopCopy;
+            break;
+          }
+        }
+        if (check === false) {
+          this.deleteSection(i);
+          i--;
+        }
+      }
+    }
+
+    updateSwap(x) {
+      if (this.sequence.length === 0) this.swapPos = 0;
+      else {
+        if (x < p.windowWidth / 2-this.totalDist/2-this.loopRadius) this.swapPos = 0;
+        else if (x > p.windowWidth / 2-this.totalDist/2+this.totalDist+this.loopRadius) this.swapPos = this.sequence.length-1;
+        else {
+          for (let i = 0; i < this.sequence.length; i++) {
+            if (x > p.windowWidth / 2-this.totalDist/2+i*this.gap+this.loopRadius && x < p.windowWidth / 2-this.totalDist/2+(i+1)*this.gap-this.loopRadius) {
+              this.swapPos = i;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    swapLoops(i) {
+      if (this.swapPos !== i && p.abs(p.mouseX-this.lastX)>this.loopRadius) {
+        let loop = this.sequence[i];
+        let repeat = this.repeats[i];
+        this.sequence.splice(i,1);
+        this.repeats.splice(i,1);
+        this.sequence.splice(this.swapPos,0,loop);
+        this.repeats.splice(this.swapPos,0,repeat);
+      }
+
+      this.swapPos = -1;
+      this.joinDoubles();
+    }
+
+    updateOffset(obj,x,y) {
+      if (obj !== null) {
+
+        if (this.sequence.length === 0) this.insertPos = 0;
+        else {
+          if (x < p.windowWidth / 2-this.totalDist/2-this.loopRadius) this.insertPos = 0;
+          else if (x > p.windowWidth / 2-this.totalDist/2+this.totalDist+this.loopRadius) this.insertPos = this.sequence.length;
+          else {
+            for (let i = 0; i < this.sequence.length; i++) {
+              if (x > p.windowWidth / 2-this.totalDist/2+i*this.gap+this.loopRadius && x < p.windowWidth / 2-this.totalDist/2+(i+1)*this.gap-this.loopRadius) {
+                this.insertPos = i;
+                break;
+              }
+            }
+          }
+        }
+
+        p.textAlign(p.CENTER, p.CENTER);
+        p.textSize(p.windowHeight / 45);
+        p.fill(white[0], white[1], white[2],255/2);
+        
+        if (obj.type === "loop") {
+          this.offset = this.gap;
+          p.text(obj.name, p.windowWidth / 2-this.totalDist/2+this.insertPos*this.gap, this.y+this.loopRadius*2);
+
+        } else {
+          this.offset = this.gap*obj.sequence.length;
+          for (let i = 0; i < obj.sequence.length; i++) {
+            p.text(obj.sequence[i].name, p.windowWidth / 2-this.totalDist/2+(this.insertPos+i)*this.gap, this.y+this.loopRadius*2);
+          }
+        }
+      
+      } else this.offset = 0;
+    }
+
+    joinDoubles() {
+      if (this.sequence.length === 0) return;
+
+      let sequence = [];
+      let repeats = [];
+      let menus = [];
+      let angles = [];
+      let angIncs = [];
+      let i = 0;
+  
+      while (i < this.sequence.length) {
+          let count = 1;
+          let reps = this.repeats[i].value;
+          while (i + count < this.sequence.length && this.sequence[i].name === this.sequence[i + count].name) {
+              reps += this.repeats[i + count].value;
+              if (reps > this.repeats[i + count].max) reps = this.repeats[i + count].max;
+              count++;
+          }
+  
+          if (count > 1) {
+              sequence.push(this.sequence[i]);
+              this.repeats[i].value = reps;
+              repeats.push(this.repeats[i]);
+              angles.push(this.angle[i]);
+              angIncs.push(this.angInc[i]);
+          } else {
+              sequence.push(this.sequence[i]);
+              repeats.push(this.repeats[i]);
+              angles.push(this.angle[i]);
+              angIncs.push(this.angInc[i]);
+          }
+  
+          i += count;
+      }
+
+      for (let i = 0; i < sequence.length; i++) menus.push(new Menu(this.id, i, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPDOWN"));
+  
+      this.sequence = sequence;
+      this.repeats = repeats;
+      this.menus = menus;
+      this.angle = angles;
+      this.angInc = angIncs;
+    }
+
+    drawPreview(x,y,radius) {
+      if (this.sequence.length > 0) {
+        let totalDist = this.gap/1.5 * (this.sequence.length - 1);
+        for (let i = 0; i < this.sequence.length; i++) {
+          if (this.currentLoop === i) this.sequence[i].play = true;
+          else {
+            this.sequence[i].play = false;
+          }
+          this.sequence[i].drawPreview(x-totalDist/2+this.gap/1.5*i,y,radius);
+        }
+      }
+    }
+
+    drawInDrawer(x, y, size) {
+      
+      if (this.sequence.length === 0) {
+        if (this.emptyOpa + 10 > 255) this.emptyOpa = 255;
+        else this.emptyOpa += 10;
+
+        p.textAlign(p.CENTER, p.CENTER);
+        p.textSize(p.windowHeight / 70);
+        if (this.hover) p.fill(white[0], white[1], white[2],this.emptyOpa);
+        else p.fill(white[0], white[1], white[2], this.emptyOpa/2);
+        p.text("EMPTY", x, y);
+       }
+
+      for (let i = this.sequence.length-1; i > -1; i--) {
+        this.sequence[i].drawInDrawer(x, y, size);
+        x -= size*2.6;
+      }     
+    }
+
+    deleteSection(i) {
+      let sequence = [];
+      let repeats = [];
+      let angles = [];
+      let angIncs = [];
+
+      for (let s = 0; s < this.sequence.length; s++) {
+        console.log(s,i);
+        if (s !== i) {
+          sequence.push(this.sequence[s]);
+          repeats.push(this.repeats[s]);
+          angles.push(this.angle[s]);
+          angIncs.push(this.angInc[s]);
+        }
+      }
+
+      console.log(sequence);
+
+      this.sequence = sequence;
+      this.repeats = repeats;
+      this.angle = angles;
+      this.angInc = angIncs;
+
+      this.joinDoubles();
+    }
+
+    addSectionLoop(loop,x,y) {
+      //find the postion to insert the loop
+
+      let newLoop = session.copyLoop(loop);
+      for (let t in newLoop.tracks) {
+        newLoop.tracks[t].particlesStructX = loop.tracks[t].particlesDrawerX.concat();
+        newLoop.tracks[t].particlesStructY = loop.tracks[t].particlesDrawerY.concat();
+      }
+
+      if (this.sequence.length === 0 || this.insertPos === this.sequence.length) {
+        this.sequence.push(newLoop);
+        this.repeats.push(new Scrollable("REPEATS",1,1,8,"x",1,1));
+        this.menus.push(new Menu(this.id, this.sequence.length, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPDOWN"));
+        this.angle.push(p.random(0,2*p.PI));
+        this.angInc.push(p.random(0.01,0.02));
+      } else {
+        this.sequence.splice(this.insertPos,0,newLoop);
+        this.repeats.splice(this.insertPos,0,new Scrollable("REPEATS",1,1,8,"x",1,1));
+        this.menus.splice(this.insertPos,0,new Menu(this.id, this.insertPos, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPDOWN"));
+        this.angle.splice(this.insertPos,0,p.random(0,2*p.PI));
+        this.angInc.splice(this.insertPos,0,p.random(0.01,0.02));
+      }
+
+      this.joinDoubles();
+      this.updateOffset(null,p.mouseX,p.mouseY);
+      
+     /* if (this.sequence.length === 0) {
+        this.sequence.push(session.copyLoop(loop));
+        this.repeats.push(new Scrollable("REPEATS",1,1,8,"x",1,1));
+        this.menus.push(new Menu(this.id, this.sequence.length-1, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPUP"));
+        this.angle.push(p.random(0,2*p.PI));
+        this.angInc.push(p.random(0.01,0.02));
+      } else {
+        if (x < p.windowWidth / 2-this.totalDist/2) {
+          this.sequence.splice(0,0,session.copyLoop(loop));
+          this.repeats.splice(0,0,new Scrollable("REPEATS",1,1,8,"x",1,1));
+          this.menus.splice(0,0,new Menu(this.id, this.sequence.length-1, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPUP"));
+          this.angle.splice(0,0,p.random(0,2*p.PI));
+          this.angInc.splice(0,0,p.random(0.01,0.02));
+        } else if (x > p.windowWidth / 2+this.totalDist/2) {
+          this.sequence.push(session.copyLoop(loop));
+          this.repeats.push(new Scrollable("REPEATS",1,1,8,"x",1,1));
+          this.menus.push(new Menu(this.id, this.sequence.length-1, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPUP"));
+          this.angle.push(p.random(0,2*p.PI));
+          this.angInc.push(p.random(0.01,0.02));
+        } else {
+          for (let i = 0; i < this.sequence.length; i++) {
+            if (x > p.windowWidth / 2-this.totalDist/2+i*this.gap && x < p.windowWidth / 2-this.totalDist/2+(i+1)*this.gap) {
+              this.sequence.splice(i+1,0,session.copyLoop(loop));
+              this.repeats.splice(i+1,0,new Scrollable("REPEATS",1,1,8,"x",1,1));
+              this.menus.splice(i+1,0,new Menu(this.id, this.sequence.length-1, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPUP"));
+              this.angle.splice(i+1,0,p.random(0,2*p.PI));
+              this.angInc.splice(i+1,0,p.random(0.01,0.02));
+              break;
+            }
+          }
+        }
+      }*/
+    }
+
+    addSectionStruct(struct,x,y) {
+
+      if (this.sequence.length === 0 || this.insertPos === this.sequence.length) {
+        for (let s in struct.sequence) {
+          this.sequence.push(session.copyLoop(struct.sequence[s]));
+          this.repeats.push(new Scrollable("REPEATS",1,1,8,"x",1,1));
+          this.menus.push(new Menu(this.id, this.sequence.length, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPDOWN"));
+          this.angle.push(p.random(0,2*p.PI));
+          this.angInc.push(p.random(0.01,0.02));
+        }
+      } else {
+        for (let i = struct.sequence.length-1; i > -1; i--) {
+          this.sequence.splice(this.insertPos,0,session.copyLoop(struct.sequence[i]));
+          this.repeats.splice(this.insertPos,0,new Scrollable("REPEATS",1,1,8,"x",1,1));
+          this.menus.splice(this.insertPos,0,new Menu(this.id, this.insertPos, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPDOWN"));
+          this.angle.splice(this.insertPos,0,p.random(0,2*p.PI));
+          this.angInc.splice(this.insertPos,0,p.random(0.01,0.02));
+        }
+      }
+      
+      this.joinDoubles();
+      this.updateOffset(null,p.mouseX,p.mouseY);
+
+      //find the postion to insert the loop
+      /*if (this.sequence.length === 0) {
+        this.sequence.push(session.copyLoop(loop));
+        this.repeats.push(new Scrollable("REPEATS",1,1,8,"x",1,1));
+        this.menus.push(new Menu(this.id, this.sequence.length-1, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPUP"));
+        this.angle.push(p.random(0,2*p.PI));
+        this.angInc.push(p.random(0.01,0.02));
+      } else {
+        if (x < p.windowWidth / 2-this.totalDist/2-this.loopRadius) {
+          this.sequence.splice(0,0,session.copyLoop(loop));
+          this.repeats.splice(0,0,new Scrollable("REPEATS",1,1,8,"x",1,1));
+          this.menus.splice(0,0,new Menu(this.id, this.sequence.length-1, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPUP"));
+          this.angle.splice(0,0,p.random(0,2*p.PI));
+          this.angInc.splice(0,0,p.random(0.01,0.02));
+        } else if (x > p.windowWidth / 2+this.totalDist/2+this.loopRadius) {
+          this.sequence.push(session.copyLoop(loop));
+          this.repeats.push(new Scrollable("REPEATS",1,1,8,"x",1,1));
+          this.menus.push(new Menu(this.id, this.sequence.length-1, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPUP"));
+          this.angle.push(p.random(0,2*p.PI));
+          this.angInc.push(p.random(0.01,0.02));
+        } else {
+          for (let i = 0; i < this.sequence.length; i++) {
+            if (x > p.windowWidth / 2-this.totalDist/2+i*this.gap+this.loopRadius && x < p.windowWidth / 2-this.totalDist/2+(i+1)*this.gap-this.loopRadius) {
+              this.sequence.splice(i+1,0,session.copyLoop(loop));
+              this.repeats.splice(i+1,0,new Scrollable("REPEATS",1,1,8,"x",1,1));
+              this.menus.splice(i+1,0,new Menu(this.id, this.sequence.length-1, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPUP"));
+              this.angle.splice(i+1,0,p.random(0,2*p.PI));
+              this.angInc.splice(i+1,0,p.random(0.01,0.02));
+              break;
+            }
+          }
+        }
+      }*/
+    }
+
+    getDraggingLoopIndex() {
+      for (let s in this.sequence) {
+        if (this.dragging[s]) return s;
+      }
+    }
+
+    rollDice() {
+      let sequence = [];
+      let repeats = [];
+      let angles = [];
+      let angIncs = [];
+      let seqLength = p.round(p.random(1,maxLoopsPerStruct+1));
+      if (seqLength > maxLoopsPerStruct) seqLength = maxLoopsPerStruct;
+
+      for (let i = 0; i < seqLength; i++) {
+        let loop = session.loops[p.floor(p.random(0,session.loops.length))];
+        sequence.push(session.copyLoop(loop));
+        sequence[sequence.length-1].play = false;
+        repeats.push(new Scrollable("REPEATS",p.floor(p.random(1,4)),1,8,"x",1,1));
+        angles.push(p.random(0,2*p.PI));
+        angIncs.push(p.random(0.01,0.02));
+      }
+
+      this.sequence = sequence;
+      this.repeats = repeats;
+      this.angle = angles;
+      this.angInc = angIncs;
+
+      this.play = false;
+      synths.releaseAll();
+      Tone.Transport.stop();
+
+      this.joinDoubles();
+    }
+
+    checkLoopsHover() {
+      for (let i = 0; i < this.sequence.length; i++) {
+        if (this.loopsHover[i]) return true;
+      }
+      return false;
     }
 
     draw() {
-     
+      //p.push();
+
+      //p.translate(0,0, -p.windowHeight / 15);
+
       this.gap = p.windowWidth / 6;
       this.y = p.windowHeight / 2;
-      this.totalDist = this.gap * (this.sequence.length - 1);
-     // console.log("draw struct");
+      this.loopRadius = p.windowWidth / 20;
+      this.yOffset = p.windowHeight / 150;
+      
+      this.totalDist = this.gap * (this.sequence.length - 1) + this.offset;
+      
+      // console.log("draw struct");
       //p.fill(255,0,0);
-     // p.circle(p.windowWidth / 2, p.windowHeight / 2, p.windowHeight / 4);
+      // p.circle(p.windowWidth / 2, p.windowHeight / 2, p.windowHeight / 4);
 
       //p.beginShape();
+
+      if (this.sequence.length === 0) {
+        p.textAlign(p.CENTER, p.CENTER);
+        p.textSize(p.windowHeight / 50);
+        p.fill(white[0], white[1], white[2],255/3);
+        p.text('Drop Loop or Struct here', p.windowWidth / 2, p.windowHeight / 2);
+      }
+
       for (let i = 0; i < this.sequence.length; i++) {
-        //console.log(this.sequence[i]);
+
+        this.angle[i] += this.angInc[i];
+
+        let x = 0;
+        if (i < this.insertPos) x = p.windowWidth / 2-this.totalDist/2+i*this.gap;
+        else x = p.windowWidth / 2-this.totalDist/2+i*this.gap+this.offset;
+
+        if (this.swapPos > -1) {
+          if (i >= this.swapPos && i < this.getDraggingLoopIndex()) x += this.gap;
+          else if (i <= this.swapPos && i > this.getDraggingLoopIndex()) x -= this.gap;
+        }
+
         p.push();
-        p.translate(0,0, -p.windowHeight / 30);
-        this.sequence[i].drawInStructure(this.sequence[i], p.windowWidth / 2-this.totalDist/2+i*this.gap, this.y, p.windowWidth/20);
+        if (this.menus[i].state === 0)  p.translate(0,0, p.windowHeight / 30);
+        else p.translate(0,0, -p.windowHeight / 30);
+        if (this.dragging[i] === false) this.sequence[i].drawInStructure(this.sequence[i], x, this.y+p.sin(this.angle[i])*this.yOffset, this.loopRadius);
         p.pop();
-        
-        //p.noFill();
-        //p.stroke(white[0], white[1], white[2]);
-        //p.strokeWeight(2);
-       // p.vertex(p.windowWidth/2-this.totalDist/2+i*this.gap, this.y);
-        //if (i < this.sequence.length - 1) {
-        //p.stroke(white[0], white[1], white[2]);
-        //p.vertex(p.windowWidth/2-this.totalDist/2+i*this.gap+this.gap/2, this.y);
-        //}
-        //p.circle(p.windowWidth / 2-this.totalDist/2+i*this.gap, this.y, p.windowWidth / 10);
+
+        p.push();
+        if (this.menus[i].state === 0) p.translate(0,0, p.windowHeight / 25);
+        else if (this.dragging[i]) p.translate(0,0, p.windowHeight / 25*2); 
+        else p.translate(0,0, -p.windowHeight / 25);
+        p.textAlign(p.CENTER, p.CENTER);
+        p.textSize(p.windowHeight / 45);
+        p.fill(white[0], white[1], white[2]);
+        if (this.sequence[i].tracks.length > 0) p.text(this.sequence[i].name, this.sequence[i].tracks[0].particlesStructX[0], this.y+this.loopRadius*2);
+        else p.text(this.sequence[i].name, x, this.y+this.loopRadius*2);
+        p.pop();
+
+        if (this.sequence[i].play) {
+          p.fill(white[0], white[1], white[2],255/2);
+          //p.textSize(p.windowHeight / 70);
+          //p.text("NOW PLAYING", x, this.y+p.sin(this.angle[i])*this.yOffset);
+          p.textAlign(p.CENTER, p.CENTER);
+          p.textSize(p.windowHeight / 60);
+          if (this.sequence[i].tracks.length > 0) p.text(this.currentRepeat+1+" / "+this.repeats[i].value, this.sequence[i].tracks[0].particlesStructX[0], this.y+p.sin(this.angle[i])*this.yOffset);
+          else p.text(this.currentRepeat+1+" / "+this.repeats[i].value, x, this.y+p.sin(this.angle[i])*this.yOffset);
+        }
+
+        p.push();
+        if (this.dragging[i]) p.translate(0,0, p.windowHeight / 30*2);
+        if (this.sequence[i].tracks.length > 0) this.repeats[i].draw(this.sequence[i].tracks[0].particlesStructX[0]+this.loopRadius/6, this.y-this.loopRadius*2);
+        else this.repeats[i].draw(x+this.loopRadius/6, this.y-this.loopRadius*2);
+        p.pop();
+
+
+        if (p.mouseX < x+this.gap/2  && p.mouseX > x-this.gap/2 && p.mouseY < p.windowHeight/2+this.gap/2  && p.mouseY > p.windowHeight/2-this.gap/2  && dragging === false && menuOpened === false) {
+          document.body.style.cursor = 'pointer';
+
+          this.loopsHover[i] = true;
+
+          if (p.mouseIsPressed) {
+            if (p.mouseButton === p.LEFT) {       
+              dragging = true;
+              this.dragging[i] = true;
+              this.dragInstant = p.millis();
+
+              if (i !== this.currentLoop && this.play) {
+                this.sequence[this.currentLoop].play = false;
+                synths.releaseAll();
+                this.currentLoop = i;
+                this.sequence[i].currentStep = -1;
+                this.currentRepeat = 0;
+                this.sequence[this.currentLoop].play = true;
+              }
+
+              this.lastX = p.mouseX;
+            
+            } else if (p.mouseButton === p.RIGHT) {
+              this.menus[i].open();
+              p.mouseIsPressed = false;
+            }
+          }
+
+        } else {
+          this.loopsHover[i] = false;
+        }
+
+        if (this.loopsHover[i] === false && this.checkLoopsHover()) {
+          p.fill(0,0,0,255/2);
+          if (this.sequence[i].tracks.length > 0) {
+            p.rect(this.sequence[i].tracks[0].particlesStructX[0]-this.loopRadius*1.5, p.windowHeight/2-this.loopRadius*2.7, this.loopRadius*3, p.windowHeight/10);
+            p.rect(this.sequence[i].tracks[0].particlesStructX[0]-this.loopRadius*1.5, p.windowHeight/2+this.loopRadius*2.7, this.loopRadius*3, -p.windowHeight/10);
+          } else {
+            p.rect(x-this.loopRadius*1.5, p.windowHeight/2-this.loopRadius*2.7, this.loopRadius*3, p.windowHeight/10);
+            p.rect(x-this.loopRadius*1.5, p.windowHeight/2+this.loopRadius*2.7, this.loopRadius*3, -p.windowHeight/10);
+          }
+        }
+
+        if (this.dragging[i] === true) {
+
+          if (p.abs(p.mouseX-this.lastX) > this.loopRadius) {
+            this.play = false;
+            this.sequence[this.currentLoop].play = false;
+            synths.releaseAll();
+            Tone.Transport.stop();
+          }
+
+          this.loopsHover[i]= true;
+          document.body.style.cursor = 'grabbing';
+          this.updateSwap(p.mouseX);
+
+          p.push();
+          p.translate(0,0, p.windowHeight / 30);
+          this.sequence[i].drawInStructure(this.sequence[i], p.mouseX, this.y+p.sin(this.angle[i])*this.yOffset, this.loopRadius);
+          p.pop();
+        }
+
+        if (p.mouseIsPressed === false && this.dragging[i] === true) {
+          this.swapLoops(i);
+          this.dragging[i] = false;
+          dragging = false;
+        }
       }
 
       let auxY = p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2;
@@ -1008,7 +1996,45 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.tempoButton.draw(p.windowWidth/4+auxX*1.5,auxY-p.windowHeight / 120);
       this.transposeButton.draw(p.windowWidth-p.windowWidth/4,auxY-p.windowHeight / 120);
 
+      p.tint(255, 255/2);
+      if (p.mouseX > p.windowWidth/2-p.windowHeight/30/2 && p.mouseX < p.windowWidth/2+p.windowHeight/30/2 && p.mouseY > auxY-p.windowHeight/30/2 && p.mouseY < auxY+p.windowHeight/30/2 && dragging === false && menuOpened === false && session.loops.length > 0) {
+        document.body.style.cursor = 'pointer';
+        p.tint(255, 255);
+
+        if (p.mouseIsPressed) { 
+          if (p.mouseButton === p.LEFT) {
+            this.rollDice();
+            this.diceAngle = 0;
+            this.diceAnginc = p.PI/12;
+            this.diceSizeOffset = p.windowHeight / 60;
+            p.mouseIsPressed = false;
+          }
+        }
+      }
+
+      p.push();
+      p.translate(p.windowWidth / 2, auxY);
+      p.rotate(this.diceAngle);
+      p.translate(-p.windowWidth / 2, -auxY);
+      if (this.sequence.length === 0) p.image(diceIcons[4], p.windowWidth / 2, auxY,p.windowHeight / 30+this.diceSizeOffset,p.windowHeight / 30+this.diceSizeOffset);
+      else p.image(diceIcons[this.sequence.length-1], p.windowWidth / 2, auxY,p.windowHeight / 30+this.diceSizeOffset,p.windowHeight / 30+this.diceSizeOffset);
+      p.pop();
+
+      if (this.diceAngle + this.diceAnginc > 4*p.PI) {
+        this.diceAngle = 4*p.PI;
+      } else {
+        this.diceAngle += this.diceAnginc;
+        this.diceAnginc *= 0.981;
+        this.diceSizeOffset *= 0.98;
+      }
+
       //p.endShape();
+
+      for (let i=0; i<this.sequence.length; i++) {
+        p.textSize(p.windowHeight / 45);
+        let textSize = p.textWidth(this.sequence[i].name)/2;
+        this.menus[i].draw(p.windowWidth / 2-this.totalDist/2+i*this.gap-textSize, this.y+this.loopRadius*1.8);
+      }
 
       //blackout animation
       if (this === session.activeTab) {
@@ -1022,6 +2048,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //black anim transition
       p.fill(0, 0, 0, this.blackoutOpa);
       p.rect(0, 0, p.windowWidth, p.windowHeight);
+     
+      //p.pop();
     }
   }
 
@@ -1032,6 +2060,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       this.id = id;
       this.name = name;
+
       this.tracks = [];
 
       this.nSteps = nSteps;
@@ -1062,7 +2091,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.tempo = tempo;
       this.timeBtwSteps = 60 / tempo / 4;
       this.lastInstant = 0;
-      this.currentStep = 0;
+      this.currentStep = -1;
 
       this.blackoutOpa = 0;
 
@@ -1080,7 +2109,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.x = 0;
       this.y = 0;
 
-      this.menu = new Menu(this.id, null, "menu",["EXPORT","RENAME","DUPLICATE","STRUCT FROM", "CLOSE TAB", "DELETE"],"DROPDOWN");
+      this.menu = new Menu(this.id, null, "loopMenu",["EXPORT","RENAME","DUPLICATE","STRUCT FROM", "CLOSE TAB", "DELETE"],"DROPDOWN");
       this.plusMenu = new Menu(this.id, null, "plusMenu",["MELODY", "HARMONY", "DRUMS", "BASS"],"DROPUP");
     }
 
@@ -1137,6 +2166,20 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //saveSession(session);
     }
 
+    deleteTrack(i) {
+
+      this.tracks.splice(i, 1);
+
+      for (let t = 0; t < this.tracks.length; t++) {
+        this.tracks[t].id = t;
+        this.menu.trackId = t;
+        for (let n = 0; n < this.tracks[t].notes.length; n++) this.tracks[t].notes[n].trackId = t; 
+      }
+
+      this.selectedTrack = null;
+      this.view = 0;
+    }
+
     /*updateMetronome() {
       if (p.millis() - this.lastInstant >= this.timeBtwSteps * 1000) {
         if (this.currentStep === nSteps-1) this.currentStep = 0;
@@ -1152,11 +2195,35 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
     }*/
 
+    drawMoveCursor() {
+      p.stroke(white[0]/5, white[1]/5, white[2]/5);
+      p.strokeWeight(1);
+      p.line(p.windowWidth-gridInitX,gridInitY,p.windowWidth-gridInitX,gridInitY+(gridStepSizeY * 11));
+      for (let i = 0; i < nSteps ; i++) {
+        if (i%16 === 0 || i%4 === 0) {
+          p.strokeWeight(1);
+          if (i%16 === 0) p.stroke(white[0]/5, white[1]/5, white[2]/5);
+          else p.stroke(white[0]/8, white[1]/8, white[2]/8);
+          p.push();
+          p.translate(0,0,-1);
+          p.line(gridInitX+gridStepSizeX*i,gridInitY,gridInitX+gridStepSizeX*i,gridInitY+(gridStepSizeY * 11));
+          p.pop();
+        }
+      }
+    }
+
     draw() {
       //draw track lines and notes
       for (let i = 0; i < this.tracks.length; i++) {
         this.tracks[i].draw();
         this.tracks[i].drawNotes();
+      }
+
+      if (this.tracks.length === 0) {
+        p.textAlign(p.CENTER, p.CENTER);
+        p.textSize(p.windowHeight / 50);
+        p.fill(white[0], white[1], white[2],255/3);
+        p.text('Click "+" to create a Track', p.windowWidth / 2, p.windowHeight / 2);
       }
 
         //update metronome
@@ -1226,8 +2293,6 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           }
         }
         
-        Tone.Transport.bpm.value = this.tempo;
-
         //plus button
         //p.fill(255, 255, 255, this.opaPlus);
         //p.stroke(white[0], white[1], white[2]);
@@ -1245,7 +2310,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
             else p.tint(255, 255/4);
             p.image(icons[i], x, y, p.windowHeight / 35, p.windowHeight / 35);
 
-            if (p.mouseX > x-p.windowHeight / 35 && p.mouseX < x+p.windowHeight / 35 && p.mouseY > y-p.windowHeight / 35 && p.mouseY < y+p.windowHeight / 35 && dragging === false && menuOpened === false) {
+            if (p.mouseX > x-p.windowHeight / 35 && p.mouseX < x+p.windowHeight / 35 && p.mouseY > y-p.windowHeight / 35 && p.mouseY < y+p.windowHeight / 35 && session.loopDrawer === false && session.structDrawer === false && dragging === false && menuOpened === false) {
               document.body.style.cursor = 'pointer';
               if (p.mouseIsPressed) {
                 if (this.view === (2-i)) {
@@ -1313,13 +2378,13 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         else this.emptyOpa += this.opaPlusInc;
 
         p.textAlign(p.CENTER, p.CENTER);
-        p.textSize(p.windowHeight / 60);
+        p.textSize(p.windowHeight / 70);
         if (this.hover) p.fill(white[0], white[1], white[2],this.emptyOpa);
         else p.fill(white[0], white[1], white[2], this.emptyOpa/2);
         p.text("EMPTY", x, y);
       } else {
         for (let i = 0; i < this.tracks.length; i++) {
-          this.tracks[i].drawInDrawer(x, y, radius);
+          this.tracks[i].drawInDrawer(x, y, radius, this.hover);
         }
       }
     }
@@ -1330,9 +2395,9 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
     }
 
-    drawPreview() {
+    drawPreview(x,y,radius) {
       for (let i = 0; i < this.tracks.length; i++) {
-        this.tracks[i].drawPreview();
+        this.tracks[i].drawPreview(this,x,y,radius);
       }
     }
   }
@@ -1347,6 +2412,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       this.notes = [];
 
+      this.muted = false;
+
       if (this.name === "DRUMS") {
         this.nPitches = theory.drumLabels.length;
         this.color = colors[1];
@@ -1358,7 +2425,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.name === "HARMONY") this.color = colors[2];
       }
 
-      this.menu = new Menu(this.loopId, this.id, "trackMenu",["DELETE","RENAME","EXPORT"],"DROPUP");
+      this.menu = new Menu(this.loopId, this.id, "trackMenu",["DELETE","RENAME"],"DROPUP");
 
       this.ang = p.random(0, p.TWO_PI);
       this.angInc = p.PI / 400;
@@ -1832,7 +2899,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         else this.switchPreset(synths.synthPresets[this.preset]);
       }*/
 
-      if (p.mouseX >= gridInitX-gridStepSizeX/2 && p.mouseX < gridInitX + gridStepSizeX * (nSteps-1)+gridStepSizeX/2 && p.mouseY > gridInitY-gridStepSizeX && p.mouseY < gridInitY + (gridStepSizeY * 11)+gridStepSizeX && session.loopDrawer === false && session.structDrawer === false) {
+      if (p.mouseX >= gridInitX-gridStepSizeX/2 && p.mouseX < gridInitX + gridStepSizeX * (nSteps-1)+gridStepSizeX/2 && p.mouseY > gridInitY-gridStepSizeX && p.mouseY < gridInitY + (gridStepSizeY * 11)+gridStepSizeX && session.loopDrawer === false && session.structDrawer === false && menuOpened === false) {
         let posX = p.round((p.mouseX-gridInitX)/gridStepSizeX);
         let aux = p.map(this.knobs[this.automationScroll.value][1].automation[posX],0,1,gridInitY+(gridStepSizeY*11),gridInitY);
 
@@ -2094,11 +3161,11 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       //this.updateSynthValues();
     }
 
-    drawPreview() {
+    drawPreview(loop,x,y,radius) {
 
-      this.x = p.windowWidth / 2 + p.windowWidth/8;
-      this.y = p.windowHeight / 2;
-      this.radiusCol = p.windowHeight / 5;
+      //this.x = p.windowWidth / 2 + p.windowWidth/8;
+      //this.y = p.windowHeight / 2;
+      //this.radiusCol = p.windowHeight / 5;
 
       p.noFill();
       p.stroke(white[0], white[1], white[2],previewOpa);
@@ -2110,7 +3177,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       let fadeLength = 6; // Length of the fade
       let shapeLength = this.particlesPreviewX.length-1;
-      let currentStep = (session.loops[this.loopId].currentStep - 1 + shapeLength) % shapeLength; // One step behind
+      let currentStep = (loop.currentStep - 1 + shapeLength) % shapeLength; // One step behind
 
       for (let i = 0; i < shapeLength; i++) {
         // Calculate the difference to currentStep considering wrap-around
@@ -2125,9 +3192,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         // Calculate the opacity based on dif and apply a smooth transition
         let opacity = previewOpa * (fadeLength - dif) / fadeLength;
 
-        if (opacity < previewOpa/6) opacity = previewOpa/6;
+        if (opacity < previewOpa/5) opacity = previewOpa/5;
 
-        p.stroke(white[0], white[1], white[2], opacity);
+        if (loop.play && session.structDrawer || session.loopDrawer) p.stroke(white[0], white[1], white[2], opacity);
+        else p.stroke(white[0], white[1], white[2], previewOpa/5);
 
         // Use modulo for indices to handle wrap-around
         let index = (shapeLength - i + shapeLength) % shapeLength;
@@ -2145,10 +3213,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
         let xoff = p.map(p.cos(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
         let yoff = p.map(p.sin(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
-        let r = p.map(p.noise(xoff, yoff, zoff), 0, 1, 0, this.radiusCol/2.5);
+        let r = p.map(p.noise(xoff, yoff, zoff), 0, 1, 0, radius/2.5);
 
-        this.targetXpreview[i] = this.x + p5.Vector.fromAngle(angle, this.radiusCol + r).x;
-        this.targetYpreview[i] = this.y + p5.Vector.fromAngle(p.PI - angle, this.radiusCol + r).y;
+        this.targetXpreview[i] = x + p5.Vector.fromAngle(angle, radius + r).x;
+        this.targetYpreview[i] = y + p5.Vector.fromAngle(p.PI - angle, radius + r).y;
 
         angle -= p.TWO_PI / this.targetXpreview.length + p.TWO_PI / this.targetXpreview.length / this.targetXpreview.length;
         angles.push(angle);
@@ -2165,11 +3233,12 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
 
       for (let i = 0; i<this.notes.length; i++) {
-        this.notes[i].drawCollapsed(angles,this.particlesPreviewX[nSteps-this.notes[i].start+1]+p5.Vector.fromAngle(angles[nSteps-this.notes[i].start+1], p.sin(this.notes[i].ang/2)*p.windowHeight/50).x,this.particlesPreviewY[nSteps-this.notes[i].start+1]+p5.Vector.fromAngle(p.PI - angles[nSteps-this.notes[i].start+1], p.sin(this.notes[i].ang/2)*p.windowHeight/50).y);
+        if (session.loopDrawer) this.notes[i].drawCollapsed(loop,this,angles,this.particlesPreviewX[nSteps-this.notes[i].start+1]+p5.Vector.fromAngle(angles[nSteps-this.notes[i].start+1], p.sin(this.notes[i].ang/2)*p.windowHeight/50).x,this.particlesPreviewY[nSteps-this.notes[i].start+1]+p5.Vector.fromAngle(p.PI - angles[nSteps-this.notes[i].start+1], p.sin(this.notes[i].ang/2)*p.windowHeight/50).y);
+        else this.notes[i].drawCollapsed(loop,this,angles,this.particlesPreviewX[nSteps-this.notes[i].start+1]+p5.Vector.fromAngle(angles[nSteps-this.notes[i].start+1], p.sin(this.notes[i].ang/2)*p.windowHeight/110).x,this.particlesPreviewY[nSteps-this.notes[i].start+1]+p5.Vector.fromAngle(p.PI - angles[nSteps-this.notes[i].start+1], p.sin(this.notes[i].ang/2)*p.windowHeight/110).y);
       }
 
       //prevent param updating when not needed
-      if (session.activeTab === null) {
+      /*if (session.activeTab === null) {
         this.updateSynthParams();
         for (let i=0; i<this.knobs.length; i++) this.knobs[i][1].knobAutomate(session.loops[this.loopId])
       } 
@@ -2178,15 +3247,15 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           this.updateSynthParams();
           for (let i=0; i<this.knobs.length; i++) this.knobs[i][1].knobAutomate(session.loops[this.loopId])
         }
-      }
+      }*/
     }
 
-    drawInDrawer(x, y, radius) {
+    drawInDrawer(x, y, radius,hover) {
 
       p.noFill();
-      if(session.loops[this.loopId].hover === true) p.stroke(white[0], white[1], white[2]);
+      if(hover === true) p.stroke(white[0], white[1], white[2]);
       else p.stroke(white[0], white[1], white[2],255/3);
-      p.strokeWeight(maxWeightLines / (this.id + 1));
+      p.strokeWeight((maxWeightLines / (this.id + 1))/1.5);
 
       p.push();
       p.translate(0,0,2);
@@ -2223,57 +3292,9 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
 
       for (let i = 0; i<this.notes.length; i++) {
-        this.notes[i].drawCollapsedDrawer(this.particlesDrawerX[nSteps-this.notes[i].start+1],this.particlesDrawerY[nSteps-this.notes[i].start+1]);
+        this.notes[i].drawCollapsedDrawer(this.particlesDrawerX[nSteps-this.notes[i].start+1],this.particlesDrawerY[nSteps-this.notes[i].start+1],hover,radius);
       }
     }
-
-    /*drawInStructure(loop, x, y, radius) {
-        p.noFill();
-        //if(session.loops[this.loopId].hover === true) p.stroke(white[0], white[1], white[2]);
-        //else p.stroke(white[0], white[1], white[2],255/3);
-        p.stroke(white[0], white[1], white[2],255);
-        p.strokeWeight(maxWeightLines / (this.id + 1));
-
-        //p.circle(x, y, radius);
-        //p.push();
-        //p.translate(0,0,2);
-        p.beginShape();
-        for (let i = 0; i < this.particlesStructX.length; i++) p.vertex(this.particlesStructX[i], this.particlesStructY[i]);
-        p.endShape(p.CLOSE);
-        //p.pop();
-        //p.circle(x, y, radius);
-  
-        let angle = -p.PI / 2;
-  
-        for (let i = 0; i < this.targetXstruct.length; i++) {
-  
-          let xoff = p.map(p.cos(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
-          let yoff = p.map(p.sin(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
-          let r = p.map(p.noise(xoff, yoff, zoff), 0, 1, 0, radius/3);
-          phase += 0.000006;
-          zoff += 0.000002;
-  
-          this.targetXstruct[i] = x + p5.Vector.fromAngle(angle, radius + r).x;
-          this.targetYstruct[i] = y + p5.Vector.fromAngle(p.PI - angle, radius + r).y;
-  
-          angle -= p.TWO_PI / this.targetXstruct.length + p.TWO_PI / this.targetXstruct.length / this.targetXstruct.length;
-        }
-  
-        //for (let i = 0; i<this.targetXcol.length;i++) p.point(this.targetXcol[i], this.targetYcol[i]);
-  
-        for (let i = 0; i < this.particlesStructX.length; i++) {
-          let a = p.createVector(0, -1).angleBetween(p.createVector(this.particlesStructX[i] - this.targetXstruct[i], this.particlesStructY[i] - this.targetYstruct[i]));
-          let d = p.dist(this.particlesStructX[i], this.particlesStructY[i], this.targetXstruct[i], this.targetYstruct[i]);
-  
-          this.particlesStructX[i] -= p5.Vector.fromAngle(a, d / 6).y;
-          this.particlesStructY[i] -= p5.Vector.fromAngle(p.PI - a, d / 6).x;
-        }
-  
-        for (let i = 0; i<this.notes.length; i++) {
-          this.notes[i].drawCollapsedDrawer(this.particlesDrawerX[nSteps-this.notes[i].start+1],this.particlesDrawerY[nSteps-this.notes[i].start+1]);
-        }
-      }  */
-    
 
     drawInStructure(loop, x, y, radius) {
 
@@ -2293,7 +3314,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       for (let i = 0; i < shapeLength; i++) {
         // Calculate the difference to currentStep considering wrap-around
-        if (loop.playing) {
+        if (loop.play) {
           let dif = Math.min(
             Math.abs(currentStep - i),
             Math.abs(currentStep - (i + shapeLength)),
@@ -2305,14 +3326,14 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           // Calculate the opacity based on dif and apply a smooth transition
           opacity = 255* (fadeLength - dif) / fadeLength;
 
-          if (opacity < 255/6) opacity = 225/6;
+          if (opacity < 255/5) opacity = 225/5;
         }
 
         p.stroke(white[0], white[1], white[2], opacity);
 
         // Use modulo for indices to handle wrap-around
         let index = (shapeLength - i + shapeLength) % shapeLength;
-        p.vertex( this.particlesStructX[i],  this.particlesStructY[i]);
+        p.vertex( this.particlesStructX[index],  this.particlesStructY[index]);
       }
 
       p.endShape(p.CLOSE);
@@ -2328,10 +3349,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         let yoff = p.map(p.sin(angle + phase+(this.id+this.loopId)*2), -1, 1, 0, noiseMax);
         let r = p.map(p.noise(xoff, yoff, zoff), 0, 1, 0, radius/2.5);
 
-        if (session.loopDrawer === false && session.structDrawer === false) {
+        //if (session.loopDrawer === false && session.structDrawer === false) {
           phase += 0.00001;
           zoff += 0.000004;
-        }
+        //}
 
         this.targetXstruct[i] = x + p5.Vector.fromAngle(angle, radius + r).x;
         this.targetYstruct[i] = y + p5.Vector.fromAngle(p.PI - angle, radius + r).y;
@@ -2351,7 +3372,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
 
       for (let i = 0; i<this.notes.length; i++) {
-        this.notes[i].drawCollapsed(angles,this.particlesStructX[nSteps-this.notes[i].start+1]+p5.Vector.fromAngle(angles[nSteps-this.notes[i].start+1], p.sin(this.notes[i].ang/2)*p.windowHeight/50).x,this.particlesStructY[nSteps-this.notes[i].start+1]+p5.Vector.fromAngle(p.PI - angles[nSteps-this.notes[i].start+1], p.sin(this.notes[i].ang/2)*p.windowHeight/50).y);
+        this.notes[i].drawCollapsedStructure(loop,angles,this.particlesStructX[nSteps-this.notes[i].start+1]+p5.Vector.fromAngle(angles[nSteps-this.notes[i].start+1], p.sin(this.notes[i].ang/2)*p.windowHeight/100).x,this.particlesStructY[nSteps-this.notes[i].start+1]+p5.Vector.fromAngle(p.PI - angles[nSteps-this.notes[i].start+1], p.sin(this.notes[i].ang/2)*p.windowHeight/100).y);
       }
 /*
       //prevent param updating when not needed
@@ -2372,7 +3393,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         
         for (let i=0; i<this.synth.parts.length; i++) {
           //console.log(preset);
-          this.synth.parts[i].load(preset.kit[i]);
+          this.synth.parts[i].buffer = preset.kit[i];
           this.drumButtons[i].state = preset.partState[i];
           this.drumKnobs[i][0].value = preset.partVol[i];
           this.drumKnobs[i][1].value = preset.partPitch[i];
@@ -2400,11 +3421,12 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
     updateSynthParams() {
 
-      if (this.synth.fxChain.gain.gain.value !== this.gain) this.synth.fxChain.gain.gain.value = this.gain;
+      if (this.muted) this.synth.fxChain.gain.gain.value = 0;
+      else if (this.synth.fxChain.gain.gain.value !== this.gain) this.synth.fxChain.gain.gain.value = this.gain;
 
       if (this.name === "DRUMS") {
         for (let i=0; i<this.synth.parts.length; i++) {
-          let mapping = p.map(this.drumKnobs[i][0].value,0,1,-50,0);
+          let mapping = p.map(this.drumKnobs[i][0].value,0,1,-48,0);
           if (this.drumButtons[i].state) {
             if (this.synth.parts[i].volume.value !== mapping) {
               if (this.drumKnobs[i][0].value === 0) this.synth.parts[i].volume.value = -Infinity;
@@ -2484,10 +3506,9 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       } 
     } 
 
-
     draw() {
-      this.updateSynthParams();
-      for (let i=0; i<this.knobs.length; i++) this.knobs[i][1].knobAutomate(session.loops[this.loopId]);
+      if (session.loopDrawer === false && session.structDrawer === false) this.updateSynthParams();
+      //for (let i=0; i<this.knobs.length; i++) this.knobs[i][1].knobAutomate(session.loops[this.loopId]);
 
       if (session.activeTab.selectedTrack !== null && session.activeTab.selectedTrack !== this) {
         if (this.opaLine - this.opaLineInc < 255/4) this.opaLine = 255/4;
@@ -2574,7 +3595,14 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       else this.ang -= this.angInc;
 
       //p.fill(this.color[0], this.color[1], this.color[2], this.opaIcon);
-      p.fill(this.color[0], this.color[1], this.color[2], this.opaLine);
+      if (this.muted && this.menu.state < 0) {
+        p.textFont(fontLight);
+        p.textAlign(p.CENTER, p.CENTER);
+        p.textSize(p.windowHeight / 65);
+        p.fill(white[0], white[1], white[2], this.opaLine/2);
+        p.text("MUTED",this.iconX + iconSize / 2, p.windowHeight - marginX -p.windowHeight / 40 - p.windowHeight/30);
+        p.fill(this.color[0], this.color[1], this.color[2], this.opaLine/2);
+      } else p.fill(this.color[0], this.color[1], this.color[2], this.opaLine);
       p.push();
       if (this.menu.state >= 0) p.translate(0,0, p.windowHeight / 30*2);
       p.translate(this.iconX + iconSize / 2, p.windowHeight - marginX -p.windowHeight / 40 - p.windowHeight/30,-p.windowHeight/30);
@@ -2592,12 +3620,19 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         this.iconHover = true;
         
         if (p.mouseIsPressed) {
-          if (session.activeTab.selectedTrack !== this) {
-            if (session.activeTab.selectedTrack === null) session.loops[this.loopId].blackOpa1 = 255;
-            session.loops[this.loopId].blackOpa2 = 255;
-            session.loops[this.loopId].blackOpa3 = 255;
-            session.activeTab.selectedTrack = this;
-          } else this.menu.open();
+          if (p.mouseButton === p.LEFT) {
+            if (session.activeTab.selectedTrack !== this) {
+              if (session.activeTab.selectedTrack === null) session.loops[this.loopId].blackOpa1 = 255;
+              session.loops[this.loopId].blackOpa2 = 255;
+              session.loops[this.loopId].blackOpa3 = 255;
+              session.activeTab.selectedTrack = this;
+              this.angInc = p.PI / 15;
+            } else this.muted = !this.muted;
+          } else if (p.mouseButton === p.RIGHT) {
+            this.menu.open();
+            this.angInc = p.PI / 15;
+          }
+
           p.mouseIsPressed = false;
 
         }
@@ -2739,18 +3774,29 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
     } 
 
-    stop(time) {
+    stop(pitchOffset,time) {
       let pitch = this.pitch;
+      let octave = this.octave;
       if (pitch > 11) pitch = pitch-12;
 
+      pitch += pitchOffset;
+      if (pitch > 11) {
+        octave++;
+        pitch = pitch-12;
+      }
+      else if (pitch < 0) {
+        octave--;
+        pitch = 12+pitch;
+      }
+
       if (session.loops[this.loopId].tracks[this.trackId].name !== "DRUMS") {
-        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[0].triggerRelease(theory.freqs[pitch]*p.pow(2,this.octave),time);
-        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerRelease(theory.freqs[pitch]*p.pow(2,this.octave),time); 
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[0].triggerRelease(theory.freqs[pitch]*p.pow(2,octave),time);
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerRelease(theory.freqs[pitch]*p.pow(2,octave),time); 
     
       }
     }
 
-    play(time) {
+    play(pitchOffset,time) {
       this.angInc = p.PI / 12;
       this.animOpa = 255;
       this.animR = this.size;
@@ -2763,11 +3809,22 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         if (this.pitch === 2) session.loops[this.loopId].tracks[this.trackId].synth.parts[3].stop(time);
       }
       else {
-        //let t = session.loops[this.loopId].timeBtwSteps*this.duration;
         let pitch = this.pitch;
+        let octave = this.octave;
         if (pitch > 11) pitch = pitch-12;
-        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[0].triggerAttack(theory.freqs[pitch]*p.pow(2,this.octave),time);
-        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerAttack(theory.freqs[pitch]*p.pow(2,this.octave),time);
+
+        pitch += pitchOffset;
+        if (pitch > 11) {
+          octave++;
+          pitch = pitch-12;
+        }
+        else if (pitch < 0) {
+          octave--;
+          pitch = 12+pitch;
+        }
+
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[0].triggerAttack(theory.freqs[pitch]*p.pow(2,octave),time);
+        session.loops[this.loopId].tracks[this.trackId].synth.oscillators[1].triggerAttack(theory.freqs[pitch]*p.pow(2,octave),time);
       }
       //synths.melody.triggerAttackRelease(theory.freqs[this.pitch]*p.pow(2,this.octave), session.activeTab.timeBtwSteps);
     }
@@ -2834,8 +3891,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
     }*/
 
-    drawCollapsedDrawer(targetX, targetY) {
-      if (session.loops[this.loopId].hover) p.fill(this.colorOrig[0],this.colorOrig[1],this.colorOrig[2],255);
+    drawCollapsedDrawer(targetX, targetY,hover,radius) {
+      if (hover) p.fill(this.colorOrig[0],this.colorOrig[1],this.colorOrig[2],255);
       else p.fill(this.colorOrig[0],this.colorOrig[1],this.colorOrig[2],255/2);
       
       this.drawerAng += this.drawerAngInc;
@@ -2843,21 +3900,20 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.noStroke();
       p.push();
       p.translate(targetX,targetY,p.windowHeight/60);
-      p.scale(p.windowHeight/140 / petalModelSize);
+      p.scale(radius/4 / petalModelSize);
       p.rotateX(this.drawerAng );
       p.rotateY(this.drawerAng );
       p.model(session.loops[this.loopId].tracks[this.trackId].petal);
       p.pop();
     }
 
-    drawCollapsed(angles,targetX, targetY) {
-      if (session.loops[this.loopId].play && this.start <= session.loops[this.loopId].currentStep && this.start+this.duration >= session.loops[this.loopId].currentStep) {
-        if (session.activeTab !== null) {
-          if (this.loopId !== session.activeTab.id) this.angInc = p.PI / 12;
-        } else this.angInc = p.PI / 12;        //this.animOpa = 255;
+    drawCollapsed(loop,track,angles,targetX, targetY) {
+      /*if (loop.play && this.start <= loop.currentStep && this.start+this.duration >= loop.currentStep) {
+        this.angInc = p.PI / 12;
+     //this.animOpa = 255;
         this.color = [this.colorOrig[0]+100,this.colorOrig[1]+100,this.colorOrig[2]+100];
-        if(this.start+this.duration > session.loops[this.loopId].currentStep) this.spawnParticles(targetX,targetY);
-      }
+        //if(this.start+this.duration > session.loops[this.loopId].currentStep) this.spawnParticles(targetX,targetY);
+      }*/
 
       for ( let i = 0; i < this.particles.length; i++) {
         if (this.particles[i].alive) {
@@ -2874,7 +3930,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         else this.color[i] -= 5;
       }
       if (session.activeTab !== null) {
-        if (this.loopId !== session.activeTab.id)  {
+        if (session.activeTab.type === "loop" && this.loopId !== session.activeTab.id || session.activeTab.type === "struct") {
           if (this.angInc > p.PI / 200) this.angInc -= 0.005;
           if (this.animOpa - this.animOpaInc < 0) this.animOpa = 0;
           else this.animOpa -= this.animOpaInc;
@@ -2890,24 +3946,100 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
 
       //while is playing, set bright and rotatation to max
-      if (this.start <= session.loops[this.loopId].currentStep && this.start+this.duration >= session.loops[this.loopId].currentStep) {
-        if (session.activeTab !== null) {
-          if (this.loopId !== session.activeTab.id) this.angInc = p.PI / 12;
-        } else this.angInc = p.PI / 12;
+      if (this.start <= loop.currentStep && this.start+this.duration >= loop.currentStep) {
+        //if (session.activeTab !== null) {
+        //  if (this.loopId !== loop.id) this.angInc = p.PI / 12;
+        //else 
+        this.angInc = p.PI / 12;
         this.color = [this.colorOrig[0]+100,this.colorOrig[1]+100,this.colorOrig[2]+100];
-        if(this.start+this.duration > session.loops[this.loopId].currentStep) this.spawnParticles(
-          session.loops[this.loopId].tracks[this.trackId].particlesPreviewX[session.loops[this.loopId].tracks[this.trackId].particlesPreviewX.length-session.loops[this.loopId].currentStep-1]+p5.Vector.fromAngle(angles[nSteps-this.start+1], p.sin(this.ang/2)*p.windowHeight/50).x,
-          session.loops[this.loopId].tracks[this.trackId].particlesPreviewY[session.loops[this.loopId].tracks[this.trackId].particlesPreviewY.length-session.loops[this.loopId].currentStep-1]+p5.Vector.fromAngle(angles[nSteps-this.start+1], p.sin(p.PI/2-this.ang/2)*p.windowHeight/50).y);
+
+        if(this.start+this.duration > loop.currentStep) {
+          if (session.loopDrawer) this.spawnParticles(
+          track.particlesPreviewX[track.particlesPreviewX.length-loop.currentStep-1]+p5.Vector.fromAngle(angles[nSteps-this.start+1], p.sin(this.ang/2)*p.windowHeight/50).x,
+          track.particlesPreviewY[track.particlesPreviewY.length-loop.currentStep-1]+p5.Vector.fromAngle(angles[nSteps-this.start+1], p.sin(p.PI/2-this.ang/2)*p.windowHeight/50).y);
+
+          else if (session.structDrawer) this.spawnParticles(
+          track.particlesPreviewX[track.particlesPreviewX.length-loop.currentStep-1],
+          track.particlesPreviewY[track.particlesPreviewY.length-loop.currentStep-1]);
+        }
       }
 
       p.fill(this.color[0],this.color[1],this.color[2],previewOpa);
       p.noStroke();
       p.push();
       p.translate(targetX,targetY,p.windowHeight/60);
-      p.scale(p.windowHeight/50 / petalModelSize);
+      if (session.loopDrawer) p.scale(p.windowHeight/50 / petalModelSize);
+      else p.scale(p.windowHeight/80 / petalModelSize);
       p.rotateX(this.ang);
       p.rotateY(this.ang);
       p.model(session.loops[this.loopId].tracks[this.trackId].petal);
+      p.pop();
+
+      p.push();
+      p.noFill();
+      p.translate(0,0,2);
+      p.stroke(this.color[0], this.color[1], this.color[2], this.animOpa);
+      p.strokeWeight(this.size / 12);
+      if (this.animOpa > 0) p.circle(targetX,targetY, this.animR, this.animR);
+      p.pop();
+    }
+
+    drawCollapsedStructure(loop,angles,targetX, targetY) {
+      if (loop.play && this.start <= loop.currentStep && this.start+this.duration >= loop.currentStep) {
+        //if (session.activeTab !== null) {
+         // if (this.loopId !== loop.id) this.angInc = p.PI / 12;
+        //} else 
+        this.angInc = p.PI / 12;        //this.animOpa = 255;
+        this.color = [this.colorOrig[0]+100,this.colorOrig[1]+100,this.colorOrig[2]+100];
+        if(this.start+this.duration > loop.currentStep && session.structDrawer === false) {
+          this.spawnParticles(loop.tracks[this.trackId].particlesStructX[loop.tracks[this.trackId].particlesPreviewX.length-loop.currentStep-1]+p5.Vector.fromAngle(angles[nSteps-this.start+1], p.sin(this.ang/2)*p.windowHeight/70).x,
+          loop.tracks[this.trackId].particlesStructY[loop.tracks[this.trackId].particlesPreviewY.length-loop.currentStep-1]+p5.Vector.fromAngle(angles[nSteps-this.start+1], p.sin(p.PI/2-this.ang/2)*p.windowHeight/70).y);
+        }
+      }
+
+      for ( let i = 0; i < this.particles.length; i++) {
+        if (this.particles[i].alive) {
+          this.particles[i].move();
+          p.push();
+          p.translate(0,0,1);
+          this.particles[i].show();
+          p.pop();
+        } else this.pool.push(this.particles.splice( i, 1 )[0]);  
+      } 
+
+      for (let i = 0; i < this.color.length; i++) {
+        if (this.color[i] - 5 < this.colorOrig[i]) this.color[i] = this.colorOrig[i];
+        else this.color[i] -= 5;
+      }
+      if (session.structDrawer === false) {
+        if (this.loopId === loop.id)  {
+          if (this.angInc > p.PI / 200) this.angInc -= 0.005;
+          if (this.animOpa - this.animOpaInc < 0) this.animOpa = 0;
+          else this.animOpa -= this.animOpaInc;
+          if (this.animR < p.windowHeight/15) this.animR += this.animRInc;
+          this.ang += this.angInc;
+        } 
+      }
+
+      //while is playing, set bright and rotatation to max
+      /*if (this.start <= loop.currentStep && this.start+this.duration >= loop.currentStep) {
+        if (session.activeTab !== null) {
+          if (this.loopId !== loop.id) this.angInc = p.PI / 12;
+        } else this.angInc = p.PI / 12;
+        this.color = [this.colorOrig[0]+100,this.colorOrig[1]+100,this.colorOrig[2]+100];
+        if(this.start+this.duration >loop.currentStep) this.spawnParticles(
+          loop.tracks[this.trackId].particlesPreviewX[loop.tracks[this.trackId].particlesPreviewX.length-loop.currentStep-1]+p5.Vector.fromAngle(angles[nSteps-this.start+1], p.sin(this.ang/2)*p.windowHeight/70).x,
+          loop.tracks[this.trackId].particlesPreviewY[loop.tracks[this.trackId].particlesPreviewY.length-loop.currentStep-1]+p5.Vector.fromAngle(angles[nSteps-this.start+1], p.sin(p.PI/2-this.ang/2)*p.windowHeight/70).y);
+      }*/
+
+      p.fill(this.color[0],this.color[1],this.color[2],255);
+      p.noStroke();
+      p.push();
+      p.translate(targetX,targetY,p.windowHeight/60);
+      p.scale(p.windowHeight/75 / petalModelSize);
+      p.rotateX(this.ang);
+      p.rotateY(this.ang);
+      p.model(loop.tracks[this.trackId].petal);
       p.pop();
 
       p.push();
@@ -3228,7 +4360,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       for (let i = 0; i < this.nOptions; i++) {
         if (this.optionsCheck[i]) {
 
-          if (this.options[i] === "DELETE") p.fill(225, 0, 0, this.optionsOpa[i]);
+          if (this.options[i] === "DELETE" || this.options[i] === "DELETE SECTION") p.fill(225, 0, 0, this.optionsOpa[i]);
           else p.fill(white[0], white[1], white[2], this.optionsOpa[i]);
           p.textFont(fontLight);
 
@@ -3251,28 +4383,63 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
               if (p.mouseIsPressed) {
                 //session.activeTab.addTrack(this.options[i]);
-                if (this.label === "menu") {
+                if (this.label === "loopMenu" || this.label === "structMenu") {
                   switch (this.options[i]) {
                     case "RENAME":
                       this.optionsOpa[i] = 50;
                       //not developed yet
                       break;
                     case "DUPLICATE":
-                      session.duplicateLoop(this.tabId);
+                      if (this.label === "loopMenu") session.duplicateLoop(this.tabId);
+                      else if (this.label === "structMenu") session.duplicateStruct(this.tabId);
                       this.close();
                       break;
                     case "EXPORT":
-                      //not developed yet
+                      if (this.label === "loopMenu") {
+                        synths.exportLoopAudio(p,session.loops[this.tabId], setLoading);
+                        setLoading(true);
+                      }
+                      else if (this.label === "structMenu") {
+                        if (session.activeTab.sequence.length > 0) {
+                          synths.exportStructAudio(p,session.structs[this.tabId], setLoading);
+                          setLoading(true);
+                        }
+                      }
+                     
+                      session.activeTab.play = false;
+                      Tone.Transport.stop();
+                      synths.releaseAll();
                       this.close();
                       break;
                     case "STRUCT FROM":
-                      //not developed yet
+                      if (session.structs.length < maxStructs) {
+                        let name = "myStruct"+session.structs.length;
+                        name = session.generateNameStruct(name);
+                        let newStruct = new Structure(session.structs.length,name);
+                        newStruct.createFromLoop(session.loops[this.tabId]);
+                        session.structs.push(newStruct);
+                        session.manageTabs(session.structs[session.structs.length-1]);
+                      }
+                      this.close();
                       break;
                     case "CLOSE TAB":
-                      session.closeTab(this.tabId);
+                      if (this.label === "loopMenu") session.closeTab("loop",this.tabId);
+                      else if (this.label === "structMenu") session.closeTab("struct",this.tabId);
                       this.close();
                       break;
                     case "DELETE":
+                      this.state = 3;
+                      this.menuOpa = 0;
+                      break;
+                  }
+                } else if (this.label === "sectionMenu") {
+                  switch (this.options[i]) {
+                    case "EDIT LOOP":
+                      session.manageTabs(session.loops[session.structs[this.tabId].sequence[this.trackId].id]);
+                      session.loops[session.structs[this.tabId].sequence[this.trackId].id].blackoutOpa = 255;
+                      this.close();
+                      break;
+                    case "DELETE SECTION":
                       this.state = 3;
                       this.menuOpa = 0;
                       break;
@@ -3288,8 +4455,13 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           } else {
             //check if the option is the same as an existing track
             let notAllowed = false;
-            for (let j = 0; j < session.loops[this.tabId].tracks.length; j++) {
-              if (this.options[i] === session.loops[this.tabId].tracks[j].name) notAllowed = true;
+            
+            if (this.label === "plusMenu") {
+              for (let j = 0; j < session.loops[this.tabId].tracks.length; j++) {
+                if (this.options[i] === session.loops[this.tabId].tracks[j].name) notAllowed = true;
+              }
+            } else if (this.label === "trackMenu") {
+              if (this.options[i] === "RENAME") notAllowed = true;
             }
 
             if (notAllowed) this.optionsOpa[i] = 50;
@@ -3304,10 +4476,19 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
               if (p.mouseIsPressed && notAllowed === false) {
                 //session.activeTab.addTrack(this.options[i]);
                 //this.reset();
-                this.menuOpa = 0;
-                if (this.label === "plusMenu") this.state = 1;
+                if (this.label === "plusMenu") {
+                  this.lastOption = this.options[i];
+                  this.menuOpa = 0;
+                  this.state = 1;
+                } else if (this.label === "trackMenu") {
+                  switch (this.options[i]) {
+                    case "DELETE":
+                      this.state = 3;
+                      this.menuOpa = 0;
+                      break;
+                  }
+                }
                 p.mouseIsPressed = false;
-                this.lastOption = this.options[i];
               }
             } 
 
@@ -3426,8 +4607,14 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       if (this.menuOpa + this.opaInc > 255) this.menuOpa = 255;
       else this.menuOpa += this.opaInc;
 
-      if(this.label === "menu") {
+      if(this.label === "loopMenu") {
         p.text('Are you sure you want to delete "'+session.loops[this.tabId].name+'"?', p.windowWidth/2, p.windowHeight/2 - p.windowHeight/20);
+      } else if (this.label === "structMenu") {
+        p.text('Are you sure you want to delete "'+session.structs[this.tabId].name+'"?', p.windowWidth/2, p.windowHeight/2 - p.windowHeight/20);
+      } else if (this.label === "sectionMenu") {
+        p.text('Are you sure you want to delete "'+session.structs[this.tabId].sequence[this.trackId].name+'" from "'+session.structs[this.tabId].name+'"?\n"'+session.structs[this.tabId].sequence[this.trackId].name+'" will not be deleted from the Loops Drawer.', p.windowWidth/2, p.windowHeight/2 - p.windowHeight/20);
+      } else if (this.label === "trackMenu") {
+        p.text('Are you sure you want to delete "'+session.loops[this.tabId].tracks[this.trackId].name+'" from "'+session.loops[this.tabId].name+'"?', p.windowWidth/2, p.windowHeight/2 - p.windowHeight/20);
       }
 
       p.textSize(p.windowHeight / 50);
@@ -3442,7 +4629,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         document.body.style.cursor = 'pointer';
         p.fill(225,0,0, this.menuOpa);
         if (p.mouseIsPressed) {
-          session.deleteLoop(this.tabId);
+          if (this.label === "loopMenu") session.deleteLoop(this.tabId);
+          else if (this.label === "structMenu") session.deleteStruct(this.tabId);
+          else if (this.label === "sectionMenu") session.structs[this.tabId].deleteSection(this.trackId);
+          else if (this.label === "trackMenu") session.loops[this.tabId].deleteTrack(this.trackId);
           this.close();
           p.mouseIsPressed = false;
         }
@@ -3699,7 +4889,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     }
 
     increment(inc) {
-      if (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE") {
+      if (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE" || this.label === "REPEATS") {
         if (this.value + inc <= this.max) this.value += inc;
         else this.value = this.max;
       } else {
@@ -3713,7 +4903,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     }
 
     decrement(inc) {
-      if (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE") {
+      if (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE" || this.label === "REPEATS") {
         if (this.value - inc >= this.min) this.value -= inc;
         else this.value = this.min;
       } else {
@@ -3775,17 +4965,17 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           this.hover = true;
           if (p.mouseX < x - this.w/2 + this.h/2) {
             if (p.mouseY < y) {
-              if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE")) {
+              if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE" || this.label === "REPEATS")) {
                 p.tint(255,this.opa);
                 document.body.style.cursor = 'pointer';
-              } else if (this.value > this.min && this.label !== "TEMPO" && this.label !== "OCTAVE") {
+              } else if (this.value > this.min && this.label !== "TEMPO" && this.label !== "OCTAVE" && this.label !== "TRANSPOSE" && this.label !== "REPEATS") {
                 p.tint(255,this.opa);
                 document.body.style.cursor = 'pointer';
               } else p.tint(255,this.opa/4);
 
               p.image(arrowUp, x-this.w/2+this.h/4, y-this.h/4, this.h/2, this.h/2);
-              if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE")) p.tint(255,this.opa/2);
-              else if (this.value < this.max && this.label !== "TEMPO" && this.label !== "OCTAVE") p.tint(255,this.opa/2);
+              if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE" || this.label === "REPEATS")) p.tint(255,this.opa/2);
+              else if (this.value < this.max && this.label !== "TEMPO" && this.label !== "OCTAVE" && this.label !== "TRANSPOSE" && this.label !== "REPEATS") p.tint(255,this.opa/2);
               else p.tint(255,this.opa/4);
               p.image(arrowDown, x-this.w/2+this.h/4, y+this.h/4, this.h/2, this.h/2);
 
@@ -3798,17 +4988,17 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
               } else this.pressing = false;
             }
             else {
-              if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE")) {
+              if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE" || this.label === "REPEATS")) {
                 p.tint(255,this.opa);
                 document.body.style.cursor = 'pointer';
-              } else if (this.value < this.max && this.label !== "TEMPO" && this.label !== "OCTAVE") {
+              } else if (this.value < this.max && this.label !== "TEMPO" && this.label !== "OCTAVE" && this.label !== "TRANSPOSE" && this.label !== "REPEATS") {
                 p.tint(255,this.opa);
                 document.body.style.cursor = 'pointer';
               } else p.tint(255,this.opa/4);
 
               p.image(arrowDown, x-this.w/2+this.h/4, y+this.h/4, this.h/2, this.h/2);
-              if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE")) p.tint(255,this.opa/2);
-              else if (this.value > this.min && this.label !== "TEMPO" && this.label !== "OCTAVE") p.tint(255,this.opa/2);
+              if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE" || this.label === "REPEATS")) p.tint(255,this.opa/2);
+              else if (this.value > this.min && this.label !== "TEMPO" && this.label !== "OCTAVE" && this.label !== "TRANSPOSE" && this.label !== "REPEATS") p.tint(255,this.opa/2);
               else p.tint(255,this.opa/4);
               p.image(arrowUp, x-this.w/2+this.h/4, y-this.h/4, this.h/2, this.h/2);
 
@@ -3821,22 +5011,22 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
               } else this.pressing = false;
             }
           } else {
-            if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE")) p.tint(255,this.opa/2);
-            else if (this.value > this.min && this.label !== "TEMPO" && this.label !== "OCTAVE") p.tint(255,this.opa/2);
+            if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE" || this.label === "REPEATS")) p.tint(255,this.opa/2);
+            else if (this.value > this.min && this.label !== "TEMPO" && this.label !== "OCTAVE" && this.label !== "TRANSPOSE" && this.label !== "REPEATS") p.tint(255,this.opa/2);
             else p.tint(255,this.opa/4);
             p.image(arrowUp, x-this.w/2+this.h/4, y-this.h/4, this.h/2, this.h/2);
-            if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE")) p.tint(255,this.opa/2);
-            else if (this.value < this.max && this.label !== "TEMPO" && this.label !== "OCTAVE") p.tint(255,this.opa/2);
+            if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE" || this.label === "REPEATS")) p.tint(255,this.opa/2);
+            else if (this.value < this.max && this.label !== "TEMPO" && this.label !== "OCTAVE" && this.label !== "TRANSPOSE" && this.label !== "REPEATS") p.tint(255,this.opa/2);
             else p.tint(255,this.opa/4);
             p.image(arrowDown, x-this.w/2+this.h/4, y+this.h/4, this.h/2, this.h/2);
           }
       } else {
-        if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE")) p.tint(255,this.opa/2);
-        else if (this.value > this.min && this.label !== "TEMPO" && this.label !== "OCTAVE") p.tint(255,this.opa/2);
+        if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE" || this.label === "REPEATS")) p.tint(255,this.opa/2);
+        else if (this.value > this.min && this.label !== "TEMPO" && this.label !== "OCTAVE" && this.label !== "TRANSPOSE" && this.label !== "REPEATS") p.tint(255,this.opa/2);
         else p.tint(255,this.opa/4);
         p.image(arrowUp, x-this.w/2+this.h/4, y-this.h/4, this.h/2, this.h/2);
-        if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE")) p.tint(255,this.opa/2);
-        else if (this.value < this.max && this.label !== "TEMPO" && this.label !== "OCTAVE") p.tint(255,this.opa/2);
+        if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE" || this.label === "REPEATS")) p.tint(255,this.opa/2);
+        else if (this.value < this.max && this.label !== "TEMPO" && this.label !== "OCTAVE" && this.label !== "TRANSPOSE" && this.label !== "REPEATS") p.tint(255,this.opa/2);
         else p.tint(255,this.opa/4);
         p.image(arrowDown, x-this.w/2+this.h/4, y+this.h/4, this.h/2, this.h/2);
         this.hover = false;
@@ -3844,6 +5034,17 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         else this.opa = 0;
       }
       p.pop();
+
+      if (session.activeTab.type === "struct") {
+        if (session.activeTab.tempoButton.state === false && this.label === "TEMPO") {
+          p.fill(0,0,0,255/2);
+          p.rect(x-this.w/2,y-this.h/2,this.w,this.h);
+        }
+        if (session.activeTab.transposeButton.state === false && this.label === "TRANSPOSE") {
+          p.fill(0,0,0,255/2);
+          p.rect(x-this.w/2,y-this.h/2,this.w,this.h);
+        }
+      }
     }
   }
 
@@ -3862,6 +5063,13 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     ai = p.loadImage(aiPNG);
     sing = p.loadImage(singPNG);
     scratch = p.loadImage(scratchPNG);
+
+    diceIcons.push(p.loadImage(dice1PNG));
+    diceIcons.push(p.loadImage(dice2PNG));
+    diceIcons.push(p.loadImage(dice3PNG));
+    diceIcons.push(p.loadImage(dice4PNG));
+    diceIcons.push(p.loadImage(dice5PNG));
+    diceIcons.push(p.loadImage(dice6PNG));
 
     petal1 = p.loadModel(petalOBJ1);
     petal2 = p.loadModel(petalOBJ2);
@@ -3907,7 +5115,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     //if (sesh === "bin file not found") {
     session = new Session();
     for (let i = 0; i < 5; i++) {
-      session.loops.push(new Loop(i, "myloop"+i, 120));
+      session.loops.push(new Loop(i, "myLoop"+i, 120));
       session.loops[i].tracks.push(new Track(0, i, "MELODY", p.windowWidth / 2));
       for (let j = 0; j < 5; j++) {
         let start = p.floor(p.random(0, nSteps));
@@ -3976,8 +5184,17 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         session.activeTab.play = false;
         Tone.Transport.stop();
         synths.releaseAll();
+        if (session.activeTab.type === "struct") if (session.activeTab.sequence.length > 0) session.activeTab.sequence[session.activeTab.currentLoop].play = false;
       }
       else {
+        if (session.activeTab.type === "struct") {
+          if (session.activeTab.sequence.length > 0) {
+            session.activeTab.currentLoop = 0;
+            session.activeTab.currentRepeat = 0;
+            session.activeTab.sequence[session.activeTab.currentLoop].currentStep = -1;
+            session.activeTab.sequence[session.activeTab.currentLoop].play = true; 
+          }
+        }
         session.activeTab.currentStep = -1;
         session.activeTab.play = true;
         Tone.Transport.start();
@@ -3985,6 +5202,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
     }
     if (p.keyCode === p.BACKSPACE) {
       if (session.loopDrawer) loopSearch = loopSearch.slice(0, -1);
+      else if (session.structDrawer) structSearch = structSearch.slice(0, -1);
       else if (session.activeTab !== null) {
         if (session.activeTab.selectedTrack !== null) {
           let notes = session.activeTab.selectedTrack.notes;
@@ -3999,7 +5217,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       }
     }
 
-    if (inputNotes.length < maxInputNotes) {
+    if (session.activeTab !== null && session.activeTab.type === "loop" && inputNotes.length < maxInputNotes && session.loopDrawer === false && session.structDrawer === false && menuOpened === false) {
       let input = theory.keysDecode(p.key.toUpperCase());
       if (input !== -1 && inputNotes.indexOf(input) === -1) {
         inputNotes.push(input);
@@ -4064,7 +5282,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
   }
 
     let input = theory.keysDecode(p.key.toUpperCase());
-    if (input !== -1) {
+    if (input !== -1 ) {
       let index = inputNotes.indexOf(input);
       if (index !== -1) {
         inputNotes.splice(index, 1);
@@ -4160,7 +5378,9 @@ function calculateBoundingBox(model) {
 // --------------------------------------------------------------------------------------
 
 let loopSearch = '';
+let prevLoopSearch = '';
 let structSearch = '';
+let prevStructSearch = '';
 let maxNameLength = 15;
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -4176,6 +5396,10 @@ document.addEventListener('DOMContentLoaded', function() {
           if (session.loopDrawer) {
             if (loopSearch.length < maxNameLength) {
               loopSearch += event.key;
+            }
+          } else if (session.structDrawer) {
+            if (structSearch.length < maxNameLength) {
+              structSearch += event.key;
             }
           }
       }

@@ -25,12 +25,17 @@ import openedHatSubtle from '../Assets/audioSamples/openedHat_subtle.wav';
 import lowTomSubtle from '../Assets/audioSamples/lowTom_subtle.wav';
 import highTomSubtle from '../Assets/audioSamples/highTom_subtle.wav';
 import crashSubtle from '../Assets/audioSamples/crash_subtle.wav';
+import { Instrument } from 'tone/build/esm/instrument/Instrument.js';
 
 // ---------------------------------------------------------------
 
 //ref to p5.js
 let session;
 function setSession(s) { session = s; }
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // ---------------------------------------------------------------
 // MIDI INPUT
@@ -191,7 +196,7 @@ const chunks = [];*/
         Tone.Transport.start();
 }*/
 
-function exportLoopAudio(loop,nSteps,setLoading) {
+/*function exportLoopAudio(loop,nSteps,setLoading) {
 
     let audioLength = loop.timeBtwSteps * loop.nSteps + loop.timeBtwSteps*loop.nSteps/8;
 
@@ -220,7 +225,7 @@ function exportLoopAudio(loop,nSteps,setLoading) {
                                 if (pitch === 2) instruments[t].parts[3].stop();
                             } else {
 
-                                /*for (let j = 0; j < instruments[t].oscillators.length; j++) {
+                                for (let j = 0; j < instruments[t].oscillators.length; j++) {
                                     instruments[t].oscillators[j].set({oscillator: {type: t.oscKnobs[j][0].output, volume: t.oscKnobs[j][2].output}});
                                     instruments[t].oscillators[j].set({envelope: {attack: t.envKnobs[j][0].output, decay: t.envKnobs[j][1].output, sustain: t.envKnobs[j][2].output, release: t.envKnobs[j][3].output}});
                                 }
@@ -231,7 +236,7 @@ function exportLoopAudio(loop,nSteps,setLoading) {
                                 instruments[t].fxChain.delay.feedback.value = t.dlyKnobs[1].output;
                                 instruments[t].fxChain.delay.wet.value = t.dlyKnobs[2].output;
                                 instruments[t].fxChain.reverb.decay = t.rvbKnobs[0].output;
-                                instruments[t].fxChain.reverb.wet.value = t.rvbKnobs[1].output;*/
+                                instruments[t].fxChain.reverb.wet.value = t.rvbKnobs[1].output;
                 
 
                                 instruments[t].oscillators[0].triggerAttackRelease(theory.freqs[pitch]*Math.pow(2,octave),duration*loop.timeBtwSteps,time);
@@ -256,6 +261,224 @@ function exportLoopAudio(loop,nSteps,setLoading) {
         anchor.click();
         setLoading(false);
     });
+}*/
+
+function exportLoopAudio(p,loop,setLoading) {
+
+    let audioLength = loop.timeBtwSteps * loop.nSteps + loop.timeBtwSteps*loop.nSteps/4;
+
+    Tone.Offline(({ transport }) => {
+
+        let currentStep = 0;
+        let loopCopy = session.copyLoop(loop); 
+
+        for (let t in loop.tracks) {
+            if (loop.tracks[t].name === "DRUMS") {
+                loopCopy.tracks[t].synth = new DrumSynth(drumPresets[loop.tracks[t].presetScroll.value].kit); 
+            }
+            else loopCopy.tracks[t].synth = new Synth();
+        }
+
+        transport.scheduleRepeat(time => {
+
+            transport.bpm.value = loop.tempoScroll.value;
+
+            if (currentStep < loop.nSteps) {
+                for (let t in loopCopy.tracks) {
+
+                    //loopCopy.tracks[t].updateSynthParams();
+
+                    //automate knobs
+                    for (let i=0; i < loopCopy.tracks[t].knobs.length; i++) {
+                        if (loopCopy.tracks[t].knobs[i][1].automating && currentStep > -1) {
+                            loopCopy.tracks[t].knobs[i][1].value = loopCopy.tracks[t].knobs[i][1].automation[currentStep];
+                            if (typeof loopCopy.tracks[t].knobs[i][1].output === "string") loopCopy.tracks[t].knobs[i][1].output = loopCopy.tracks[t].knobs[i][1].options[p.round(p.map(loopCopy.tracks[t].knobs[i][1].value,0,1,0,loopCopy.tracks[t].knobs[i][1].options.length-1))].toUpperCase();
+                            else loopCopy.tracks[t].knobs[i][1].output = loopCopy.tracks[t].knobs[i][1].options[p.round(p.map(loopCopy.tracks[t].knobs[i][1].value,0,1,0,loopCopy.tracks[t].knobs[i][1].options.length-1))];
+                        }
+                    }
+
+                    loopCopy.tracks[t].updateSynthParams();
+
+                    for (let n in loopCopy.tracks[t].notes) {
+                        //if (currentStep === 0 && loopCopy.tracks[t].notes[n].start !== 0 || currentStep === 0 && loopCopy.tracks[t].notes[n].duration === loopCopy.nSteps) loopCopy.tracks[t].notes[n].stop(time);
+                        if (loopCopy.tracks[t].notes[n].start === currentStep) {
+                            if (loopCopy.tracks[t].name === "DRUMS") {
+                                loopCopy.tracks[t].synth.parts[loopCopy.tracks[t].notes[n].pitch].stop(time);
+                                //console.log(loopCopy.tracks[t].notes[n].pitch,loopCopy.tracks[t].synth.parts,loopCopy.tracks[t].synth.parts[loopCopy.tracks[t].notes[n].pitch]);
+                                loopCopy.tracks[t].synth.parts[loopCopy.tracks[t].notes[n].pitch].start(time);
+                                if (loopCopy.tracks[t].notes[n].pitch === 2) loopCopy.tracks[t].synth.parts[3].stop();
+                            } else {
+                                loopCopy.tracks[t].synth.oscillators[0].triggerAttack(theory.freqs[loopCopy.tracks[t].notes[n].pitch]*Math.pow(2,loopCopy.tracks[t].notes[n].octave),time);
+                                loopCopy.tracks[t].synth.oscillators[1].triggerAttack(theory.freqs[loopCopy.tracks[t].notes[n].pitch]*Math.pow(2,loopCopy.tracks[t].notes[n].octave),time);
+                            }
+                        } else if (loopCopy.tracks[t].notes[n].start + loopCopy.tracks[t].notes[n].duration === currentStep) {
+                            if (loopCopy.tracks[t].name !== "DRUMS") {
+                                loopCopy.tracks[t].synth.oscillators[0].triggerRelease(theory.freqs[loopCopy.tracks[t].notes[n].pitch]*Math.pow(2,loopCopy.tracks[t].notes[n].octave),time);
+                                loopCopy.tracks[t].synth.oscillators[1].triggerRelease(theory.freqs[loopCopy.tracks[t].notes[n].pitch]*Math.pow(2,loopCopy.tracks[t].notes[n].octave),time);
+                            }
+                        }
+                        //if (loopCopy.tracks[t].name !== "DRUMS" && loopCopy.tracks[t].notes[n].start+loopCopy.tracks[t].notes[n].duration === currentStep) loopCopy.tracks[t].notes[n].stop(time);
+                    }
+                }
+
+            } else if (currentStep === loop.nSteps) {
+                for (let i in loopCopy.tracks) {
+                    if (loopCopy.tracks[i].name !== "DRUMS")  {
+                        for (let j in loopCopy.tracks[i].synth.oscillators) {
+                            loopCopy.tracks[i].synth.oscillators[j].releaseAll(time);
+                        }
+                    }
+                }
+            } else if (currentStep > loop.nSteps+loop.nSteps/4) transport.stop();
+            currentStep++;
+        }, "16n");
+
+        transport.start();
+
+    }, audioLength).then((buffer) => {
+        const blob = new Blob([audioBufferToWav(buffer)], { type: "audio/wav" });
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.getElementById("export");
+        anchor.download = loop.name+".wav";
+        anchor.href = url;
+        anchor.click();
+        setLoading(false);
+    });
+}
+
+function exportStructAudio(p,struct,setLoading) {
+
+    let audioLength = 0;
+
+    let timeBtwSteps = 60 / struct.tempoScroll.value / 4;
+    
+    for (let s in struct.sequence) {
+        if (struct.tempoButton.state) audioLength += timeBtwSteps * struct.sequence[s].nSteps * struct.repeats[s].value;
+        else audioLength += struct.sequence[s].timeBtwSteps * struct.sequence[s].nSteps * struct.repeats[s].value;
+    }
+
+    audioLength += 5;
+
+    Tone.Offline(({ transport }) => {
+
+        let currentStep = 0;
+        let currentLoop = 0;
+        let currentRepeat = 1;
+
+        let sequenceCopy = [];
+
+        for (let s in struct.sequence) {
+            let loopCopy = session.copyLoop(struct.sequence[s]);
+            for (let t in loopCopy.tracks) {
+                if (loopCopy.tracks[t].name === "DRUMS") {
+                    loopCopy.tracks[t].synth = new DrumSynth(drumPresets[loopCopy.tracks[t].presetScroll.value].kit); 
+                }
+                else loopCopy.tracks[t].synth = new Synth();
+            }
+
+            sequenceCopy.push(loopCopy);
+
+            //console.log(sequenceCopy[s],struct.repeats[s]);
+        }
+
+        transport.scheduleRepeat(time => {
+
+            if (currentLoop < sequenceCopy.length) {
+
+                if (struct.tempoButton.state) transport.bpm.value = struct.tempoScroll.value;
+                else transport.bpm.value = sequenceCopy[currentLoop].tempoScroll.value;
+
+                //console.log(currentLoop,currentStep,currentRepeat);
+
+                for (let t in sequenceCopy[currentLoop].tracks) {
+
+                    //automate knobs
+                    for (let i=0; i < sequenceCopy[currentLoop].tracks[t].knobs.length; i++) {
+                        if (sequenceCopy[currentLoop].tracks[t].knobs[i][1].automating && currentStep > -1) {
+                            sequenceCopy[currentLoop].tracks[t].knobs[i][1].value = sequenceCopy[currentLoop].tracks[t].knobs[i][1].automation[currentStep];
+                            if (typeof sequenceCopy[currentLoop].tracks[t].knobs[i][1].output === "string") sequenceCopy[currentLoop].tracks[t].knobs[i][1].output = sequenceCopy[currentLoop].tracks[t].knobs[i][1].options[p.round(p.map(sequenceCopy[currentLoop].tracks[t].knobs[i][1].value,0,1,0,sequenceCopy[currentLoop].tracks[t].knobs[i][1].options.length-1))].toUpperCase();
+                            else sequenceCopy[currentLoop].tracks[t].knobs[i][1].output = sequenceCopy[currentLoop].tracks[t].knobs[i][1].options[p.round(p.map(sequenceCopy[currentLoop].tracks[t].knobs[i][1].value,0,1,0,sequenceCopy[currentLoop].tracks[t].knobs[i][1].options.length-1))];
+                        }
+                    }
+
+                    sequenceCopy[currentLoop].tracks[t].updateSynthParams();
+
+                    for (let n in sequenceCopy[currentLoop].tracks[t].notes) {
+                        
+                        let pitch = sequenceCopy[currentLoop].tracks[t].notes[n].pitch;
+                        let octave = sequenceCopy[currentLoop].tracks[t].notes[n].octave;
+                  
+                        if (struct.transposeButton.state) pitch += struct.transposeScroll.value;
+
+                        if (pitch > 11) {
+                          octave++;
+                          pitch = pitch-12;
+                        }
+                        else if (pitch < 0) {
+                          octave--;
+                          pitch = 12+pitch;
+                        }
+                        
+                        //if (currentStep === 0 && sequenceCopy[currentLoop].tracks[t].notes[n].start !== 0 || currentStep === 0 && sequenceCopy[currentLoop].tracks[t].notes[n].duration === sequenceCopy[currentLoop].nSteps) sequenceCopy[currentLoop].tracks[t].notes[n].stop(time);
+                        if (sequenceCopy[currentLoop].tracks[t].notes[n].start === currentStep) {
+                            if (sequenceCopy[currentLoop].tracks[t].name === "DRUMS") {
+                                sequenceCopy[currentLoop].tracks[t].synth.parts[sequenceCopy[currentLoop].tracks[t].notes[n].pitch].stop(time);
+                                //console.log(sequenceCopy[currentLoop].tracks[t].notes[n].pitch,sequenceCopy[currentLoop].tracks[t].synth.parts,sequenceCopy[currentLoop].tracks[t].synth.parts[sequenceCopy[currentLoop].tracks[t].notes[n].pitch]);
+                                sequenceCopy[currentLoop].tracks[t].synth.parts[sequenceCopy[currentLoop].tracks[t].notes[n].pitch].start(time);
+                                if (sequenceCopy[currentLoop].tracks[t].notes[n].pitch === 2) sequenceCopy[currentLoop].tracks[t].synth.parts[3].stop();
+                            } else {
+
+                                sequenceCopy[currentLoop].tracks[t].synth.oscillators[0].triggerAttack(theory.freqs[pitch]*Math.pow(2,octave),time);
+                                sequenceCopy[currentLoop].tracks[t].synth.oscillators[1].triggerAttack(theory.freqs[pitch]*Math.pow(2,octave),time);
+                            }
+                        } else if (sequenceCopy[currentLoop].tracks[t].notes[n].start + sequenceCopy[currentLoop].tracks[t].notes[n].duration === currentStep) {
+                            if (sequenceCopy[currentLoop].tracks[t].name !== "DRUMS") {
+                                sequenceCopy[currentLoop].tracks[t].synth.oscillators[0].triggerRelease(theory.freqs[pitch]*Math.pow(2,octave),time);
+                                sequenceCopy[currentLoop].tracks[t].synth.oscillators[1].triggerRelease(theory.freqs[pitch]*Math.pow(2,octave),time);
+                            }
+                        }
+                    }
+                }
+
+                if (currentStep === sequenceCopy[0].nSteps-1) {
+                    currentStep = -1;
+                    
+                    if (currentRepeat >= struct.repeats[currentLoop].value) {
+                        currentRepeat = 1;  
+                
+                        //if (currentLoop = sequenceCopy.length-1) currentLoop = 0;
+                        // else currentLoop++;
+                        currentLoop++;
+                
+                    } else currentRepeat++;
+
+                }
+            } else if (currentLoop === sequenceCopy.length) {
+                for (let t in sequenceCopy[currentLoop-1].tracks) {
+                    if (sequenceCopy[currentLoop-1].tracks[t].name !== "DRUMS")  {
+                        for (let j in sequenceCopy[currentLoop-1].tracks[t].synth.oscillators) {
+                            sequenceCopy[currentLoop-1].tracks[t].synth.oscillators[j].releaseAll(time);
+                        }
+                    }
+                }
+                if (currentStep > sequenceCopy[currentLoop-1].nSteps+sequenceCopy[currentLoop-1].nSteps/4) transport.stop();
+            }
+
+            currentStep++;
+          
+        }, "16n");
+
+        transport.start();
+
+    }, audioLength).then((buffer) => {
+        const blob = new Blob([audioBufferToWav(buffer)], { type: "audio/wav" });
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.getElementById("export");
+        anchor.download = struct.name+".wav";
+        anchor.href = url;
+        anchor.click();
+        setLoading(false);
+    });
 }
 
 // ---------------------------------------------------------------
@@ -272,33 +495,95 @@ class Metronome {
 const metronome = new Metronome();
 
 Tone.Transport.scheduleRepeat((time) => {
-    let loop = null;
+    let tab = null;
     
+    //identify what to play
     if (session.loopDrawer) {
         for (let l in session.loops) {
             if (session.loops[l].hover) {
-                loop = session.loops[l];
+                tab = session.loops[l];
                 break;
             }
         }
-    } else loop = session.activeTab;
-
-    if (loop !== null) {
-        if (loop.currentStep === loop.nSteps-1) loop.currentStep = 0;
-        else loop.currentStep++;
-
-        if (loop.click.state && session.loopDrawer === false) {
-            if (loop.currentStep%16 === 0) metronome.click[0].start(time);
-            else if (loop.currentStep%4 === 0) metronome.click[1].start(time);
+    } else if (session.structDrawer) {
+        for (let s in session.structs) {
+            if (session.structs[s].hover) {
+                tab = session.structs[s];
+                break;
+            }
         }
-        //else metronome.click[1].start();
-    
-        for (let t in loop.tracks) {
-        for (let n in loop.tracks[t].notes) {
-            if (loop.currentStep === 0 && loop.tracks[t].notes[n].start !== 0 || loop.currentStep === 0 && loop.tracks[t].notes[n].duration === loop.nSteps) loop.tracks[t].notes[n].stop(time);
-            if (loop.tracks[t].notes[n].start === loop.currentStep) loop.tracks[t].notes[n].play(time);
-            if (loop.tracks[t].name !== "DRUMS" && loop.tracks[t].notes[n].start+loop.tracks[t].notes[n].duration === loop.currentStep) loop.tracks[t].notes[n].stop(time);
-        }
+    }
+    else tab = session.activeTab;
+
+    if (tab !== null) {
+        //loop active tab
+        if (tab.type === "loop") {
+            Tone.Transport.bpm.value = tab.tempoScroll.value;
+
+            if (tab.currentStep === tab.nSteps-1) tab.currentStep = 0;
+            else tab.currentStep++;
+
+            if (tab.click.state && session.loopDrawer === false) {
+                if (tab.currentStep%16 === 0) metronome.click[0].start(time);
+                else if (tab.currentStep%4 === 0) metronome.click[1].start(time);
+            }
+        
+            for (let t in tab.tracks) {
+                if (tab.tracks[t].muted === false) {
+                    tab.tracks[t].updateSynthParams();
+                    for (let i=0; i< tab.tracks[t].knobs.length; i++) tab.tracks[t].knobs[i][1].knobAutomate(tab);
+
+                    for (let n in tab.tracks[t].notes) {
+                        if (tab.currentStep === 0 && tab.tracks[t].notes[n].start !== 0 || tab.currentStep === 0 && tab.tracks[t].notes[n].duration === tab.nSteps) tab.tracks[t].notes[n].stop(0,time);
+                        if (tab.tracks[t].notes[n].start === tab.currentStep) tab.tracks[t].notes[n].play(0,time);
+                        if (tab.tracks[t].name !== "DRUMS" && tab.tracks[t].notes[n].start+tab.tracks[t].notes[n].duration === tab.currentStep) tab.tracks[t].notes[n].stop(0,time);
+                    }
+                }
+            }
+
+        //struct active tab
+        } else {            
+            if (tab.sequence.length > 0) {
+
+                if (tab.tempoButton.state) Tone.Transport.bpm.value = tab.tempoScroll.value;
+                else Tone.Transport.bpm.value = tab.sequence[tab.currentLoop].tempoScroll.value;
+
+                if (tab.sequence[tab.currentLoop].currentStep === tab.sequence[tab.currentLoop].nSteps-1) {
+                    tab.sequence[tab.currentLoop].currentStep = 0;
+                    
+                    if (tab.currentRepeat >= tab.repeats[tab.currentLoop].value-1) {
+                        tab.currentRepeat = 0;
+                        
+                        tab.sequence[tab.currentLoop].play = false;
+                
+                        if (tab.currentLoop === tab.sequence.length-1) tab.currentLoop = 0;
+                        else {
+                            synths.releaseAll(time);
+                            tab.currentLoop++;
+                        }
+                        
+                        tab.sequence[tab.currentLoop].play = true;
+                
+                    } else tab.currentRepeat++;
+
+                }
+                else tab.sequence[tab.currentLoop].currentStep++;
+
+                for (let t in tab.sequence[tab.currentLoop].tracks) {
+                    if (tab.sequence[tab.currentLoop].tracks[t].muted === false) {
+                        tab.sequence[tab.currentLoop].tracks[t].updateSynthParams();
+                        for (let i=0; i< tab.sequence[tab.currentLoop].tracks[t].knobs.length; i++) tab.sequence[tab.currentLoop].tracks[t].knobs[i][1].knobAutomate(tab.sequence[tab.currentLoop]);
+
+                        for (let n in tab.sequence[tab.currentLoop].tracks[t].notes) {
+                            let pitchOffset = 0;
+                            if (tab.transposeButton.state) pitchOffset = tab.transposeScroll.value;
+                            if (tab.sequence[tab.currentLoop].currentStep === 0 && tab.sequence[tab.currentLoop].tracks[t].notes[n].start !== 0 || tab.sequence[tab.currentLoop].currentStep === 0 && tab.sequence[tab.currentLoop].tracks[t].notes[n].duration === tab.sequence[tab.currentLoop].nSteps) tab.sequence[tab.currentLoop].tracks[t].notes[n].stop(pitchOffset,time);
+                            if (tab.sequence[tab.currentLoop].tracks[t].notes[n].start === tab.sequence[tab.currentLoop].currentStep) tab.sequence[tab.currentLoop].tracks[t].notes[n].play(pitchOffset,time);
+                            if (tab.sequence[tab.currentLoop].tracks[t].name !== "DRUMS" && tab.sequence[tab.currentLoop].tracks[t].notes[n].start+tab.sequence[tab.currentLoop].tracks[t].notes[n].duration === tab.sequence[tab.currentLoop].currentStep) tab.sequence[tab.currentLoop].tracks[t].notes[n].stop(pitchOffset,time);
+                        }
+                    }
+                }
+            }
         }
     }
 }, "16n");
@@ -357,8 +642,8 @@ const synthPresets = [
     reverb: [0,0]},
 ];
 
-const acoustic = [kickAcoustic, snareAcoustic, closedHatAcoustic, openedHatAcoustic, highTomAcoustic, lowTomAcoustic, crashAcoustic];
-const subtle = [kickSubtle, snareSubtle, closedHatSubtle, openedHatSubtle, highTomSubtle, lowTomSubtle, crashSubtle];
+const acoustic = [new Tone.Buffer(kickAcoustic), new Tone.Buffer(snareAcoustic), new Tone.Buffer(closedHatAcoustic), new Tone.Buffer(openedHatAcoustic), new Tone.Buffer(highTomAcoustic), new Tone.Buffer(lowTomAcoustic), new Tone.Buffer(crashAcoustic)];
+const subtle = [new Tone.Buffer(kickSubtle), new Tone.Buffer(snareSubtle), new Tone.Buffer(closedHatSubtle), new Tone.Buffer(openedHatSubtle), new Tone.Buffer(highTomSubtle), new Tone.Buffer(lowTomSubtle), new Tone.Buffer(crashSubtle)];
 
 const drumPresets = [
     {name: "ACOUSTIC",
@@ -428,15 +713,17 @@ class Synth {
 
 class DrumSynth {
     constructor(kit) {
+        this.loaded = false;
 
         this.parts = [];
 
         this.fxChain = new FxChain();
 
         for (let i = 0; i < 7; i++) {
-            this.parts.push(new Tone.Player(kit[i]));
+            let part = new Tone.Player(kit[i]);
+            this.parts.push(part);
             this.parts[i].connect(this.fxChain.filter);
-        }
+        }      
     }
 }
 
@@ -459,6 +746,6 @@ function releaseAll() {
 // EXPORT DEFAULT
 // ---------------------------------------------------------------
 
-const synths = { setSession, exportLoopAudio, synthPresets, drumPresets, melody, harmony, bass, drums, releaseAll };
+const synths = { setSession, exportLoopAudio, exportStructAudio, synthPresets, drumPresets, melody, harmony, bass, drums, releaseAll };
 
 export default synths;
