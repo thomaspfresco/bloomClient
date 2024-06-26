@@ -1997,7 +1997,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.transposeButton.draw(p.windowWidth-p.windowWidth/4,auxY-p.windowHeight / 120);
 
       p.tint(255, 255/2);
-      if (p.mouseX > p.windowWidth/2-p.windowHeight/30/2 && p.mouseX < p.windowWidth/2+p.windowHeight/30/2 && p.mouseY > auxY-p.windowHeight/30/2 && p.mouseY < auxY+p.windowHeight/30/2 && dragging === false && menuOpened === false && session.loops.length > 0) {
+      if (p.mouseX > p.windowWidth/2-p.windowHeight/25/2 && p.mouseX < p.windowWidth/2+p.windowHeight/25/2 && p.mouseY > auxY-p.windowHeight/25/2 && p.mouseY < auxY+p.windowHeight/25/2 && dragging === false && menuOpened === false && session.loops.length > 0) {
         document.body.style.cursor = 'pointer';
         p.tint(255, 255);
 
@@ -2016,8 +2016,8 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.translate(p.windowWidth / 2, auxY);
       p.rotate(this.diceAngle);
       p.translate(-p.windowWidth / 2, -auxY);
-      if (this.sequence.length === 0) p.image(diceIcons[4], p.windowWidth / 2, auxY,p.windowHeight / 30+this.diceSizeOffset,p.windowHeight / 30+this.diceSizeOffset);
-      else p.image(diceIcons[this.sequence.length-1], p.windowWidth / 2, auxY,p.windowHeight / 30+this.diceSizeOffset,p.windowHeight / 30+this.diceSizeOffset);
+      if (this.sequence.length === 0) p.image(diceIcons[4], p.windowWidth / 2, auxY,p.windowHeight / 25+this.diceSizeOffset,p.windowHeight / 25+this.diceSizeOffset);
+      else p.image(diceIcons[this.sequence.length-1], p.windowWidth / 2, auxY,p.windowHeight / 25+this.diceSizeOffset,p.windowHeight / 25+this.diceSizeOffset);
       p.pop();
 
       if (this.diceAngle + this.diceAnginc > 4*p.PI) {
@@ -2025,7 +2025,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       } else {
         this.diceAngle += this.diceAnginc;
         this.diceAnginc *= 0.981;
-        this.diceSizeOffset *= 0.98;
+        this.diceSizeOffset *= 0.95;
       }
 
       //p.endShape();
