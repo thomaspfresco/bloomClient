@@ -10,6 +10,8 @@ License CreativeCommons Attribution: https://creativecommons.org/licenses/by-sa/
 License CreativeCommons Attribution:ehttps://creativecommons.org/licenses/by-sa/3.0
 */
 
+import audioBufferToWav from 'audiobuffer-to-wav';
+
 import obliqueStratagies from "../obliqueStratagies.js";
 import theory from "./theory.js";
 
@@ -45,6 +47,11 @@ import synths from './synths.js';
 
 import * as Tone from 'tone';
 import p5 from 'p5';
+
+let checkMicPermition = false;
+let recorderBlob;
+let recordedTempo = 0;
+let micLevelTune = 0;
 
 let fontLight, fontMedium, fontBold;
 let petal1, petal2, petal3, petal4;
@@ -123,7 +130,7 @@ let session;
 
 // --------------------------------------------------------------------------------------
 
-const sketch = (saveSession, sesh, setLoading) => (p) => {
+const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
   //PARTICLES--------------------------------------------------------------------------------------
 
@@ -351,6 +358,51 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           }
       }
       p.pop();
+    }
+
+    async resolveRecording() {
+      let audioBlob = await synths.recorder.stop();
+
+      // Convert the WebM Blob to ArrayBuffer
+      const arrayBuffer = await audioBlob.arrayBuffer();
+
+      // Create an AudioContext
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Decode the ArrayBuffer to an AudioBuffer
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+      // Convert the AudioBuffer to a WAV Blob
+      const wavBuffer = audioBufferToWav(audioBuffer);
+      recorderBlob = new Blob([wavBuffer], { type: 'audio/wav' });
+
+      recordedTempo = session.activeTab.tempoScroll.value;
+
+      // Create a URL for the Blob
+      //const url = URL.createObjectURL(wavBlob);
+      //const anchor = document.createElement("a");
+      //anchor.download = "recording.wav";
+      //anchor.href = url;
+      //anchor.click();
+
+      //const url = URL.createObjectURL(recording);
+      //const anchor = document.createElement("a");
+      //anchor.download = "recording.webm";
+      //anchor.href = url;
+      //anchor.click();
+
+      //let player = new Tone.Player(buffer).toDestination();
+      //const anchor = document.getElementById("export");
+      //anchor.download = "ai"+".wav";
+      //anchor.href = url;
+      //anchor.click();
+
+      //const arrayBuffer = await audioBlob.arrayBuffer();
+      //const buffer = new Tone.Buffer(arrayBuffer);
+
+
+      //recorderBlob = URL.createObjectURL(r);
+      //console.log(arrayBuffer);
     }
 
     draw() {
@@ -2024,7 +2076,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         this.diceAngle = 4*p.PI;
       } else {
         this.diceAngle += this.diceAnginc;
-        this.diceAnginc *= 0.981;
+        this.diceAnginc *= 0.98;
         this.diceSizeOffset *= 0.95;
       }
 
@@ -2077,6 +2129,9 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.studioOpa = 0;
       this.tabOpa = 0;
       this.emptyOpa = 0;
+
+      this.recordVisual = [];
+      for (let i=0; i<nSteps; i++) this.recordVisual.push(0);
       
       this.blackOpa1 = 255;
       this.blackOpa2 = 255;
@@ -2180,6 +2235,23 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       this.view = 0;
     }
 
+    async addTrackByMelody() {
+      let result = await basicPitch(recorderBlob,recordedTempo);
+      
+      this.addTrack("MELODY");
+
+      for (let n in result) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        //console.log(result[n].pitch, result[n].start, result[n].duration, result[n].octave);
+        let newNote = new Note(result[n].pitch, this.id, this.tracks.length - 1, result[n].start, result[n].duration, result[n].octave, this.tracks[this.tracks.length - 1].color);
+        this.tracks[this.tracks.length - 1].notes.push(newNote);
+        newNote.x = this.tracks[this.tracks.length - 1].targetXexp[newNote.start+1];
+        newNote.y = this.tracks[this.tracks.length - 1].targetYexp[newNote.start+1];
+        newNote.playShort();
+      }
+      //console.log(recorderData);
+    }
+
     /*updateMetronome() {
       if (p.millis() - this.lastInstant >= this.timeBtwSteps * 1000) {
         if (this.currentStep === nSteps-1) this.currentStep = 0;
@@ -2207,6 +2279,37 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           p.push();
           p.translate(0,0,-1);
           p.line(gridInitX+gridStepSizeX*i,gridInitY,gridInitX+gridStepSizeX*i,gridInitY+(gridStepSizeY * 11));
+          p.pop();
+        }
+      }
+    }
+
+    drawTimeBar() {
+      p.stroke(white[0]/5, white[1]/5, white[2]/5);
+      p.strokeWeight(1);
+      p.line(p.windowWidth-gridInitX,gridInitY+ (gridStepSizeY * 11),p.windowWidth-gridInitX,gridInitY+(gridStepSizeY * 11)+gridInitY/4);
+      for (let i = 0; i < nSteps ; i++) {
+        if (i%16 === 0 || i%4 === 0) {
+          p.strokeWeight(1);
+          if (i%16 === 0) p.stroke(white[0]/5, white[1]/5, white[2]/5);
+          else p.stroke(white[0]/8, white[1]/8, white[2]/8);
+          p.push();
+          p.translate(0,0,-1);
+          p.line(gridInitX+gridStepSizeX*i,gridInitY+ (gridStepSizeY * 11),gridInitX+gridStepSizeX*i,gridInitY+(gridStepSizeY * 11)+gridInitY/4);
+          p.pop();
+
+          p.textSize(p.windowHeight / 100);
+          p.textAlign(p.CENTER, p.CENTER);
+          p.noStroke();
+          p.fill(white[0], white[1], white[2]);
+          p.text(i,gridInitX+gridStepSizeX*i,gridInitY+(gridStepSizeY * 11)+gridInitY/8);
+          
+        } else {
+          p.strokeWeight(1);
+          p.stroke(white[0]/8, white[1]/8, white[2]/8);
+          p.push();
+          p.translate(0,0,-1);
+          p.line(gridInitX+gridStepSizeX*i,gridInitY+ (gridStepSizeY * 11),gridInitX+gridStepSizeX*i,gridInitY+(gridStepSizeY * 11)+gridInitY/8);
           p.pop();
         }
       }
@@ -2243,6 +2346,9 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
           //p.line(gridInitX + this.currentStep * gridStepSizeX, 0,gridInitX + this.currentStep * gridStepSizeX, p.windowHeight);
           p.line(gridInitX + this.currentStep * gridStepSizeX, gridInitY,gridInitX + this.currentStep * gridStepSizeX, gridInitY+gridStepSizeY*11);
         }
+
+        //timebar
+        this.drawTimeBar();
 
         //hover plus button
         if (p.mouseX > this.plusX && p.mouseX < this.plusX + iconSize && p.mouseY > this.plusY && p.mouseY < this.plusY + iconSize && dragging === false && menuOpened === false && this.tracks.length < maxTracks) {
@@ -4568,8 +4674,10 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
                   console.log("AKS TO THE SERVER");
                   this.close();
                 } else {
-                  console.log("REQUEST TO BASIC PITCH");
-                  this.close();
+                  synths.mic.open();
+                  session.loops[this.tabId].recordVisual.fill(0);
+                  this.state = 4;
+                  this.menuOpa = 0;
                 }
 
                 p.mouseIsPressed = false;
@@ -4604,9 +4712,6 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.textSize(p.windowHeight / 40);
       p.fill(white[0], white[1], white[2], this.menuOpa);
 
-      if (this.menuOpa + this.opaInc > 255) this.menuOpa = 255;
-      else this.menuOpa += this.opaInc;
-
       if(this.label === "loopMenu") {
         p.text('Are you sure you want to delete "'+session.loops[this.tabId].name+'"?', p.windowWidth/2, p.windowHeight/2 - p.windowHeight/20);
       } else if (this.label === "structMenu") {
@@ -4640,10 +4745,144 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
       p.text("DELETE", p.windowWidth/2+p.windowHeight/10, p.windowHeight/2 + p.windowHeight/20);
     }
 
+    recordingMenu() {
+
+      if (checkMicPermition === false) navigator.permissions.query({ name: 'microphone' }).then(function(result) { checkMicPermition = result.state === 'granted';});
+
+      if (checkMicPermition) {
+        if (synths.micMeter.getValue() < micLevelTune && synths.micMeter.getValue() !== -Infinity) {
+          micLevelTune = synths.micMeter.getValue();
+          console.log(micLevelTune);
+        }
+        //console.log(session.loops[this.tabId].recordVisual);
+
+        if (session.loops[this.tabId].currentStep >= 0 && session.loops[this.tabId].play) {
+          if (synths.recorder.state === "stopped") {
+            session.activeTab.recordVisual.fill(0);
+            synths.recorder.start();
+          }
+          session.loops[this.tabId].recordVisual[session.loops[this.tabId].currentStep] = p.abs(micLevelTune) - p.abs(synths.micMeter.getValue());
+          //console.log(session.loops[this.tabId].recordVisual);
+        }
+
+        if (session.loops[this.tabId].currentStep >= nSteps-1 && session.loops[this.tabId].play) {
+          session.loops[this.tabId].play = false;
+          Tone.Transport.stop();
+          synths.releaseAll();
+          session.resolveRecording();
+        }
+
+        for (let i = 0; i < session.loops[this.tabId].recordVisual.length; i++) {
+          if (i < session.loops[this.tabId].currentStep && session.loops[this.tabId].play || synths.recorder.state === "stopped") {
+            let mapping = p.map(session.loops[this.tabId].recordVisual[i], 0, p.abs(micLevelTune), gridStepSizeX/8, gridStepSizeY*3);
+            if (session.loops[this.tabId].recordVisual[i] === 0) mapping = 0;
+            if (synths.recorder.state === "stopped") p.fill(white[0], white[1], white[2], 255/2);
+            else p.fill(225, 0, 0, 255/2);
+            p.rect(gridInitX + gridStepSizeX * i, p.windowHeight/2-mapping/2, gridStepSizeX/4, mapping);
+          }
+        }
+
+        let auxY = p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2;
+        let auxX = (p.windowWidth - gridInitX*2 - p.windowWidth/150*7)/8/2;
+
+        p.textSize(p.windowHeight / 65);
+        p.textAlign(p.CENTER, p.BOTTOM);
+        if (session.loops[this.tabId].click.state) p.fill(white[0], white[1], white[2]);
+        else p.fill(white[0], white[1], white[2], 255/2);
+        p.text("CLICK",gridInitX + auxX*3+p.windowWidth/150*1,auxY+p.windowHeight / 40);
+
+        p.push();
+        p.translate(0,0,p.windowHeight/60);
+        session.loops[this.tabId].tempoScroll.draw(gridInitX + auxX,auxY);
+        session.loops[this.tabId].click.draw(gridInitX + auxX*3+p.windowWidth/150*1,auxY-p.windowHeight / 120);
+        p.pop();
+        
+        p.textAlign(p.CENTER, p.BOTTOM);
+        p.textFont(fontLight);
+        p.textSize(p.windowHeight / 50);
+        p.fill(white[0], white[1], white[2], this.menuOpa/2);
+        
+        if (session.loops[this.tabId].play) {
+          if (session.loops[this.tabId].currentStep >= 0) p.text('Recording...', p.windowWidth/2,p.windowHeight/2 + p.windowHeight/8*1.8);
+          else {
+            let count = p.abs(p.floor(session.loops[this.tabId].currentStep/4));
+            p.text('Recording starts in '+count, p.windowWidth/2,p.windowHeight/2 + p.windowHeight/8*1.8);
+          }
+
+        } else {
+          if (session.loops[this.tabId].recordVisual[0] === 0) p.text('Press "spacebar" to start recording', p.windowWidth/2,p.windowHeight/2 + p.windowHeight/8*1.8);
+          else p.text('Press "spacebar" to record again', p.windowWidth/2,p.windowHeight/2 + p.windowHeight/8*1.8);
+        }
+
+        p.textAlign(p.CENTER, p.TOP);
+        p.textSize(p.windowHeight / 50);
+        p.text("Sing/hum a Melody", p.windowWidth/2, p.windowHeight/2 - p.windowHeight/8*1.8);
+
+        //let textWidth = p.textWidth("SING/HUM A ")/2+p.textWidth("MELODY")/2;
+
+        /*p.fill(white[0], white[1], white[2], this.menuOpa);
+        p.text("SING/HUM A ", p.windowWidth/2-textWidth/2, p.windowHeight/2 - p.windowHeight/8*1.8);
+        
+        let c = colors[3];
+        
+        p.fill(c[0],c[1],c[2], this.menuOpa);
+        p.text(this.lastOption, p.windowWidth/2-textWidth/2+p.textWidth("SING/HUM A ")/2+p.textWidth("MELODY")/2, p.windowHeight/2 - p.windowHeight/8*1.8);*/
+
+        p.textAlign(p.RIGHT, p.CENTER);
+        
+        p.textSize(p.windowHeight / 50);
+        
+        if (p.mouseX > p.windowWidth - gridInitX*6-p.textWidth("CANCEL") && p.mouseX < p.windowWidth - gridInitX*6 && p.mouseY > auxY-p.windowHeight / 50 /1.5 && p.mouseY < auxY + p.windowHeight / 50 /1.5) {
+          if (session.loops[this.tabId].play) {
+            document.body.style.cursor = 'not-allowed';
+            p.fill(white[0], white[1], white[2], this.menuOpa/2);
+          } else {
+            document.body.style.cursor = 'pointer';
+            p.fill(white[0], white[1], white[2], this.menuOpa);
+
+            if (p.mouseIsPressed) {
+              synths.mic.close();
+              this.close();
+              p.mouseIsPressed = false;
+            }
+          }
+
+        } else p.fill(white[0], white[1], white[2], this.menuOpa/2);
+        
+        p.text("CANCEL", p.windowWidth - gridInitX*6, auxY);
+
+        p.textSize(p.windowHeight / 40);
+        p.textFont(fontMedium);
+
+        if (p.mouseX > p.windowWidth - gridInitX*2-p.textWidth("GENERATE") && p.mouseX < p.windowWidth - gridInitX*2 && p.mouseY > auxY-p.windowHeight / 40 /1.5 && p.mouseY < auxY + p.windowHeight / 40 /1.5) {
+          if (session.loops[this.tabId].recordVisual[0] === 0 || session.loops[this.tabId].play) {
+            document.body.style.cursor = 'not-allowed';
+            p.fill(white[0], white[1], white[2], this.menuOpa/3);
+          } else {
+            document.body.style.cursor = 'pointer';
+            p.fill(colors[3][0], colors[3][1], colors[3][2], this.menuOpa);
+
+            if (p.mouseIsPressed) {
+              this.close();
+              synths.mic.close();
+              session.loops[this.tabId].addTrackByMelody();
+              p.mouseIsPressed = false;
+            }
+          }
+        } else p.fill(white[0], white[1], white[2], this.menuOpa/3);
+
+
+        p.text("GENERATE", p.windowWidth - gridInitX*2, auxY);  
+      }
+    }
+
     draw(x,y) {
       //update responsive
       this.optionW = this.getWidestOption();
       this.optionH = p.windowHeight / 30;
+
+      if (this.menuOpa + this.opaInc > 255) this.menuOpa = 255;
+      else this.menuOpa += this.opaInc;
 
       p.noStroke();
       p.fill(0, 0, 0, this.dark);
@@ -4677,13 +4916,14 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         else if (this.state === 1) this.drawModeOptions();
         else if (this.state === 2) this.drawSelection();
         else if (this.state === 3) this.confirmDelete();
+        else if (this.state === 4) this.recordingMenu();
 
-        if (p.mouseX < x || p.mouseX > x + this.optionW || p.mouseY < y  -this.optionH*2 - (this.options.length-1) * this.optionH || p.mouseY > y  -this.optionH*2 + this.optionH) {
-          if (p.mouseIsPressed) {
-            this.close();
-            p.mouseIsPressed = false;
-          }
+        //if (p.mouseX < x || p.mouseX > x + this.optionW || p.mouseY < y  -this.optionH*2 - (this.options.length-1) * this.optionH || p.mouseY > y  -this.optionH*2 + this.optionH) {
+        if (p.mouseIsPressed && this.state !== 4) {
+          this.close();
+          p.mouseIsPressed = false;
         }
+        //}
       }
     }
   }
@@ -4844,13 +5084,15 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         p.fill(this.color[0], this.color[1], this.color[2],this.opa);
         p.circle(x, y, this.radius/1.8);
         if (this.label === "CLICK" && session.activeTab.play) {
-          let c = session.activeTab.selectedTrack.color;
+          let c;
+          if (session.activeTab.plusMenu.state === 4) c = colors[3];
+          else c = session.activeTab.selectedTrack.color;
           p.fill(c[0], c[1], c[2],this.clickOpa);
           p.circle(x, y, this.radius/1.8);
         }
       }
 
-      if (p.mouseX > x -this.radius/2 && p.mouseX < x+this.radius/2 && p.mouseY > y -this.radius/2 && p.mouseY < y +this.radius/2  && dragging === false && menuOpened === false) {
+      if (p.mouseX > x -this.radius/2 && p.mouseX < x+this.radius/2 && p.mouseY > y -this.radius/2 && p.mouseY < y +this.radius/2  && dragging === false && (menuOpened === false || menuOpened === true && session.activeTab.type === "loop" && session.activeTab.plusMenu.state === 4)) {
         document.body.style.cursor = 'pointer';
 
         this.hover = true;
@@ -4957,7 +5199,7 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
 
       p.push();
       if (p.mouseX > x - this.w/2 && p.mouseX < x+this.w/2 && p.mouseY > y -this.h/2 && p.mouseY < y +this.h/2
-        && dragging === false && menuOpened === false) {
+        && dragging === false && (menuOpened === false || menuOpened === true && session.activeTab.type === "loop" && session.activeTab.plusMenu.state === 4)) {
 
           if (this.opa + 15 < 255) this.opa += 15;
           else this.opa = 255;
@@ -5200,6 +5442,23 @@ const sketch = (saveSession, sesh, setLoading) => (p) => {
         Tone.Transport.start();
       }
     }
+
+    if (p.key === ' ' && menuOpened && checkMicPermition) {
+      if (session.activeTab.type === "loop" && session.activeTab.plusMenu.state === 4) {
+        if (session.activeTab.play) { 
+          session.activeTab.play = false;
+          Tone.Transport.stop();
+          synths.releaseAll();
+          if (synths.recorder.state !== "stopped") session.resolveRecording();
+        } else {
+          session.activeTab.currentStep = -17;
+          session.activeTab.play = true;
+          Tone.Transport.start();
+        }
+      }
+
+    }
+
     if (p.keyCode === p.BACKSPACE) {
       if (session.loopDrawer) loopSearch = loopSearch.slice(0, -1);
       else if (session.structDrawer) structSearch = structSearch.slice(0, -1);

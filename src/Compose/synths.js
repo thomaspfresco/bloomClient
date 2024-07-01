@@ -132,8 +132,14 @@ function onDeviceInput({ note, vel }) {
 
 
 // ---------------------------------------------------------------
-// EXPORT
+// AUDIO RECORDER
 // ---------------------------------------------------------------
+
+let mic = new Tone.UserMedia();
+let micMeter = new Tone.Meter();
+let recorder = new Tone.Recorder(); 
+mic.connect(micMeter);
+micMeter.connect(recorder);
 
 /*const context  = Tone.context;
 const renderDest  = context.createMediaStreamDestination();
@@ -262,6 +268,10 @@ const chunks = [];*/
         setLoading(false);
     });
 }*/
+
+// ---------------------------------------------------------------
+// EXPORT
+// ---------------------------------------------------------------
 
 function exportLoopAudio(p,loop,setLoading) {
 
@@ -746,6 +756,6 @@ function releaseAll() {
 // EXPORT DEFAULT
 // ---------------------------------------------------------------
 
-const synths = { setSession, exportLoopAudio, exportStructAudio, synthPresets, drumPresets, melody, harmony, bass, drums, releaseAll };
+const synths = { setSession, exportLoopAudio, exportStructAudio, synthPresets, drumPresets, melody, harmony, bass, drums, releaseAll, mic, micMeter, recorder };
 
 export default synths;

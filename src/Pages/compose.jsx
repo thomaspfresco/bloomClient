@@ -33,6 +33,33 @@ function Compose() {
     }, 200); // Adjust the delay as needed
   };*/
 
+  const basicPitch = async (recorderBlob,recordedTempo) => {
+    setLoading(true); 
+
+    const formData = new FormData();
+    formData.append('file', recorderBlob, 'recording.wav'); // 'file' is the key that Flask will expect
+
+    const token = window.localStorage.getItem("token");
+
+    try {
+      const response = await axios.post(window.serverLink+'/basicpitch', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        params: {
+          token: token,
+          tempo: recordedTempo
+        }
+      });
+      setLoading(false); 
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading files:', error);
+    }
+  };
+
+
+
   const saveSession = async (session) => {
 
     const token = window.localStorage.getItem("token");
@@ -90,7 +117,7 @@ function Compose() {
   useEffect(() => {
     loadSession().then((sesh) => {
       if (!loading && !p5InstanceRef.current) {
-        p5InstanceRef.current = new p5(sketch(saveSession,sesh,setLoading), p5ContainerRef.current);
+        p5InstanceRef.current = new p5(sketch(saveSession,sesh,setLoading,basicPitch), p5ContainerRef.current);
       }
     }).catch((error) => {
       console.error('Error:', error);
