@@ -123,7 +123,8 @@ let marginX;
 let iconSize;
 let iconCorners;
 
-let colors = [[100,50,100],[210,70,90],[235,160,80],[30,120,80]]; //purple, pink, yellow, green
+//let colors = [[100,50,100],[210,70,90],[235,160,80],[30,120,80]]; //purple, pink, yellow, green
+let colors = [[10,90,180],[220,0,85],[250,160,25],[5,160,95]]; //blue, pink, yellow, green
 let white = [255,245,220]; //white
 
 let session;
@@ -2022,7 +2023,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         }
       }
 
-      let auxY = p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2;
+      let auxY = p.windowHeight-gridInitY/1.25;
       let auxX = (p.windowWidth - gridInitX*2 - p.windowWidth/150*7)/8/2;
 
       //p.stroke(255,0,0);
@@ -2136,6 +2137,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.blackOpa1 = 255;
       this.blackOpa2 = 255;
       this.blackOpa3 = 0;
+      this.blackOpa4 = 0;
 
       this.tempoScroll = new Scrollable("TEMPO",tempo,20,400,"BPM",1,5);
       // = new Scrollable("TRANSPOSE",0,-12,12,"ST",1,1);
@@ -2285,32 +2287,74 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
     }
 
     drawTimeBar() {
-      p.stroke(white[0]/5, white[1]/5, white[2]/5);
+      p.stroke(white[0]/4, white[1]/4, white[2]/4);
       p.strokeWeight(1);
-      p.line(p.windowWidth-gridInitX,gridInitY+ (gridStepSizeY * 11),p.windowWidth-gridInitX,gridInitY+(gridStepSizeY * 11)+gridInitY/4);
+      p.line(p.windowWidth-gridInitX,gridInitY+ (gridStepSizeY * 11)+gridInitY/4,p.windowWidth-gridInitX,gridInitY+(gridStepSizeY * 11)+gridInitY/4+gridInitY/5);  
+
+      p.noStroke();
+      p.fill(white[0], white[1], white[2],255/3);
+      p.textSize(p.windowHeight / 90);
+      p.textAlign(p.CENTER, p.CENTER);
+      p.text(nSteps,p.windowWidth-gridInitX,gridInitY+(gridStepSizeY * 11)+gridInitY/4+gridInitY/3.2);
+
+      /*p.textSize(p.windowHeight / 90);
+      p.textAlign(p.CENTER, p.CENTER);
+      p.noStroke();
+      p.fill(white[0], white[1], white[2],255/2);
+      p.text(nSteps,p.windowWidth-gridInitX,gridInitY+(gridStepSizeY * 11)+gridInitY/4+gridInitY/5/2);*/
+
       for (let i = 0; i < nSteps ; i++) {
         if (i%16 === 0 || i%4 === 0) {
           p.strokeWeight(1);
-          if (i%16 === 0) p.stroke(white[0]/5, white[1]/5, white[2]/5);
-          else p.stroke(white[0]/8, white[1]/8, white[2]/8);
-          p.push();
-          p.translate(0,0,-1);
-          p.line(gridInitX+gridStepSizeX*i,gridInitY+ (gridStepSizeY * 11),gridInitX+gridStepSizeX*i,gridInitY+(gridStepSizeY * 11)+gridInitY/4);
-          p.pop();
 
-          p.textSize(p.windowHeight / 100);
-          p.textAlign(p.CENTER, p.CENTER);
+          if (this.currentStep === i && this.play) p.stroke(white[0], white[1], white[2]);
+          else {
+            if (i%16 === 0) p.stroke(white[0]/4, white[1]/4, white[2]/4);
+            else p.stroke(white[0]/8, white[1]/8, white[2]/8);
+          }
+
+          //p.strokeWeight(1);
+          //.stroke(white[0]/8, white[1]/8, white[2]/8);
+
+          p.line(gridInitX+gridStepSizeX*i,gridInitY+ (gridStepSizeY * 11)+gridInitY/4,gridInitX+gridStepSizeX*i,gridInitY+(gridStepSizeY * 11)+gridInitY/4+gridInitY/5);
+
           p.noStroke();
-          p.fill(white[0], white[1], white[2]);
-          p.text(i,gridInitX+gridStepSizeX*i,gridInitY+(gridStepSizeY * 11)+gridInitY/8);
+          p.fill(white[0], white[1], white[2],255/3);
+          p.textSize(p.windowHeight / 90);
+          p.textAlign(p.CENTER, p.CENTER);
+          p.text(i,gridInitX+gridStepSizeX*i,gridInitY+(gridStepSizeY * 11)+gridInitY/4+gridInitY/3.2);
           
         } else {
           p.strokeWeight(1);
-          p.stroke(white[0]/8, white[1]/8, white[2]/8);
-          p.push();
-          p.translate(0,0,-1);
-          p.line(gridInitX+gridStepSizeX*i,gridInitY+ (gridStepSizeY * 11),gridInitX+gridStepSizeX*i,gridInitY+(gridStepSizeY * 11)+gridInitY/8);
-          p.pop();
+          if (this.currentStep === i && this.play) p.stroke(white[0], white[1], white[2]);
+          else p.stroke(white[0], white[1], white[2],255/8);
+          //p.push();
+          //p.translate(0,0,-1);
+          p.line(gridInitX+gridStepSizeX*i,gridInitY+ (gridStepSizeY * 11)+gridInitY/4 +gridInitY/5/8,gridInitX+gridStepSizeX*i,gridInitY+(gridStepSizeY * 11)+gridInitY/4+gridInitY/5/8*7);
+          //p.pop();
+        }
+      }
+
+      if (p.mouseY > gridInitY+ (gridStepSizeY * 11)+gridInitY/4 && p.mouseY < gridInitY+(gridStepSizeY * 11)+gridInitY/4+gridInitY/3.5 && p.mouseX > gridInitX-gridStepSizeX/2 && p.mouseX < p.windowWidth-gridInitX+gridStepSizeX/2 && dragging === false && menuOpened === false) {
+        document.body.style.cursor = 'pointer';
+        //p.fill(white[0], white[1], white[2],255/8);
+        //p.rect(gridInitX+gridStepSizeX*i,gridInitY+ (gridStepSizeY * 11)+gridInitY/4,gridStepSizeX,gridInitY/5);
+        if (p.mouseIsPressed) {
+          Tone.Transport.stop();
+          Tone.Transport.position = 0;
+          
+          let step = p.round((p.mouseX-gridInitX)/gridStepSizeX);
+          if (step >= 0 && step < nSteps) {
+            
+            this.currentStep = step-1;
+
+            synths.releaseAll();
+
+            this.play = true;
+            Tone.Transport.start();  
+            
+          }
+          p.mouseIsPressed = false;
         }
       }
     }
@@ -2348,7 +2392,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         }
 
         //timebar
-        this.drawTimeBar();
+        if (session.activeTab.selectedTrack !== null) this.drawTimeBar();
 
         //hover plus button
         if (p.mouseX > this.plusX && p.mouseX < this.plusX + iconSize && p.mouseY > this.plusY && p.mouseY < this.plusY + iconSize && dragging === false && menuOpened === false && this.tracks.length < maxTracks) {
@@ -2376,7 +2420,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           else if (this.view === 1) this.selectedTrack.drawStudio();
           else this.selectedTrack.drawAutomation();
 
-          let auxY = p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2;
+          let auxY = p.windowHeight-gridInitY/1.25;
           let auxX = (p.windowWidth - gridInitX*2 - p.windowWidth/150*7)/8/2;
           this.tempoScroll.draw(gridInitX + auxX,auxY);
           p.textSize(p.windowHeight / 65);
@@ -2405,7 +2449,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         //p.strokeWeight(1);
         //p.rect(this.plusX, this.plusY, iconSize, iconSize, iconCorners);
 
-        let y = p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2;
+        //let y = p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2;
+        let y = p.windowHeight-gridInitY/1.25;
 
         //track view buttons
         if (this.selectedTrack !== null) {
@@ -2459,6 +2504,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           else this.blackOpa2 -= this.opaPlusInc;
           if (this.blackOpa3 - this.opaPlusInc < 0) this.blackOpa3 = 0;
           else this.blackOpa3 -= this.opaPlusInc;
+          if (this.blackOpa4 - this.opaPlusInc < 0) this.blackOpa4 = 0;
+          else this.blackOpa4 -= this.opaPlusInc;
         }
 
         //complementary black anim transition
@@ -2469,7 +2516,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         p.fill(0, 0, 0, this.blackOpa2);
         p.rect(p.windowWidth-p.windowWidth/16*2.5-p.windowWidth/16*3.5, p.windowHeight-gridInitY*1.2,p.windowWidth/16*3.5,gridInitY*1.2);
         p.fill(0, 0, 0, this.blackOpa3);
-        p.rect(0, gridInitY-p.windowHeight/100, p.windowWidth, p.windowHeight-gridInitY*2.2);
+        p.rect(0, gridInitY-p.windowHeight/100, p.windowWidth, gridStepSizeY*11+gridStepSizeY/2-p.windowHeight/100);
+        p.fill(0, 0, 0, this.blackOpa4);
+        p.rect(0, gridInitY+gridStepSizeY*11+gridStepSizeY/4, p.windowWidth, gridInitY/2);
 
         //black anim transition
         p.fill(0, 0, 0, this.blackoutOpa);
@@ -2912,7 +2961,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
       }
       
-      this.octaveScroll.draw(p.windowWidth/4*2.8,p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2);
+      this.octaveScroll.draw(p.windowWidth/4*2.8,p.windowHeight-gridInitY/1.25);
     }
 
     //check if there is a note in the same position
@@ -2998,14 +3047,14 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
 
       //param scroll
-      this.automationScroll.draw(p.windowWidth/4*2.8,p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2);
+      this.automationScroll.draw(p.windowWidth/4*2.8,p.windowHeight-gridInitY/1.25);
       /*if (this.presetScroll.value !== this.preset) {
         this.preset = this.presetScroll.value;
         if (this.name === "DRUMS") this.switchPreset(synths.drumPresets[this.preset]);
         else this.switchPreset(synths.synthPresets[this.preset]);
       }*/
 
-      if (p.mouseX >= gridInitX-gridStepSizeX/2 && p.mouseX < gridInitX + gridStepSizeX * (nSteps-1)+gridStepSizeX/2 && p.mouseY > gridInitY-gridStepSizeX && p.mouseY < gridInitY + (gridStepSizeY * 11)+gridStepSizeX && session.loopDrawer === false && session.structDrawer === false && menuOpened === false) {
+      if (p.mouseX >= gridInitX-gridStepSizeX/2 && p.mouseX < gridInitX + gridStepSizeX * (nSteps-1)+gridStepSizeX/2 && p.mouseY > gridInitY-gridStepSizeX/2 && p.mouseY < gridInitY + (gridStepSizeY * 11)+gridStepSizeX/2 && session.loopDrawer === false && session.structDrawer === false && menuOpened === false) {
         let posX = p.round((p.mouseX-gridInitX)/gridStepSizeX);
         let aux = p.map(this.knobs[this.automationScroll.value][1].automation[posX],0,1,gridInitY+(gridStepSizeY*11),gridInitY);
 
@@ -3047,8 +3096,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           else p.text(text,gridInitX+posX*gridStepSizeX+gridStepSizeX,aux - gridStepSizeX*1.4);
           p.textFont(fontLight);
           p.textSize(p.windowHeight / 65);
-          if (dragging) p.text("STEP "+(posX+1), gridInitX+posX*gridStepSizeX+gridStepSizeX, p.mouseY-gridStepSizeX*1.4-p.windowHeight / 50);
-          else p.text("STEP "+(posX+1), gridInitX+posX*gridStepSizeX+gridStepSizeX, aux-gridStepSizeX*1.4-p.windowHeight / 50);
+          if (dragging) p.text("STEP "+posX, gridInitX+posX*gridStepSizeX+gridStepSizeX, p.mouseY-gridStepSizeX*1.4-p.windowHeight / 50);
+          else p.text("STEP "+posX, gridInitX+posX*gridStepSizeX+gridStepSizeX, aux-gridStepSizeX*1.4-p.windowHeight / 50);
         } else {
 
           p.textAlign(p.RIGHT, p.CENTER);
@@ -3058,8 +3107,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           else p.text(text,gridInitX+posX*gridStepSizeX-gridStepSizeX,aux - gridStepSizeX*1.4);
           p.textFont(fontLight);
           p.textSize(p.windowHeight / 65);
-          if (dragging) p.text("STEP "+(posX+1), gridInitX+posX*gridStepSizeX-gridStepSizeX, p.mouseY-gridStepSizeX*1.4-p.windowHeight / 50);
-          else p.text("STEP "+(posX+1), gridInitX+posX*gridStepSizeX-gridStepSizeX, aux-gridStepSizeX*1.4-p.windowHeight / 50);
+          if (dragging) p.text("STEP "+posX, gridInitX+posX*gridStepSizeX-gridStepSizeX, p.mouseY-gridStepSizeX*1.4-p.windowHeight / 50);
+          else p.text("STEP "+posX, gridInitX+posX*gridStepSizeX-gridStepSizeX, aux-gridStepSizeX*1.4-p.windowHeight / 50);
         }
         p.pop();
 
@@ -3108,7 +3157,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       p.rect(gridInitX + p.windowWidth/9/2 + studioGap/2,gridInitY+studioGap + auxY +5*studioGap + gridStepSizeY*(12-1) - studioGap - auxY-13*studioGap,studioGap*2,barRightHeight);
 
       //preset scroll
-      this.presetScroll.draw(p.windowWidth/4*2.8,p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2);
+      this.presetScroll.draw(p.windowWidth/4*2.8,p.windowHeight-gridInitY/1.25);
       if (this.presetScroll.value !== this.preset) {
         this.preset = this.presetScroll.value;
         if (this.name === "DRUMS") this.switchPreset(synths.drumPresets[this.preset]);
@@ -3728,7 +3777,10 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         if (p.mouseIsPressed) {
           if (p.mouseButton === p.LEFT) {
             if (session.activeTab.selectedTrack !== this) {
-              if (session.activeTab.selectedTrack === null) session.loops[this.loopId].blackOpa1 = 255;
+              if (session.activeTab.selectedTrack === null) {
+                session.loops[this.loopId].blackOpa1 = 255;
+                session.loops[this.loopId].blackOpa4 = 255;
+              }
               session.loops[this.loopId].blackOpa2 = 255;
               session.loops[this.loopId].blackOpa3 = 255;
               session.activeTab.selectedTrack = this;
@@ -3971,8 +4023,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         else p.text(theory.noteLabels[this.pitch] + this.octave, this.x+gridStepSizeX, this.y-gridStepSizeX*1.4);
         p.textFont(fontLight);
         p.textSize(p.windowHeight / 65);
-        if (this.duration === 1) p.text("STEP "+(this.start+1), this.x+gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
-        else p.text("STEP "+(this.start+1)+"-"+(this.start+this.duration), this.x+gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
+        if (this.duration === 1) p.text("STEP "+(this.start), this.x+gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
+        else p.text("STEP "+(this.start)+"-"+(this.start+this.duration), this.x+gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
         //p.fill(this.color[0], this.color[1], this.color[2], this.opaInfo);
         //p.text(session.activeTab.tracks[this.trackId].name, this.x+gridStepSizeX, this.y-gridStepSizeX*1.4+p.windowHeight / 42);
       } else {
@@ -3983,8 +4035,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         else p.text(theory.noteLabels[this.pitch] + this.octave, this.x-gridStepSizeX, this.y-gridStepSizeX*1.4);
         p.textFont(fontLight);
         p.textSize(p.windowHeight / 65);
-        if (this.duration === 1) p.text("STEP "+(this.start+1), this.x-gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
-        else p.text("STEP "+(this.start+1)+"-"+(this.start+this.duration), this.x-gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
+        if (this.duration === 1) p.text("STEP "+(this.start), this.x-gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
+        else p.text("STEP "+(this.start)+"-"+(this.start+this.duration), this.x-gridStepSizeX, this.y-gridStepSizeX*1.4-p.windowHeight / 50);
         //p.fill(this.color[0], this.color[1], this.color[2], this.opaInfo);
         //p.text(session.activeTab.tracks[this.trackId].name, this.x-gridStepSizeX, this.y-gridStepSizeX*1.4+p.windowHeight / 42);
       }
@@ -4579,19 +4631,21 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
               for (let j = 0; j < this.nOptions; j++) if (j !== i) this.optionsOpa[j] = 50;
 
-              if (p.mouseIsPressed && notAllowed === false) {
+              if (p.mouseIsPressed) {
                 //session.activeTab.addTrack(this.options[i]);
                 //this.reset();
-                if (this.label === "plusMenu") {
-                  this.lastOption = this.options[i];
-                  this.menuOpa = 0;
-                  this.state = 1;
-                } else if (this.label === "trackMenu") {
-                  switch (this.options[i]) {
-                    case "DELETE":
-                      this.state = 3;
-                      this.menuOpa = 0;
-                      break;
+                if (notAllowed === false) {
+                  if (this.label === "plusMenu") {
+                    this.lastOption = this.options[i];
+                    this.menuOpa = 0;
+                    this.state = 1;
+                  } else if (this.label === "trackMenu") {
+                    switch (this.options[i]) {
+                      case "DELETE":
+                        this.state = 3;
+                        this.menuOpa = 0;
+                        break;
+                    }
                   }
                 }
                 p.mouseIsPressed = false;
@@ -4782,7 +4836,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           }
         }
 
-        let auxY = p.windowHeight - (p.windowHeight - (gridInitY + gridStepSizeY * 11))/2;
+        let auxY = p.windowHeight-gridInitY/1.25;
         let auxX = (p.windowWidth - gridInitX*2 - p.windowWidth/150*7)/8/2;
 
         p.textSize(p.windowHeight / 65);
@@ -5399,9 +5453,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
     iconSize = p.windowHeight / 15;
     iconCorners = p.windowHeight / 100;
     gridStepSizeX = (p.windowWidth - p.windowHeight / 30 * 3) / (nSteps);
-    gridStepSizeY = ((p.windowHeight - p.windowHeight / 30) * 4.3) / (nSteps - 1);
+    gridStepSizeY = ((p.windowHeight - p.windowHeight / 30) * 4.15) / (nSteps - 1);
     gridInitX = p.windowWidth / 2 - gridStepSizeX * (nSteps) / 2;
-    gridInitY = p.windowHeight / 2 - (gridStepSizeY * 11.9) / 2;
+    gridInitY = p.windowHeight / 2 - (gridStepSizeY * 12.5) / 2;
     playSize1 = p.windowHeight/150;
     playSize2 = p.windowHeight/100;
 
@@ -5414,6 +5468,16 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
     p.pop();
 
     session.draw();
+
+    /*if (session.activeTab !== null) {
+      if (dragging === false && menuOpened === false && document.body.style.cursor === 'default') {
+        if (p.mouseIsPressed) {
+          if (session.activeTab.type === "loop") session.activeTab.selectedTrack = null;
+          p.mouseIsPressed = false;
+        }
+      }
+    }*/
+
     //p.fill(255, 255, 255);
     //p.circle(p.mouseX, p.mouseY, 10, 10); 
     //let bbox = calculateBoundingBox(petal1);
