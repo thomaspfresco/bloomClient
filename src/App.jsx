@@ -1,5 +1,5 @@
 import {BrowserRouter, Routes, Route} from 'react-router-dom'
-import Home from './Pages/home'
+import Upload from './Pages/upload'
 import Compose from './Pages/compose'
 import About from './Pages/about'
 import Help from './Pages/help'
@@ -15,8 +15,8 @@ function App() {
   return (
     <BrowserRouter>
     <Routes>
-      <Route index element={<Home/>}/>
-      <Route path="/compose" element={<Compose/>}/>
+      <Route index element={<Compose/>}/>
+      <Route path="/upload" element={<Upload/>}/>
       <Route path="/about" element={<About/>}/>
       <Route path="/help" element={<Help/>}/>
       <Route path="*" element={<NoPage/>}/>

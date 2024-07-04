@@ -45,8 +45,14 @@ import petalOBJ4 from '../Assets/petal4.obj';
 
 import synths from './synths.js';
 
+//import { stringify } from 'flatted';
 import * as Tone from 'tone';
 import p5 from 'p5';
+
+let saveDebounceInstant = 0;
+let saveDebounceDelay = 5000;
+let saving = false;
+let sessionToSave = {};
 
 let checkMicPermition = false;
 let recorderBlob;
@@ -247,21 +253,84 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
   }
 
   function initLoadedSesh() {
+    //console.log(sesh);
     session = new Session();
-    for (let i = 0; i < sesh.loops.length; i++) {
-      let loop = new Loop(sesh.loops[i].id, sesh.loops[i].name, sesh.loops[i].tempo);
-      for (let j = 0; j < sesh.loops[i].tracks.length; j++) {
-        let track = new Track(sesh.loops[i].tracks[j].id, sesh.loops[i].id, sesh.loops[i].tracks[j].name, sesh.loops[i].tracks[j].iconTargetX);
-        for (let k = 0; k < sesh.loops[i].tracks[j].timeline.length; k++) {
-          for (let l = 0; l < sesh.loops[i].tracks[j].timeline[k].length; l++) {
-            let note = new Note(sesh.loops[i].tracks[j].timeline[k][l].name, sesh.loops[i].id, sesh.loops[i].tracks[j].id, k, 1, sesh.loops[i].tracks[j].timeline[k][l].duration, sesh.loops[i].tracks[j].color);
-            track.timeline[k].push(note);
+
+    if (sesh !== undefined) {
+      for (let i in sesh.loops) {
+        let newLoop = new Loop(sesh.loops[i].id, sesh.loops[i].name, sesh.loops[i].tempo);
+        newLoop.tempoScroll.value = sesh.loops[i].tempo;
+        newLoop.click.state = sesh.loops[i].clickState;
+        newLoop.record.state = sesh.loops[i].recordState;
+
+        for (let j in sesh.loops[i].tracks) {
+          let newTrack = new Track(sesh.loops[i].tracks[j].id, sesh.loops[i].id, sesh.loops[i].tracks[j].name, sesh.loops[i].tracks[j].iconTargetX);
+
+          newTrack.gain = sesh.loops[i].tracks[j].gain;
+          newTrack.muted = sesh.loops[i].tracks[j].muted;
+
+          newTrack.automationScroll.value = sesh.loops[i].tracks[j].automationScrollValue;
+          newTrack.octaveScroll.value = sesh.loops[i].tracks[j].octaveScrollValue;
+          newTrack.presetScroll.value = sesh.loops[i].tracks[j].presetScrollValue;
+
+          newTrack.presetChanged = sesh.loops[i].tracks[j].presetChanged;
+
+          for (let k in sesh.loops[i].tracks[j].knobs) {
+            newTrack.knobs[k][1].value = sesh.loops[i].tracks[j].knobs[k].value;
+            newTrack.knobs[k][1].output = sesh.loops[i].tracks[j].knobs[k].output;
+            newTrack.knobs[k][1].automating = sesh.loops[i].tracks[j].knobs[k].automating;
+            newTrack.knobs[k][1].automation = sesh.loops[i].tracks[j].knobs[k].automation;
           }
+          
+          if (sesh.loops[i].tracks[j].name === "DRUMS") for (let b in newTrack.drumButtons) newTrack.drumButtons[b].state = sesh.loops[i].tracks[j].drumButtons[b].state;
+          else {
+            for (let b in newTrack.oscButtons) {
+              newTrack.oscButtons[b].state = sesh.loops[i].tracks[j].oscButtons[b].state;
+              newTrack.envButtons[b].state = sesh.loops[i].tracks[j].envButtons[b].state;
+            }
+          }
+
+          newTrack.filterButton.state = sesh.loops[i].tracks[j].filterButtonState;
+          newTrack.distButton.state = sesh.loops[i].tracks[j].distButtonState;
+          newTrack.dlyButton.state = sesh.loops[i].tracks[j].dlyButtonState;
+          newTrack.revButton.state = sesh.loops[i].tracks[j].revButtonState;
+
+          for (let n in sesh.loops[i].tracks[j].notes) {
+            let newNote = new Note(sesh.loops[i].tracks[j].notes[n].pitch, sesh.loops[i].id, sesh.loops[i].tracks[j].id, sesh.loops[i].tracks[j].notes[n].start, sesh.loops[i].tracks[j].notes[n].duration, sesh.loops[i].tracks[j].notes[n].octave, sesh.loops[i].tracks[j].notes[n].color);
+            newTrack.notes.push(newNote);
+          }
+          newLoop.tracks.push(newTrack);
         }
-        loop.tracks.push(track);
+        session.loops.push(newLoop);
       }
-      session.loops.push(loop);
+    
+      for (let i in sesh.structs) {
+        let newStruct = new Structure(sesh.structs[i].id, sesh.structs[i].name);
+
+        newStruct.tempoScroll.value = sesh.structs[i].tempo;
+        newStruct.transposeScroll.value = sesh.structs[i].transpose;
+        newStruct.tempoButton.state = sesh.structs[i].tempoButtonState;
+        newStruct.transposeButton.state = sesh.structs[i].transposeButtonState;
+
+        for (let j in sesh.structs[i].sequence) {
+          newStruct.sequence.push(session.copyLoop(session.loops[sesh.structs[i].sequence[j].loopId]));
+          newStruct.repeats.push(new Scrollable("REPEATS",sesh.structs[i].sequence[j].repeats,1,8,"x",1,1));
+          newStruct.menus.push(new Menu(newStruct.id, newStruct.sequence.length, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPDOWN"));
+          newStruct.angle.push(p.random(0,2*p.PI));
+          newStruct.angInc.push(p.random(0.01,0.02));
+          //newStruct.sequence[j].repeat = sesh.structs[i].sequence[j].repeat;
+          //newStruct.
+        }
+        session.structs.push(newStruct);
+      }
+
+      for (let i in sesh.tabs) {
+        if (sesh.tabs[i].type === "loop") session.tabs.push(session.loops[sesh.tabs[i].id]);
+        else session.tabs.push(session.structs[sesh.tabs[i].id]);
+      }
     }
+
+    //console.log("session loaded.");
   }
 
   //================================================================================================
@@ -288,7 +357,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.logMessage = "";
       this.logOpa = 0;
       this.logInstant = 0;
-      this.logDelay = 2000;
+      this.logDelay = 3000;
       this.showLog = false;
 
       for (let i = 0; i < this.maxTabs; i++) {
@@ -301,6 +370,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
       this.suggestionInstant = 0;
       this.suggestionIndex = p.floor(p.random(0, obliqueStratagies.length));
+      this.suggestionOpa = 0;
 
       this.loopDrawer = false;
       this.structDrawer = false;
@@ -316,6 +386,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.structsOpa = 0;
       this.drawersOpaInc = 15;
       this.drawersOpaMax = 255;
+
+      this.menu = new Menu(null, null, "sessionMenu", ["ABOUT","CLEAR SESSION"], "DROPDOWN");
     }
 
     alertLog(message) {
@@ -422,6 +494,21 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       }
       else this.activeTab.draw();
 
+      //draw log
+      this.drawLog();
+
+      //icons for drawers
+      //p.tint(255, 255/4);
+      //p.image(loopsIcon, p.windowWidth/100 +p.windowHeight / 60 /2 - p.windowHeight / 25*2+this.loopsOffset*2, p.windowHeight/2, p.windowHeight / 60, p.windowHeight / 60);
+      //p.tint(255, 255/4);
+      //p.image(structsIcon, p.windowWidth - p.windowHeight/30 - p.windowHeight / 35 / 2 + this.structsOffset,  p.windowHeight/2, p.windowHeight / 60, p.windowHeight / 60);
+      /*p.push();
+      p.fill(0);
+      p.circle(p.windowWidth / 80, p.windowHeight / 2, p.windowHeight / 100);
+      p.fill(white[0], white[1], white[2],255/2);
+      p.circle(p.windowWidth / 80, p.windowHeight / 2, p.windowHeight / 150);
+      p.pop();*/
+
       //tab transition animation
       if (this.blackoutOpa - 10 < 0) this.blackoutOpa = 0;
       else this.blackoutOpa -= 10;
@@ -465,6 +552,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           this.manageTabs(this.loops[this.loops.length-1]);
           p.mouseIsPressed = false;
           Tone.Transport.stop();
+          Tone.Transport.seconds = 0;
           synths.releaseAll();
         }
       }
@@ -499,6 +587,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           this.manageTabs(this.structs[this.structs.length-1]);
           p.mouseIsPressed = false;
           Tone.Transport.stop();
+          Tone.Transport.seconds = 0;
           synths.releaseAll();
         }
       }
@@ -507,7 +596,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
       //drawers trigger
       if (this.loopDrawer === false && this.structDrawer === false) {
-        if (p.mouseX < p.windowWidth / 100 && dragging === false && menuOpened === false) {
+        if (((p.mouseX < p.windowWidth / 100 && this.activeTab !== null) || (p.mouseX < p.windowWidth / 25 && this.activeTab === null)) && dragging === false && menuOpened === false) {
           if (this.loopDrawer === false) {
             this.drawerInstant = p.millis();
             loopSearch = "";
@@ -528,7 +617,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           }
           Tone.Transport.start();
         }
-        else if (p.mouseX > p.windowWidth - p.windowWidth / 100 && dragging === false && menuOpened === false) {
+        else if (((p.mouseX > p.windowWidth - p.windowWidth / 100 && this.activeTab !== null) || (p.mouseX > p.windowWidth - p.windowWidth / 25 && this.activeTab === null)) && dragging === false && menuOpened === false) {
           if (this.structDrawer === false) {
             this.drawerInstant = p.millis();
             structSearch = "";
@@ -576,6 +665,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       if (p.mouseX > p.windowWidth / 5) {
         if (this.loopDrawer) {
           Tone.Transport.stop();
+          Tone.Transport.seconds = 0;
           synths.releaseAll();
         }
         this.loopDrawer = false;
@@ -589,6 +679,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
             }
           }
           Tone.Transport.stop();
+          Tone.Transport.seconds = 0;
           synths.releaseAll();
         }
         this.structDrawer = false;
@@ -713,8 +804,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
                 dragging = false;
                 //if (p.mous)
                 if (p.millis() - loops[i].dragInstant < 100 && loops[i].drawerDragging === false) {
-                synths.releaseAll();
                 Tone.Transport.stop();
+                Tone.Transport.seconds = 0;
+                synths.releaseAll();
 
                 //this.loops[i].drawerDragging = true; 
 
@@ -897,8 +989,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
                   dragging = false;
                   //if (p.mous)
                   if (p.millis() - structs[i].dragInstant < 100 && structs[i].drawerDragging === false) {
-                  synths.releaseAll();
                   Tone.Transport.stop();
+                  Tone.Transport.seconds = 0;
+                  synths.releaseAll();
   
                   //this.loops[i].drawerDragging = true; 
   
@@ -996,9 +1089,6 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           }
         }
       }
-
-      //draw log
-      this.drawLog();
     }
 
     generateNameLoop(name) {
@@ -1132,6 +1222,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
       this.loops.push(newLoop);
       this.manageTabs(this.loops[this.loops.length-1]);
+
+      //session.save();
     }
 
     duplicateStruct(structId) {
@@ -1154,6 +1246,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
       this.structs.push(newStruct);
       this.manageTabs(this.structs[this.structs.length-1]);
+
+      //session.save();
     }
 
     deleteStruct(structId) {
@@ -1172,6 +1266,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         this.structs[s].id = s;
         this.structs[s].menu.tabId = s;
       }
+
+      //session.save();
     }
 
     deleteLoop(loopId) {
@@ -1202,6 +1298,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       }
 
       this.blackoutOpa = 255;
+
+      //session.save();
     }
 
     copyLoop(loop) {
@@ -1251,7 +1349,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         newLoop.tracks.push(newTrack);
 
         for (let n in loop.tracks[t].notes) {
-          let newNote = new Note(loop.tracks[t].notes[n].pitch, newLoop.id, newTrack.id, loop.tracks[t].notes[n].start, loop.tracks[t].notes[n].duration,  loop.tracks[t].notes[n].octave, loop.tracks[t].notes[n].color);
+          let newNote = new Note(loop.tracks[t].notes[n].pitch, newLoop.id, newTrack.id, loop.tracks[t].notes[n].start, loop.tracks[t].notes[n].duration, loop.tracks[t].notes[n].octave, loop.tracks[t].notes[n].color);
           newLoop.tracks[t].notes.push(newNote);
         }
       }
@@ -1298,6 +1396,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       tab.play = false;
       synths.releaseAll();
       Tone.Transport.stop();
+      Tone.Transport.seconds = 0;
       this.loopDrawer = false;
       this.structDrawer = false;
     }
@@ -1335,6 +1434,16 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       if (this.activeTab === null) {
         p.fill(white[0], white[1], white[2]);
         p.textFont(fontMedium);
+        if (p.mouseX > p.windowWidth/2-totalDist/2-p.textWidth("BLOOM")/2 && p.mouseX < p.windowWidth/2-totalDist/2+p.textWidth("BLOOM")/2 && p.mouseY > p.windowHeight / 30 && p.mouseY < p.windowHeight / 30 * 2 && dragging === false && menuOpened === false) {
+          document.body.style.cursor = 'pointer';
+          if (p.mouseIsPressed) {
+            if (p.mouseButton === p.RIGHT) {
+              this.menu.open();
+              p.mouseIsPressed = false;
+              console.log("menu");
+            }
+          }
+        }
       }
       else if (p.mouseX > p.windowWidth/2-totalDist/2-p.textWidth("BLOOM")/2 && p.mouseX < p.windowWidth/2-totalDist/2+p.textWidth("BLOOM")/2 && p.mouseY > p.windowHeight / 30 && p.mouseY < p.windowHeight / 30 * 2 && dragging === false && menuOpened === false) {
         p.fill(white[0], white[1], white[2]);
@@ -1360,10 +1469,12 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           this.activeTab = null;
           p.mouseIsPressed = false;
           this.blackoutOpa = 255;
-          synths.releaseAll();
-          Tone.Transport.stop();
 
-        }
+          Tone.Transport.stop();
+          Tone.Transport.seconds = 0;
+          synths.releaseAll();
+        } 
+        
       }
       p.push();
       if (menuOpened) p.translate(0,0, p.windowHeight / 30);
@@ -1396,8 +1507,10 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
               this.activeTab.active = false;
               
               this.activeTab.play = false;
-              synths.releaseAll();
+    
               Tone.Transport.stop();
+              Tone.Transport.seconds = 0;
+              synths.releaseAll();
               
               p.mouseIsPressed = false;
             }
@@ -1423,22 +1536,179 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       }
 
       for (let i = 0; i < this.tabs.length; i++) this.tabs[i].menu.draw(this.tabsX[i]-p.textWidth(this.tabs[i].name)/2, p.windowHeight / 30);
+
+      //menu
+      p.textFont(fontMedium);
+      this.menu.draw(this.bloomX-p.textWidth("BLOOM")/2, p.windowHeight / 30);
     }
 
     //draw sugestions
     showSuggestions() {
-      if (p.millis() - this.suggestionInstant > 5000) {
+      if (p.millis() - this.suggestionInstant > 15000) {
         this.suggestionInstant = p.millis();
+        this.suggestionOpa = 0;
         this.suggestionIndex = p.floor(p.random(0, obliqueStratagies.length));
       }
        
+      if (this.suggestionOpa + 5 > 255) this.suggestionOpa = 255;
+      else this.suggestionOpa += 5;
+
       p.textAlign(p.CENTER, p.CENTER);
+      p.textFont(fontMedium);
       p.noStroke();
-      p.fill(white[0], white[1], white[2],255/2);
-      p.textSize(p.windowHeight / 35);
-      p.text(obliqueStratagies[this.suggestionIndex], p.windowWidth / 2, p.windowHeight / 2);
+      p.fill(white[0], white[1], white[2],this.suggestionOpa/2);
+      p.textSize(p.windowHeight / 50);
+      p.text(obliqueStratagies[this.suggestionIndex], p.windowWidth / 2, p.windowHeight-p.windowHeight/30*2.4);
+
+      p.fill(white[0]/4, white[1]/4, white[2]/4);
+      p.textSize(p.windowHeight / 70);
+      p.textFont(fontLight);
+      p.text("Brian Eno, Peter Schmidt — Oblique Strategies", p.windowWidth / 2, p.windowHeight-p.windowHeight/30*1.6);
+
 
       //p.text("LOOP: "+loopSearch, p.windowWidth/2, p.windowHeight/30+p.windowHeight/30);
+    }
+
+    retrieveLoopInfo(l) {
+      let loop = {};
+      loop.id = l.id;
+      loop.name = l.name;
+      loop.tempo = l.tempo;
+      loop.clickState = l.click.state;
+      loop.recordState = l.record.state;
+      loop.tracks = {};
+      for (let j=0; j<l.tracks.length; j++) {
+        let track = {};
+
+        track.id = l.tracks[j].id;
+        track.name = l.tracks[j].name;
+        track.iconTargetX = l.tracks[j].iconTargetX;
+        
+        track.muted = l.tracks[j].muted;
+
+        //knobs
+        track.knobs = {};
+        for (let k=0; k<l.tracks[j].knobs.length; k++) {
+          let knob = {};
+          knob.value = l.tracks[j].knobs[k][1].value;
+          knob.output = l.tracks[j].knobs[k][1].output;
+          knob.automating = l.tracks[j].knobs[k][1].automating;
+          knob.automation = l.tracks[j].knobs[k][1].automation;
+          track.knobs[k] = knob;
+        }
+
+        //buttons
+        if (track.name === "DRUMS") {
+          track.drumButtons = {};
+          for (let b=0; b<l.tracks[j].drumButtons.length; b++) {
+            let button = {};
+            button.state = l.tracks[j].drumButtons[b].state;
+            track.drumButtons[b] = button;
+          }
+        } else {
+          track.oscButtons = {};
+          track.envButtons = {};
+          for (let b=0; b<l.tracks[j].oscButtons.length; b++) {
+            let oscButton = {};
+            oscButton.state = l.tracks[j].oscButtons[b].state;
+            track.oscButtons[b] = oscButton;
+            let envButton = {};
+            envButton.state = l.tracks[j].envButtons[b].state;
+            track.envButtons[b] = envButton;
+          }
+        }
+
+        track.filterButtonState = l.tracks[j].filterButton.state;
+        track.distButtonState = l.tracks[j].distButton.state;
+        track.dlyButtonState = l.tracks[j].dlyButton.state;
+        track.revButtonState = l.tracks[j].revButton.state;
+
+        //scrolls
+        track.presetScrollValue = l.tracks[j].presetScroll.value;
+        track.octaveScrollValue = l.tracks[j].octaveScroll.value;
+        track.automationScrollValue = l.tracks[j].automationScroll.value;
+
+        //gain
+        track.gain = l.tracks[j].gain;
+        track.presetChanged = l.tracks[j].presetChanged;
+        loop.tracks[j] = track;
+
+        loop.tracks[j].notes = {};
+        for (let n=0; n<l.tracks[j].notes.length; n++) {
+          let note = {};
+          note.pitch = l.tracks[j].notes[n].pitch;
+          note.start = l.tracks[j].notes[n].start;
+          note.duration = l.tracks[j].notes[n].duration;
+          note.octave = l.tracks[j].notes[n].octave;
+          note.color = l.tracks[j].notes[n].color;
+          loop.tracks[j].notes[n] = note;
+        }
+      }
+      return loop;
+    }
+
+    save() {
+      for (let i = 0; i < this.structs.length; i++) this.structs[i].update();
+
+      let s = {};
+      let loops = {};
+      for (let i=0; i<this.loops.length; i++) { 
+        loops[i] = this.retrieveLoopInfo(this.loops[i]);
+      }
+     
+      s.loops = loops;
+
+      let structs = {};
+      for (let i=0; i<this.structs.length; i++) {
+        let struct = {};
+        struct.id = this.structs[i].id;
+        struct.name = this.structs[i].name;
+        struct.tempo = this.structs[i].tempoScroll.value;
+        struct.transpose = this.structs[i].transposeScroll.value;
+        struct.tempoButtonState = this.structs[i].tempoButton.state;
+        struct.transposeButtonState = this.structs[i].transposeButton.state;
+
+        struct.sequence = {};
+        for (let j=0; j<this.structs[i].sequence.length; j++) {
+          let loopId = this.structs[i].sequence[j].id;
+          let seq = {};
+          seq.loopId = loopId;
+          seq.repeats = this.structs[i].repeats[j].value;
+          struct.sequence[j] = seq;
+        }
+
+        structs[i] = struct;
+      }
+
+      s.structs = structs;
+
+      let tabs = {};
+      for (let i=0; i<this.tabs.length; i++) {
+        let tab = {};
+        tab.id = this.tabs[i].id;
+        if (this.tabs[i].type === "loop") tab.type = "loop";
+        else tab.type = "struct";
+        tabs[i] = tab;
+      }
+      
+      s.tabs = tabs;
+
+      s = JSON.stringify(s);
+
+      if (s === sessionToSave) {
+        console.log("no changes");
+        return;
+      }
+      else {
+        let hours = p.hour();
+        let minutes = p.minute();
+        if (minutes < 10) minutes = "0"+minutes;
+        if (hours < 10) hours = "0"+hours;
+        this.alertLog("Session saved at "+hours+":"+minutes+".");
+        console.log("saving");
+        sessionToSave = s;
+        saveSession(s);
+      }
     }
   }
 
@@ -1528,6 +1798,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.angle.push(p.random(0,2*p.PI));
       this.angInc.push(p.random(0.01,0.02));
       this.menus.push(new Menu(this.id, 0, "sectionMenu",["EDIT LOOP", "DELETE SECTION"],"DROPDOWN"));
+      //session.save();
     }
 
     update() {
@@ -1583,6 +1854,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
       this.swapPos = -1;
       this.joinDoubles();
+      //session.save();
     }
 
     updateOffset(obj,x,y) {
@@ -1720,6 +1992,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.angInc = angIncs;
 
       this.joinDoubles();
+      //session.save();
     }
 
     addSectionLoop(loop,x,y) {
@@ -1871,6 +2144,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.play = false;
       synths.releaseAll();
       Tone.Transport.stop();
+      Tone.Transport.seconds = 0;
 
       this.joinDoubles();
     }
@@ -2002,8 +2276,10 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           if (p.abs(p.mouseX-this.lastX) > this.loopRadius) {
             this.play = false;
             this.sequence[this.currentLoop].play = false;
-            synths.releaseAll();
+            
             Tone.Transport.stop();
+            Tone.Transport.seconds = 0;
+            synths.releaseAll();
           }
 
           this.loopsHover[i]= true;
@@ -2220,7 +2496,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         else oct = 3;
         this.tracks[this.tracks.length - 1].notes.push(new Note(pitch, this.id, this.tracks.length - 1, start, duration, oct, this.tracks[this.tracks.length - 1].color));
       }*/
-      //saveSession(session);
+
+      //console.log(stringify(session));  
+      //session.save();
     }
 
     deleteTrack(i) {
@@ -2235,6 +2513,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
       this.selectedTrack = null;
       this.view = 0;
+
+      //session.save();
     }
 
     async addTrackByMelody() {
@@ -2251,6 +2531,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         newNote.y = this.tracks[this.tracks.length - 1].targetYexp[newNote.start+1];
         newNote.playShort();
       }
+
+      //session.save();
       //console.log(recorderData);
     }
 
@@ -2341,7 +2623,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         //p.rect(gridInitX+gridStepSizeX*i,gridInitY+ (gridStepSizeY * 11)+gridInitY/4,gridStepSizeX,gridInitY/5);
         if (p.mouseIsPressed) {
           Tone.Transport.stop();
-          Tone.Transport.position = 0;
+          Tone.Transport.seconds = 0;
+          Tone.Transport.seconds = 0;
           
           let step = p.round((p.mouseX-gridInitX)/gridStepSizeX);
           if (step >= 0 && step < nSteps) {
@@ -2583,7 +2866,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.menu = new Menu(this.loopId, this.id, "trackMenu",["DELETE","RENAME"],"DROPUP");
 
       this.ang = p.random(0, p.TWO_PI);
-      this.angInc = p.PI / 400;
+      this.angInc = p.PI / 20;
 
       this.radiusCol = p.windowHeight / 4;
 
@@ -2806,6 +3089,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
             this.notes[i].x = this.particlesX[this.notes[i].start+1];
           }
         }
+
+        //session.save();
       }
     }
 
@@ -2885,6 +3170,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           this.draggingGrid = false;
           this.ajustNotes(this.tempNote);
           this.notes.push(this.tempNote);
+          //session.save();
        } 
       
        if (p.mouseIsPressed === false && this.draggingSelect) {
@@ -3117,6 +3403,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       if (p.mouseIsPressed === false && this.draggingAutomation) {
         this.draggingAutomation = false;
         dragging = false;
+        //session.save();
       }
 
       if (this.draggingAutomation) {
@@ -3208,6 +3495,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       if (p.mouseIsPressed === false && this.draggingVolume) {
         this.draggingVolume = false;
         dragging = false;
+        //session.save();
       }
 
       if (this.draggingVolume) {
@@ -3841,6 +4129,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
               i--;
             }
           }
+          //session.save();
         }
       } 
 
@@ -4260,6 +4549,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
             session.loops[this.loopId].tracks[this.trackId].ajustNotes(session.loops[this.loopId].tracks[this.trackId].notes[n]);
           }
         }
+
+        //session.save();
       }
 
       if (this.dragging) {
@@ -4449,7 +4740,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.label = label;
       this.mode = mode;
 
-      this.state = -1; //-1: ckosed, 0: opened, 1: opened and option selected, 2: ai generated selection, 3: confirm delete
+      this.state = -1; //-1: ckosed, 0: opened, 1: opened and option selected, 2: ai generated selection, 3: confirm delete, 4:basic pitch, 5: about
 
       this.options = options;
       this.nOptions = options.length;
@@ -4518,7 +4809,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       for (let i = 0; i < this.nOptions; i++) {
         if (this.optionsCheck[i]) {
 
-          if (this.options[i] === "DELETE" || this.options[i] === "DELETE SECTION") p.fill(225, 0, 0, this.optionsOpa[i]);
+          if (this.options[i] === "DELETE" || this.options[i] === "DELETE SECTION" || this.options[i] === "CLEAR SESSION") p.fill(225, 0, 0, this.optionsOpa[i]);
           else p.fill(white[0], white[1], white[2], this.optionsOpa[i]);
           p.textFont(fontLight);
 
@@ -4566,6 +4857,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
                      
                       session.activeTab.play = false;
                       Tone.Transport.stop();
+                      Tone.Transport.seconds = 0;
                       synths.releaseAll();
                       this.close();
                       break;
@@ -4598,6 +4890,17 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
                       this.close();
                       break;
                     case "DELETE SECTION":
+                      this.state = 3;
+                      this.menuOpa = 0;
+                      break;
+                  }
+                } else if (this.label === "sessionMenu") {
+                  switch (this.options[i]) {
+                    case "ABOUT":
+                      this.state = 5;
+                      this.menuOpa = 0;
+                      break;
+                    case "CLEAR SESSION":
                       this.state = 3;
                       this.menuOpa = 0;
                       break;
@@ -4672,6 +4975,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           if (session.activeTab.play) {
             session.activeTab.play = false;
             Tone.Transport.stop();
+            Tone.Transport.seconds = 0;
           }
 
           if (this.lastOption === "MELODY") {
@@ -4754,11 +5058,14 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
     }
 
     confirmDelete() {
-      if (session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack = null;
-      if (session.activeTab.view !== 0) session.activeTab.view = 0;
-      if (session.activeTab.play) {
-        session.activeTab.play = false;
-        Tone.Transport.stop();
+      if (session.activeTab !== null) {
+        if (session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack = null;
+        if (session.activeTab.view !== 0) session.activeTab.view = 0;
+        if (session.activeTab.play) {
+          session.activeTab.play = false;
+          Tone.Transport.stop();
+          Tone.Transport.seconds = 0;
+        }
       }
 
       p.textAlign(p.CENTER, p.CENTER);
@@ -4774,6 +5081,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         p.text('Are you sure you want to delete "'+session.structs[this.tabId].sequence[this.trackId].name+'" from "'+session.structs[this.tabId].name+'"?\n"'+session.structs[this.tabId].sequence[this.trackId].name+'" will not be deleted from the Loops Drawer.', p.windowWidth/2, p.windowHeight/2 - p.windowHeight/20);
       } else if (this.label === "trackMenu") {
         p.text('Are you sure you want to delete "'+session.loops[this.tabId].tracks[this.trackId].name+'" from "'+session.loops[this.tabId].name+'"?', p.windowWidth/2, p.windowHeight/2 - p.windowHeight/20);
+      } else if (this.label = "sessionMenu") {
+        p.text('Are you sure you want to clear the Session?', p.windowWidth/2, p.windowHeight/2 - p.windowHeight/20);
       }
 
       p.textSize(p.windowHeight / 50);
@@ -4792,6 +5101,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           else if (this.label === "structMenu") session.deleteStruct(this.tabId);
           else if (this.label === "sectionMenu") session.structs[this.tabId].deleteSection(this.trackId);
           else if (this.label === "trackMenu") session.loops[this.tabId].deleteTrack(this.trackId);
+          else if (this.label === "sessionMenu") session = new Session();
           this.close();
           p.mouseIsPressed = false;
         }
@@ -4822,6 +5132,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         if (session.loops[this.tabId].currentStep >= nSteps-1 && session.loops[this.tabId].play) {
           session.loops[this.tabId].play = false;
           Tone.Transport.stop();
+          Tone.Transport.seconds = 0;
           synths.releaseAll();
           session.resolveRecording();
         }
@@ -4930,6 +5241,15 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       }
     }
 
+    drawAbout() {
+      p.textAlign(p.CENTER, p.CENTER);
+      p.textFont(fontLight);
+      p.textSize(p.windowHeight / 50);
+      p.fill(white[0], white[1], white[2], this.menuOpa);
+
+      p.text("Made with (too much) love by Thomas Fresco.", p.windowWidth/2, p.windowHeight/2);
+    }
+
     draw(x,y) {
       //update responsive
       this.optionW = this.getWidestOption();
@@ -4971,6 +5291,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         else if (this.state === 2) this.drawSelection();
         else if (this.state === 3) this.confirmDelete();
         else if (this.state === 4) this.recordingMenu();
+        else if (this.state === 5) this.drawAbout();
 
         //if (p.mouseX < x || p.mouseX > x + this.optionW || p.mouseY < y  -this.optionH*2 - (this.options.length-1) * this.optionH || p.mouseY > y  -this.optionH*2 + this.optionH) {
         if (p.mouseIsPressed && this.state !== 4) {
@@ -5080,6 +5401,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         this.dragging = false;
         dragging = false;
         this.hover = true;
+        //session.save();
       }
 
       if (this.dragging) {
@@ -5155,6 +5477,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           if (this.label !== "CLICK" && this.label !== "RECORD" && this.label !== "TEMPO" && this.label !== "TRANSPOSE") session.activeTab.selectedTrack.presetChanged = true;
           this.state = !this.state;
           p.mouseIsPressed = false;
+          //session.save();
         }
       } else this.hover = false;
     }
@@ -5281,7 +5604,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
                   this.pressing = true;
                   this.timer = p.millis();
                 } else if (p.millis() - this.timer > 500) this.increment(this.inc2);
+
               } else this.pressing = false;
+              
             }
             else {
               if (this.value > this.min && (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE" || this.label === "REPEATS")) {
@@ -5304,7 +5629,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
                   this.pressing = true;
                   this.timer = p.millis();
                 } else if (p.millis() - this.timer > 500) this.decrement(this.inc2);
+            
               } else this.pressing = false;
+              
             }
           } else {
             if (this.value < this.max && (this.label === "TEMPO" || this.label === "OCTAVE" || this.label === "TRANSPOSE" || this.label === "REPEATS")) p.tint(255,this.opa/2);
@@ -5379,10 +5706,16 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
   // --------------------------------------------------------------------------------------
   p.setup = function () {
-    p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
+    let cnv = p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
     p.frameRate(60);
     p.imageMode(p.CENTER);
     p.textFont(fontLight);
+
+    cnv.mouseReleased(function() { 
+      saving = true; 
+      saveDebounceInstant = p.millis();
+      if (session.activeTab === null) session.suggestionInstant = session.suggestionInstant - 15000;
+    });
 
     //console.log(sesh);
     //p.pixelDensity(1);
@@ -5408,28 +5741,26 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
     //REVER
     gridInitY = p.windowHeight / 2 - (gridStepSizeY * (12-1)) / 2;
 
-    //if (sesh === "bin file not found") {
-    session = new Session();
-    for (let i = 0; i < 5; i++) {
-      session.loops.push(new Loop(i, "myLoop"+i, 120));
-      session.loops[i].tracks.push(new Track(0, i, "MELODY", p.windowWidth / 2));
-      for (let j = 0; j < 5; j++) {
-        let start = p.floor(p.random(0, nSteps));
-        let pitch = p.floor(p.random(0,12));
-        //let duration = p.random(1,4);
-        let duration = 1;
-        session.loops[i].tracks[0].notes.push(new Note(pitch, session.loops[i].id, 0, start, duration, 3, session.loops[i].tracks[0].color));
-      }
+    if (sesh === "bin file not found") {
+      session = new Session();
+      /*for (let i = 0; i < 5; i++) {
+        session.loops.push(new Loop(i, "myLoop"+i, 120));
+        session.loops[i].tracks.push(new Track(0, i, "MELODY", p.windowWidth / 2));
+        for (let j = 0; j < 5; j++) {
+          let start = p.floor(p.random(0, nSteps));
+          let pitch = p.floor(p.random(0,12));
+          //let duration = p.random(1,4);
+          let duration = 1;
+          session.loops[i].tracks[0].notes.push(new Note(pitch, session.loops[i].id, 0, start, duration, 3, session.loops[i].tracks[0].color));
+        }
+      }*/
+      console.log("new session created.")
+    } else {
+      initLoadedSesh();
     }
 
     //ref session to synth.js
-    synths.setSession(session);
-
-    //console.log(session);
-
-    //} else {
-    //  initLoadedSesh();
-    //}
+    synths.setSession(session,saving);
 
     for (let i = 0; i < particles.length; i++) particles[i] = new Particle();
     for (let i = 0; i < petalParticles.length; i++) petalParticles[i] = new PetalParticle();
@@ -5469,6 +5800,13 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
     session.draw();
 
+    if (p.millis() - saveDebounceInstant > saveDebounceDelay && saving) {
+      console.log("saving...");
+      session.save();
+      saving = false;
+      saveDebounceInstant = p.millis();
+    }
+
     /*if (session.activeTab !== null) {
       if (dragging === false && menuOpened === false && document.body.style.cursor === 'default') {
         if (p.mouseIsPressed) {
@@ -5489,6 +5827,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       if (session.activeTab.play) {
         session.activeTab.play = false;
         Tone.Transport.stop();
+        Tone.Transport.seconds = 0;
         synths.releaseAll();
         if (session.activeTab.type === "struct") if (session.activeTab.sequence.length > 0) session.activeTab.sequence[session.activeTab.currentLoop].play = false;
       }
@@ -5512,6 +5851,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         if (session.activeTab.play) { 
           session.activeTab.play = false;
           Tone.Transport.stop();
+          Tone.Transport.seconds = 0;
           synths.releaseAll();
           if (synths.recorder.state !== "stopped") session.resolveRecording();
         } else {
@@ -5536,6 +5876,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
               i--;
             }
           }
+          //session.save();
         }
       }
     }
@@ -5563,6 +5904,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
     if (p.key === ' ' && session.loopDrawer === false && session.structDrawer === false && menuOpened === false && session.activeTab !== null) {
       if (session.activeTab.play === false) {
         Tone.Transport.stop();
+        Tone.Transport.seconds = 0;
         synths.releaseAll();
       }
     }
@@ -5632,9 +5974,13 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
               break;
             }
           }
+          //session.save();
         }
       }
     }
+
+    saving = true;
+    saveDebounceInstant = p.millis();
   }
 
   //scrolling event

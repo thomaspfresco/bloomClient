@@ -12,8 +12,10 @@
   "dependencies": {
     "audiobuffer-to-wav": "^1.0.0",
     "axios": "^1.6.8",
+    "circular-json": "^0.5.9",
     "ffmpeg": "^0.0.4",
     "file-saver": "^2.0.5",
+    "flatted": "^3.3.1",
     "p5": "^1.9.2",
     "react": "^18.2.0",
     "react-device-detect": "^2.2.3",

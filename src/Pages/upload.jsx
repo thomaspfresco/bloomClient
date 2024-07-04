@@ -5,7 +5,7 @@ import MobileMsg from '../Components/MobileMsg';
 
 import axios from 'axios';
 
-function Home() {
+function Upload() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
 
@@ -88,4 +88,4 @@ function Home() {
   );
 }
 
-export default Home;
+export default Upload;

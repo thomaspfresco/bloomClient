@@ -30,8 +30,11 @@ import { Instrument } from 'tone/build/esm/instrument/Instrument.js';
 // ---------------------------------------------------------------
 
 //ref to p5.js
-let session;
-function setSession(s) { session = s; }
+let session, saving;
+function setSession(s, save) { 
+    session = s; 
+    saving = save;
+}
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -126,6 +129,7 @@ function onDeviceInput({ note, vel }) {
                     s.oscillators[1].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
                 }
             }
+            saving = true;
         }
     }
 }

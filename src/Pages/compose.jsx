@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { isMobile } from 'react-device-detect';
 import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
+import MobileMsg from '../Components/MobileMsg';
 import Loading from '../Components/Loading';
 import sketch from '../Compose/compose';
 import p5 from 'p5';
@@ -58,8 +59,6 @@ function Compose() {
     }
   };
 
-
-
   const saveSession = async (session) => {
 
     const token = window.localStorage.getItem("token");
@@ -68,6 +67,9 @@ function Compose() {
       const response = await axios.post(window.serverLink+'/save', session, {
         params: {
           token: token
+        },
+        headers: {
+          'Content-Type': 'application/json'
         }
       });
       console.log(response.data);
@@ -76,6 +78,29 @@ function Compose() {
     }
   };
 
+  const getToken = async () => {
+    try {
+
+      const token = window.localStorage.getItem("token");
+      let msg;
+
+      if (!token) msg = "New user";
+      else msg = token;
+
+      const response = await axios.get(window.serverLink+"/getToken", {
+        params: {
+          message: msg
+        }
+      });
+
+      if (response.data.message === "Your session expired") window.localStorage.removeItem("token");
+      console.log(response.data);
+      window.localStorage.setItem("token", response.data.token);
+
+    } catch (error) {
+      console.error('Error getting token:', error);
+    }
+  };
 
   const loadSession = async () => {
     setLoading(true); 
@@ -105,8 +130,8 @@ function Compose() {
 
   useEffect(() => {
     setIsMobileDevice(isMobile);
-    if (isMobileDevice) navigate("/");
-  }, [isMobileDevice]); // This effect runs once on component mount
+    if (isMobile === false) getToken();
+  }, [isMobileDevice]); 
 
   /*useEffect(() => {
     const handleBeforeUnload = (event) => { saveProject(p5InstanceRef.current.project); };
@@ -147,9 +172,11 @@ function Compose() {
 
   return (
     <div className="canvas">
-       <a id="export"></a>
+      <div ref={p5ContainerRef}></div>
+      <a id="export"></a>
+      {window.localStorage.getItem("token")}
       {loading ? <Loading /> : null}
-      <div ref={p5ContainerRef}></div> {}
+      {isMobileDevice ? <MobileMsg /> : null}
     </div>
   );
 }
