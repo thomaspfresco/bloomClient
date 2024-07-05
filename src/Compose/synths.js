@@ -462,6 +462,11 @@ function exportStructAudio(p,struct,setLoading) {
                 
                         //if (currentLoop = sequenceCopy.length-1) currentLoop = 0;
                         // else currentLoop++;
+                        for (let t in sequenceCopy[currentLoop].tracks) {
+                            if (sequenceCopy[currentLoop].tracks[t].name !== "DRUMS")  {
+                                for (let j in sequenceCopy[currentLoop].tracks[t].synth.oscillators) sequenceCopy[currentLoop].tracks[t].synth.oscillators[j].releaseAll(time);
+                            }
+                        }
                         currentLoop++;
                 
                     } else currentRepeat++;

@@ -19,12 +19,12 @@ import poppinsLightFont from '../Fonts/Poppins-Light.ttf';
 import poppinsMediumFont from '../Fonts/Poppins-Medium.ttf';
 import poppinsBoldFont from '../Fonts/Poppins-Bold.ttf';
 
-import loopsSVG from '../Assets/loops.svg';
-import structsSVG from '../Assets/structs.svg';
-import gridSVG from '../Assets/grid.svg';
-import studioSVG from '../Assets/studio.svg';
-import autoSVG from '../Assets/automation.svg';
-import plusSVG from '../Assets/plus.svg';
+import loopsPNG from '../Assets/loops.png';
+import structsPNG from '../Assets/structs.png';
+import gridPNG from '../Assets/grid.png';
+import studioPNG from '../Assets/studio.png';
+import autoPNG from '../Assets/automation.png';
+import plusPNG from '../Assets/plus.png';
 import arrowUpPNG from '../Assets/arrowUp.png';
 import arrowDownPNG from '../Assets/arrowDown.png';
 import aiPNG from '../Assets/ai.png';
@@ -95,7 +95,7 @@ var particles = new Array(100);
 var totalFrames = 360;
 let counter = 0;
 
-let petalParticles = new Array(100);
+let petalParticles = new Array(50);
 let diagonal;
 let rotation = 0;
 
@@ -130,7 +130,7 @@ let iconSize;
 let iconCorners;
 
 //let colors = [[100,50,100],[210,70,90],[235,160,80],[30,120,80]]; //purple, pink, yellow, green
-let colors = [[10,90,180],[220,0,85],[250,160,25],[5,160,95]]; //blue, pink, yellow, green
+let colors = [[0,70,170],[220,20,100],[250,160,25],[0,160,100]]; //blue, pink, yellow, green
 let white = [255,245,220]; //white
 
 let session;
@@ -280,10 +280,12 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
             newTrack.knobs[k][1].output = sesh.loops[i].tracks[j].knobs[k].output;
             newTrack.knobs[k][1].automating = sesh.loops[i].tracks[j].knobs[k].automating;
             newTrack.knobs[k][1].automation = sesh.loops[i].tracks[j].knobs[k].automation;
-          }
+          } 
           
-          if (sesh.loops[i].tracks[j].name === "DRUMS") for (let b in newTrack.drumButtons) newTrack.drumButtons[b].state = sesh.loops[i].tracks[j].drumButtons[b].state;
-          else {
+          if (sesh.loops[i].tracks[j].name === "DRUMS") {
+            for (let b in newTrack.drumButtons) newTrack.drumButtons[b].state = sesh.loops[i].tracks[j].drumButtons[b].state;
+            for (let a=0; a<newTrack.synth.parts.length; a++) newTrack.synth.parts[a].buffer = synths.drumPresets[newTrack.presetScroll.value].kit[a];
+          } else {
             for (let b in newTrack.oscButtons) {
               newTrack.oscButtons[b].state = sesh.loops[i].tracks[j].oscButtons[b].state;
               newTrack.envButtons[b].state = sesh.loops[i].tracks[j].envButtons[b].state;
@@ -483,6 +485,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
       //draw sugestions oblique stratagies
       if (this.activeTab === null) {
+        p.noStroke();
         this.drawPetalParticles();
         this.showSuggestions();
 
@@ -1349,7 +1352,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         newLoop.tracks.push(newTrack);
 
         for (let n in loop.tracks[t].notes) {
-          let newNote = new Note(loop.tracks[t].notes[n].pitch, newLoop.id, newTrack.id, loop.tracks[t].notes[n].start, loop.tracks[t].notes[n].duration, loop.tracks[t].notes[n].octave, loop.tracks[t].notes[n].color);
+          let newNote = new Note(loop.tracks[t].notes[n].pitch, newLoop.id, newTrack.id, loop.tracks[t].notes[n].start, loop.tracks[t].notes[n].duration, loop.tracks[t].notes[n].octave, loop.tracks[t].notes[n].colorOrig);
           newLoop.tracks[t].notes.push(newNote);
         }
       }
@@ -1558,12 +1561,12 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       p.noStroke();
       p.fill(white[0], white[1], white[2],this.suggestionOpa/2);
       p.textSize(p.windowHeight / 50);
-      p.text(obliqueStratagies[this.suggestionIndex], p.windowWidth / 2, p.windowHeight-p.windowHeight/30*2.4);
+      p.text('"'+obliqueStratagies[this.suggestionIndex]+'"', p.windowWidth / 2, p.windowHeight-p.windowHeight/30*2.4);
 
       p.fill(white[0]/4, white[1]/4, white[2]/4);
       p.textSize(p.windowHeight / 70);
       p.textFont(fontLight);
-      p.text("Brian Eno, Peter Schmidt — Oblique Strategies", p.windowWidth / 2, p.windowHeight-p.windowHeight/30*1.6);
+      p.text("in Oblique Strategies — Brian Eno, Peter Schmidt", p.windowWidth / 2, p.windowHeight-p.windowHeight/30*1.6);
 
 
       //p.text("LOOP: "+loopSearch, p.windowWidth/2, p.windowHeight/30+p.windowHeight/30);
@@ -1640,7 +1643,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           note.start = l.tracks[j].notes[n].start;
           note.duration = l.tracks[j].notes[n].duration;
           note.octave = l.tracks[j].notes[n].octave;
-          note.color = l.tracks[j].notes[n].color;
+          note.color = l.tracks[j].notes[n].colorOrig;
           loop.tracks[j].notes[n] = note;
         }
       }
@@ -1648,7 +1651,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
     }
 
     save() {
-      for (let i = 0; i < this.structs.length; i++) this.structs[i].update();
+      if (this.activeTab === null || (this.activeTab !== null && this.activeTab.type === "loop")) {
+        for (let i = 0; i < this.structs.length; i++) this.structs[i].update();
+      }
 
       let s = {};
       let loops = {};
@@ -3528,7 +3533,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       p.noStroke();
       p.fill(this.color[0], this.color[1], this.color[2], this.opaLine);
       p.translate(gridInitX+p.windowWidth/9/2, gridInitY+auxY/2,-p.windowHeight/12);
-      p.scale(p.windowHeight/12 / petalModelSize);
+      p.scale(p.windowHeight/14 / petalModelSize);
       p.rotateX(p.PI/2);
       p.rotateY(this.ang);
       p.rotateZ(p.sin(this.ang)*p.PI/3);
@@ -4049,7 +4054,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       p.push();
       if (this.menu.state >= 0) p.translate(0,0, p.windowHeight / 30*2);
       p.translate(this.iconX + iconSize / 2, p.windowHeight - marginX -p.windowHeight / 40 - p.windowHeight/30,-p.windowHeight/30);
-      p.scale(p.windowHeight/30 / petalModelSize);
+      p.scale(p.windowHeight/34 / petalModelSize);
       p.rotateX(p.PI/2);
       p.rotateY(this.ang);
       p.rotateZ(p.sin(this.ang)*p.PI/3);
@@ -5101,7 +5106,10 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           else if (this.label === "structMenu") session.deleteStruct(this.tabId);
           else if (this.label === "sectionMenu") session.structs[this.tabId].deleteSection(this.trackId);
           else if (this.label === "trackMenu") session.loops[this.tabId].deleteTrack(this.trackId);
-          else if (this.label === "sessionMenu") session = new Session();
+          else if (this.label === "sessionMenu") {
+            session = new Session();
+            synths.setSession(session, saving);
+          }
           this.close();
           p.mouseIsPressed = false;
         }
@@ -5673,13 +5681,13 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
   // --------------------------------------------------------------------------------------
   p.preload = function () {
-    loopsIcon = p.loadImage(loopsSVG);
-    structsIcon = p.loadImage(structsSVG);
-    gridIcon = p.loadImage(gridSVG);
-    studioIcon = p.loadImage(studioSVG);
-    autoIcon = p.loadImage(autoSVG);
+    loopsIcon = p.loadImage(loopsPNG);
+    structsIcon = p.loadImage(structsPNG);
+    gridIcon = p.loadImage(gridPNG);
+    studioIcon = p.loadImage(studioPNG);
+    autoIcon = p.loadImage(autoPNG);
 
-    plus = p.loadImage(plusSVG);
+    plus = p.loadImage(plusPNG);
     arrowUp = p.loadImage(arrowUpPNG);
     arrowDown = p.loadImage(arrowDownPNG);
 
@@ -5802,9 +5810,11 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
     if (p.millis() - saveDebounceInstant > saveDebounceDelay && saving) {
       console.log("saving...");
-      session.save();
-      saving = false;
-      saveDebounceInstant = p.millis();
+      if (session.structDrawer === false && session.loopDrawer === false) {
+        session.save();
+        saving = false;
+        saveDebounceInstant = p.millis();
+      }
     }
 
     /*if (session.activeTab !== null) {
