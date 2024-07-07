@@ -130,7 +130,7 @@ let iconSize;
 let iconCorners;
 
 //let colors = [[100,50,100],[210,70,90],[235,160,80],[30,120,80]]; //purple, pink, yellow, green
-let colors = [[0,70,170],[220,20,100],[250,160,25],[0,160,100]]; //blue, pink, yellow, green
+let colors = [[0,65,170],[220,20,100],[250,160,25],[0,160,100]]; //blue, pink, yellow, green
 let white = [255,245,220]; //white
 
 let session;
@@ -614,7 +614,11 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           drawerOpa = 0;
           previewInstant = p.millis();
           this.loopDrawer = true;
+          synths.releaseAll();
+
           if (session.activeTab !== null) {
+            if (this.activeTab.type === "loop" && this.activeTab.selectedTrack !== null) this.activeTab.selectedTrack.deselectAllNotes();
+
             session.activeTab.play = false;
             if (session.activeTab.type === "struct" && session.activeTab.sequence.length > 0) session.activeTab.sequence[session.activeTab.currentLoop].play = false;
           }
@@ -653,7 +657,12 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           drawerOpa = 0;
           previewInstant = p.millis();
           this.structDrawer = true;
-          if (session.activeTab !== null) session.activeTab.play = false;
+          synths.releaseAll();
+
+          if (session.activeTab !== null) {
+            if (this.activeTab.type === "loop" && this.activeTab.selectedTrack !== null) this.activeTab.selectedTrack.deselectAllNotes();
+            session.activeTab.play = false;
+          }
           Tone.Transport.start();
         }
 
@@ -1502,6 +1511,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
             p.textFont(fontLight);
             if (p.mouseIsPressed) {
               if (this.activeTab !== null) {
+                if (this.activeTab.type === "loop" && this.activeTab.selectedTrack !== null) this.activeTab.selectedTrack.deselectAllNotes();
                 this.activeTab.selectedTrack = null;
                 this.activeTab.view = 0;
               }
@@ -1520,7 +1530,10 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           }
           else {
             if (p.mouseIsPressed) {
-              if (p.mouseButton === p.RIGHT) this.tabs[i].menu.open();
+              if (p.mouseButton === p.RIGHT) {
+                this.tabs[i].menu.open();
+                if (this.tabs[i].type === "loop" && this.tabs[i].selectedTrack !== null) this.tabs[i].selectedTrack.deselectAllNotes();
+              }
               p.mouseIsPressed = false;
             }
           }
@@ -1651,7 +1664,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
     }
 
     save() {
-      if (this.activeTab === null || (this.activeTab !== null && this.activeTab.type === "loop")) {
+      if ((this.activeTab === null || (this.activeTab !== null && this.activeTab.type === "loop")) && this.structDrawer === false) {
         for (let i = 0; i < this.structs.length; i++) this.structs[i].update();
       }
 
@@ -1713,6 +1726,46 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         console.log("saving");
         sessionToSave = s;
         saveSession(s);
+      }
+    }
+
+    manageRecordedNotes(input,octave) {
+      if (session.activeTab.record.state && session.activeTab.play && session.activeTab.currentStep > -1) {
+        let check = false;
+        for (let n in recordedNotes) {
+          if (recordedNotes[n].pitch === input && recordedNotes[n].octave === octave && recordedNotes[n].trackId === session.activeTab.selectedTrack.id) {
+            check = true;
+            break;
+          }  
+        }
+        if (check === false) recordedNotes.push(new Note(input, session.activeTab.id, session.activeTab.selectedTrack.id, session.activeTab.currentStep, 1, octave, session.activeTab.selectedTrack.color)); 
+      }
+    }
+
+    resolveRecordedNotes(input,octave) {
+      if (session.activeTab.record && session.activeTab.play) {
+        for (let i = 0; i < recordedNotes.length; i++) {
+          if (recordedNotes[i].pitch === input && recordedNotes[i].octave === octave && recordedNotes[i].trackId === session.activeTab.selectedTrack.id) {
+            //recordedNotes[i].duration = session.activeTab.currentStep - recordedNotes[i].start;
+            
+            //let track = session.activeTab.tracks[recordedNotes[i].trackId];
+
+            //recordedNotes[i].x = gridInitX + recordedNotes[i].start * gridStepSizeX;
+
+            //if (recordedNotes[i].octave === track.octaveScroll.value) recordedNotes[i].y = gridInitY + (track.nPitches-recordedNotes[i].pitch-1)*(gridStepSizeY*11/(track.nPitches-1));
+            //else if (recordedNotes[i].octave === track.octaveScroll.value+1) recordedNotes[i].y = gridInitY + (track.nPitches-recordedNotes[i].pitch-1)*(gridStepSizeY*11/(track.nPitches-1)) - gridStepSizeY*11/2-gridStepSizeY/4;
+
+            //if (recordedNotes[i].octave === track.octaveScroll.value) recordedNotes[i].draw(this.particlesX[this.tempNote.start+1], gridInitY + (this.nPitches-this.tempNote.pitch-1)*(gridStepSizeY*11/(this.nPitches-1)));
+            //else if (recordedNotes[i].octave === track.octaveScroll.value+1) recordedNotes[i].draw(this.particlesX[this.tempNote.start+1], gridInitY + (this.nPitches-this.tempNote.pitch-1)*(gridStepSizeY*11/(this.nPitches-1)) - gridStepSizeY*11/2-gridStepSizeY/4);
+
+            if (recordedNotes[i].duration === 0) recordedNotes[i].duration = 1;
+            session.activeTab.selectedTrack.ajustNotes(recordedNotes[i]);
+            session.activeTab.selectedTrack.notes.push(recordedNotes[i]);
+            recordedNotes.splice(i, 1);
+            break;
+          }
+        }
+        //session.save();
       }
     }
   }
@@ -1817,8 +1870,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
             for (let t in this.sequence[i].tracks) {
               loopCopy.tracks[t].particlesStructX = this.sequence[i].tracks[t].particlesStructX.concat();
               loopCopy.tracks[t].particlesStructY = this.sequence[i].tracks[t].particlesStructY.concat();
-              for (let n in this.sequence[i].tracks[t].notes) loopCopy.tracks[t].notes[n].ang = this.sequence[i].tracks[t].notes[n].ang;
-              //loopCopy.tracks[t].angle = this.sequence[i].tracks[t].angle;
+              for (let n in this.sequence[i].tracks[t].notes){  
+                if (loopCopy.tracks[t].notes[n] !== undefined) loopCopy.tracks[t].notes[n].ang = this.sequence[i].tracks[t].notes[n].ang;
+              } 
             }
             this.sequence[i] = loopCopy;
             break;
@@ -2689,6 +2743,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           document.body.style.cursor = 'pointer';
 
           if (p.mouseIsPressed) {
+            if (this.selectedTrack !== null) this.selectedTrack.deselectAllNotes();
             this.plusMenu.open();
             p.mouseIsPressed = false;
           }
@@ -2752,6 +2807,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
             if (p.mouseX > x-p.windowHeight / 35 && p.mouseX < x+p.windowHeight / 35 && p.mouseY > y-p.windowHeight / 35 && p.mouseY < y+p.windowHeight / 35 && session.loopDrawer === false && session.structDrawer === false && dragging === false && menuOpened === false) {
               document.body.style.cursor = 'pointer';
               if (p.mouseIsPressed) {
+                if (this.selectedTrack !== null) this.selectedTrack.deselectAllNotes();
                 if (this.view === (2-i)) {
                   this.selectedTrack = null;
                   this.view = 0;
@@ -3060,24 +3116,54 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       else auxY = this.nPitches-p.round((p.mouseY - gridInitY) / ((gridStepSizeY*11)/(this.nPitches-1)))-1;
 
       for (let i = 0; i < this.notes.length; i++) {
-        if (this.notes[i] === note) break;
+        if (this.notes[i] === note) continue;
         //same octave and pitch
         if (this.notes[i].pitch === note.pitch && this.notes[i].octave === note.octave) {
           
           //remove a note that starts beetween the start of the new note and its start+duration, as well as its end
           if (this.notes[i].start >= note.start && this.notes[i].start+this.notes[i].duration <= note.start + note.duration) {
+            console.log("case 1")
             this.notes.splice(i,1);
+            if (this.notes.length === 0) return;
+
             i--;
+            continue;
+            //if (this.notes[i].pitch !== note.pitch || this.notes[i].octave !== note.octave) break;
+            //if (this.notes[i] === note) break;
+            //if (i < -1) i = -1;
           //shorten a note that starts beetween the start of the new note and its start+duration, but ends after the new note's end
           } 
-          if (this.notes[i].start >= note.start && this.notes[i].start+this.notes[i].duration > note.start + note.duration && this.notes[i].start < note.start + note.duration) {
+
+          //case of the list becaming empty
+          //if (this.notes.length === 0) break;
+
+          else if (this.notes[i].start >= note.start && this.notes[i].start+this.notes[i].duration > note.start + note.duration && this.notes[i].start < note.start + note.duration) {
+            console.log("case 2")
             this.notes[i].duration = this.notes[i].duration - (note.start + note.duration - this.notes[i].start);
             this.notes[i].start = note.start + note.duration;
             this.notes[i].x = this.particlesX[this.notes[i].start+1];
           //create a new note between the start of the new note and its start+duration
           } 
+
+          else if (this.notes[i].start < note.start && this.notes[i].start+this.notes[i].duration >= note.start + note.duration) {
+            console.log("case 4")
+            
+            this.notes[i].x = this.particlesX[this.notes[i].start+1];
+
+            let newNoteStart = note.start + note.duration;
+            let newNoteDuration = this.notes[i].start + this.notes[i].duration - (note.start + note.duration);
+            this.notes[i].duration = note.start - this.notes[i].start;
+
+            let newNote = new Note(this.notes[i].pitch, this.loopId, this.id, newNoteStart, newNoteDuration, this.notes[i].octave, this.color);
+            newNote.x = this.particlesX[newNote.start+1];
+            if (auxY > 11) newNote.y = gridInitY + (this.nPitches-newNote.pitch-1)*(gridStepSizeY*11)/(this.nPitches-1) - gridStepSizeY*11/2-gridStepSizeY/4;
+            else newNote.y = gridInitY + (this.nPitches-newNote.pitch-1)*(gridStepSizeY*11)/(this.nPitches-1);
+            this.notes.push(newNote);
+
+          }
           
-          if (this.notes[i].start < note.start && this.notes[i].start+this.notes[i].duration > note.start + note.duration) {
+          else if (this.notes[i].start < note.start && this.notes[i].start+this.notes[i].duration > note.start && this.notes[i].start+this.notes[i].duration < note.start + note.duration) {
+            console.log("case 3")
             let aux = this.notes[i].duration;
             this.notes[i].duration = note.start - this.notes[i].start;
             let newNote = new Note(this.notes[i].pitch, this.loopId, this.id, note.start + note.duration, aux - (note.start + note.duration - this.notes[i].start), this.notes[i].octave, this.color);
@@ -3089,10 +3175,6 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
             this.notes.push(newNote);
           //shorten a note that starts before the new note and ends after the new note start but before its end
           } 
-          if (this.notes[i].start < note.start && this.notes[i].start+this.notes[i].duration > note.start && this.notes[i].start+this.notes[i].duration >= note.start + note.duration) {
-            this.notes[i].duration = note.start - this.notes[i].start;
-            this.notes[i].x = this.particlesX[this.notes[i].start+1];
-          }
         }
 
         //session.save();
@@ -3139,7 +3221,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         if (this.name === "DRUMS") auxY = this.nPitches-p.round((p.mouseY - gridInitY) / ((gridStepSizeY*11)/(this.nPitches-1)))-1;
         else auxY = this.nPitches-p.round((p.mouseY - gridInitY) / ((gridStepSizeY*11)/(this.nPitches-1)))-1;
 
-        if (auxX >= 0 && auxX < nSteps && auxY >= 0 && auxY < this.nPitches && dragging === false && menuOpened === false && session.loopDrawer === false && session.structDrawer === false) {
+        if (p.mouseY > gridInitY-gridStepSizeY/4 && p.mouseY < gridInitY+(gridStepSizeY*11)+gridStepSizeY/4 && auxX >= 0 && auxX < nSteps && auxY >= 0 && auxY < this.nPitches && dragging === false && menuOpened === false && session.loopDrawer === false && session.structDrawer === false) {
           if (this.isNote(auxX, auxY) === false) document.body.style.cursor = 'pointer';
 
           if (p.mouseIsPressed && this.draggingGrid === false && this.draggingSelect === false && this.isNote(auxX, auxY) === false) {
@@ -3149,6 +3231,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
               this.lastGridX = auxX;
               this.lastGridY = auxY;
               this.draggingGrid = true;
+              this.deselectAllNotes();
               //console.log(auxX,auxY,this.tempNote);
               if (auxY>11) {
                 this.tempNote = new Note(auxY-12, this.loopId, this.id, auxX, 1, this.octaveScroll.value+1, this.color);
@@ -3257,9 +3340,15 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
     //check if there is a note in the same position
     isNote(x,y) {
-      if (y > 11) y = y - 12;
+      let octave = -1;
+     
+      if (y > 11) {
+        y = y - 12;
+        octave = this.octaveScroll.value+1;
+      } else octave = this.octaveScroll.value;
+
       for (let i = 0; i < this.notes.length; i++) {
-        if (this.notes[i].start <= x && this.notes[i].start+this.notes[i].duration > x && this.notes[i].pitch === y) return true;
+        if (this.notes[i].start <= x && this.notes[i].start+this.notes[i].duration > x && this.notes[i].pitch === y && this.notes[i].octave === octave) return true;
       }
       return false;
     }
@@ -3873,6 +3962,11 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       else if (this.synth.fxChain.gain.gain.value !== this.gain) this.synth.fxChain.gain.gain.value = this.gain;
 
       if (this.name === "DRUMS") {
+
+        if (!synths.compareBuffers(this.synth.parts[0].buffer,synths.drumPresets[this.presetScroll.value].kit[0])) {
+          for (let i=0; i<this.synth.parts.length; i++) this.synth.parts[i].buffer = synths.drumPresets[this.presetScroll.value].kit[i];
+        }
+         
         for (let i=0; i<this.synth.parts.length; i++) {
           let mapping = p.map(this.drumKnobs[i][0].value,0,1,-48,0);
           if (this.drumButtons[i].state) {
@@ -4073,13 +4167,17 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
               if (session.activeTab.selectedTrack === null) {
                 session.loops[this.loopId].blackOpa1 = 255;
                 session.loops[this.loopId].blackOpa4 = 255;
+              } else {
+                if (session.activeTab.type === "loop") session.activeTab.selectedTrack.deselectAllNotes();
               }
+
               session.loops[this.loopId].blackOpa2 = 255;
               session.loops[this.loopId].blackOpa3 = 255;
               session.activeTab.selectedTrack = this;
               this.angInc = p.PI / 15;
             } else this.muted = !this.muted;
           } else if (p.mouseButton === p.RIGHT) {
+            if (session.activeTab.type === "loop" && session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack.deselectAllNotes();
             this.menu.open();
             this.angInc = p.PI / 15;
           }
@@ -4288,6 +4386,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.color = [this.colorOrig[0]+100,this.colorOrig[1]+100,this.colorOrig[2]+100];
       //synth.triggerAttackRelease("C3", "16n");
       if (session.activeTab.tracks[this.trackId].name === "DRUMS") {
+        session.activeTab.tracks[this.trackId].synth.parts[this.pitch].stop();
         session.activeTab.tracks[this.trackId].synth.parts[this.pitch].start();
       } else {
         let pitch = this.pitch;
@@ -4534,9 +4633,10 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           this.hover = true;
 
           if (p.mouseIsPressed && this.dragging === false) {
+            if (this.selected === false) session.loops[this.loopId].tracks[this.trackId].deselectAllNotes();
             initialX = this.start;
             initialY = this.pitch;
-            this.playShort();
+            
             this.selected = true;
             this.dragging = true;
             dragging = true;
@@ -4568,53 +4668,109 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
         //console.log(session.loops[this.loopId].tracks[this.trackId].nPitches,this.start,this.pitch,auxX,auxY);
         if (auxX >= 0 && auxX < nSteps && auxY >= 0 && auxY < session.loops[this.loopId].tracks[this.trackId].nPitches) {
-          /*if (session.activeTab.selectedTrack.timeline[this.start][this.pitch] !== session.activeTab.selectedTrack.timeline[auxX][auxY]) {
-            session.activeTab.selectedTrack.timeline[auxX][auxY] = this;
-            session.activeTab.selectedTrack.timeline[this.start][this.pitch] = null;*/
 
+          let blockMove = false;
+
+          for (let n in session.loops[this.loopId].tracks[this.trackId].notes) {
+            let note = session.loops[this.loopId].tracks[this.trackId].notes[n];
+            
+            //negative -> left
+            if (note.start + auxX - initialX < 0) blockMove = true;
+
+            //positive -> right
+            if (note.start + auxX - initialX + note.duration > nSteps) blockMove = true;
+
+            //negative -> bottom, positive -> top
+            if (note.octave === session.loops[this.loopId].tracks[this.trackId].octaveScroll.value) {
+              if (note.pitch + auxY - initialY < 0) blockMove = true;
+              if (session.loops[this.loopId].tracks[this.trackId].name === "DRUMS" && note.pitch + auxY - initialY >= session.loops[this.loopId].tracks[this.trackId].nPitches) blockMove = true;
+            } else {
+              let aux = initialY;
+              if (p.abs(auxY-aux) > 10) aux = aux+12;
+              if (note.pitch + auxY - aux > 11) blockMove = true;  
+            }
+          }
+
+          if (blockMove === false) {
             for (let n in session.loops[this.loopId].tracks[this.trackId].notes) {
               let note = session.loops[this.loopId].tracks[this.trackId].notes[n];
-              if (note !== this && note.selected) {
+              let prevPitch = note.pitch;
+              if (note.selected) {
+
+                //console.log(auxY, initialY);
+                
                 note.start = note.start + (auxX - initialX);
-                if (auxY > 11) {
-                  note.octave = session.loops[this.loopId].tracks[this.trackId].octaveScroll.value+1;
-                  note.pitch =  note.pitch+(auxY-initialY-12);
+
+                if (this.octave === session.loops[this.loopId].tracks[this.trackId].octaveScroll.value) {
+                  if (this.octave === note.octave) {
+                    if (note.pitch + (auxY - initialY) > 11) {
+                      note.pitch = 0; 
+                      note.octave = session.loops[this.loopId].tracks[this.trackId].octaveScroll.value+1;
+                    }
+                    else note.pitch = note.pitch + (auxY - initialY);
+                  } else {
+                    if (note.pitch + (auxY - initialY) < 0) {
+                      note.pitch = 11; 
+                      note.octave = session.loops[this.loopId].tracks[this.trackId].octaveScroll.value;
+                    }
+                    else note.pitch = note.pitch + (auxY - initialY);
+                  }
+
+
                 } else {
-                  note.octave = session.loops[this.loopId].tracks[this.trackId].octaveScroll.value;
-                  note.pitch = note.pitch+(auxY-initialY);
+                  if (p.abs(auxY-initialY) > 10) initialY = initialY+12;
+
+                  if (this.octave === note.octave) {
+
+                    if (note.pitch + (auxY - initialY) < 0) {
+                      note.octave = session.loops[this.loopId].tracks[this.trackId].octaveScroll.value;
+                      note.pitch = 11;
+                    }
+                    else note.pitch = note.pitch + (auxY - initialY);
+                  
+                  } else {
+
+                    if (note.pitch + (auxY - initialY) > 11) {
+                      note.octave = session.loops[this.loopId].tracks[this.trackId].octaveScroll.value+1;
+                      note.pitch = 0; 
+                    }
+                    else note.pitch = note.pitch + (auxY - initialY);
+                  }
+
+                  //if (auxY-initialY > 11) initialY = initialY+12;
+                  //else if (auxY-initialY < 0) initialY = initialY-12;
+
+                  /*if (this.octave === note.octave) {
+                    if (note.pitch + (auxY - initialY) < 0) {
+                      console.log("case 1");
+                      note.octave = session.loops[this.loopId].tracks[this.trackId].octaveScroll.value;
+                      note.pitch = 11;
+                    }
+                    else {
+                      console.log("case 2");
+                      note.pitch = note.pitch + (auxY - initialY);
+                    }
+                  } else {
+                    if (note.pitch + (auxY - initialY) > 11) {
+                      console.log("case 3");
+                      note.octave = session.loops[this.loopId].tracks[this.trackId].octaveScroll.value+1;
+                      note.pitch = 0; 
+                    }
+                    else {
+                      console.log("case 4");
+                      note.pitch = note.pitch + (auxY - initialY);
+                    }
+                  }*/
                 }
 
-                //note.pitch = note.pitch + (this.pitch - initialY);
-                //note.pitch = this.pitch;
+                if (note === this && prevPitch !== note.pitch) this.playShort();
               }
+
+              //if (note.selected && note === this) {
+
+              //}
             }
-
-            if (auxY > 11) {
-              this.octave = session.loops[this.loopId].tracks[this.trackId].octaveScroll.value+1;
-              auxY = auxY-12;
-            } else this.octave = session.loops[this.loopId].tracks[this.trackId].octaveScroll.value;
-            
-            
-            if (this.pitch !== auxY) {
-              this.start = auxX;
-              this.pitch = auxY;
-              this.playShort();
-            } else if (this.pitch === auxY && this.start !== auxX) {
-              this.start = auxX;
-              this.pitch = auxY;
-              this.angInc = p.PI / 12;
-            }
-
-            //prevent passing boundaries of the grid
-            if (this.start+this.duration >= nSteps) {
-              this.start = nSteps-this.duration;
-            } 
-
-            //targetX = p.abs(gridInitX + p.round((p.mouseX - gridInitX) / gridStepSizeX) * gridStepSizeX);
-            //targetY = p.abs(gridInitY + p.round((p.mouseY - gridInitY) / gridStepSizeY) * gridStepSizeY);
-            //if (targetX > gridInitX + (nSteps-1) * gridStepSizeX) targetX = gridInitX + (nSteps-1) * gridStepSizeX;
-            //if (targetY > gridInitY + (12-1) * gridStepSizeY) targetY = gridInitY + (12-1) * gridStepSizeY;
-          //}
+          }
         }
         this.showInfo();
         document.body.style.cursor = 'grabbing';
@@ -5810,11 +5966,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
     if (p.millis() - saveDebounceInstant > saveDebounceDelay && saving) {
       console.log("saving...");
-      if (session.structDrawer === false && session.loopDrawer === false) {
-        session.save();
-        saving = false;
-        saveDebounceInstant = p.millis();
-      }
+      session.save();
+      saving = false;
+      saveDebounceInstant = p.millis(); 
     }
 
     /*if (session.activeTab !== null) {
@@ -5895,16 +6049,10 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       let input = theory.keysDecode(p.key.toUpperCase());
       if (input !== -1 && inputNotes.indexOf(input) === -1) {
         inputNotes.push(input);
-        if (session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack.playInputNote(input);
-        if (session.activeTab.record.state && session.activeTab.play && session.activeTab.currentStep > -1) {
-          let check = false;
-          for (let n in recordedNotes) {
-            if (recordedNotes[n].pitch === input && recordedNotes[n].octave === currentOctave && recordedNotes[n].trackId === session.activeTab.selectedTrack.id) {
-              check = true;
-              break;
-            }  
-          }
-          if (check === false) recordedNotes.push(new Note(input, session.activeTab.id, session.activeTab.selectedTrack.id, session.activeTab.currentStep, 1, currentOctave, session.activeTab.selectedTrack.color)); 
+        if (session.activeTab.selectedTrack !== null) {
+          session.activeTab.selectedTrack.playInputNote(input);
+          if (session.activeTab.selectedTrack.name === "DRUMS") session.manageRecordedNotes(input, 0);
+          else session.manageRecordedNotes(input, currentOctave);
         }
       }
     }
@@ -5920,24 +6068,26 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
     }
 
     if (session.activeTab !== null && menuOpened === false) {
-    if (session.activeTab.selectedTrack !== null) {
+    if (session.activeTab.type === "loop" && session.activeTab.selectedTrack !== null) {
       if (p.key.toUpperCase() === 'Z') if (currentOctave > minOctave) {
-        currentOctave--;
         session.alertLog("Current keyboard octave: "+currentOctave);
         for (let i = 0; i < inputNotes.length; i++) {
           session.activeTab.selectedTrack.releaseInputNote(inputNotes[i]);
           inputNotes.splice(i, 1);
           i--;
         }
+        currentOctave--;
+
       }
       if (p.key.toUpperCase() === 'X') if (currentOctave < maxOctave) {
-        currentOctave++;
         session.alertLog("Current keyboard octave: "+currentOctave);
         for (let i = 0; i < inputNotes.length; i++) {
           session.activeTab.selectedTrack.releaseInputNote(inputNotes[i]);
           inputNotes.splice(i, 1);
           i--;
         }
+        currentOctave++;
+
       }
       if (p.keyCode === p.LEFT_ARROW) if (session.activeTab.view > 0) {
         session.activeTab.view--;
@@ -5950,6 +6100,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         session.activeTab.blackOpa3 = 255;
       }
       if (p.keyCode === p.ESCAPE) {
+        session.activeTab.selectedTrack.deselectAllNotes();
         session.activeTab.selectedTrack = null;
         session.activeTab.view = 0;
       }
@@ -5957,34 +6108,14 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
   }
 
     let input = theory.keysDecode(p.key.toUpperCase());
-    if (input !== -1 ) {
+    if (input !== -1) {
       let index = inputNotes.indexOf(input);
       if (index !== -1) {
         inputNotes.splice(index, 1);
-        if (session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack.releaseInputNote(input);
-        if (session.activeTab.record && session.activeTab.play) {
-          for (let i = 0; i < recordedNotes.length; i++) {
-            if (recordedNotes[i].pitch === input && recordedNotes[i].trackId === session.activeTab.selectedTrack.id) {
-              //recordedNotes[i].duration = session.activeTab.currentStep - recordedNotes[i].start;
-              
-              //let track = session.activeTab.tracks[recordedNotes[i].trackId];
-
-              //recordedNotes[i].x = gridInitX + recordedNotes[i].start * gridStepSizeX;
-
-              //if (recordedNotes[i].octave === track.octaveScroll.value) recordedNotes[i].y = gridInitY + (track.nPitches-recordedNotes[i].pitch-1)*(gridStepSizeY*11/(track.nPitches-1));
-              //else if (recordedNotes[i].octave === track.octaveScroll.value+1) recordedNotes[i].y = gridInitY + (track.nPitches-recordedNotes[i].pitch-1)*(gridStepSizeY*11/(track.nPitches-1)) - gridStepSizeY*11/2-gridStepSizeY/4;
-
-              //if (recordedNotes[i].octave === track.octaveScroll.value) recordedNotes[i].draw(this.particlesX[this.tempNote.start+1], gridInitY + (this.nPitches-this.tempNote.pitch-1)*(gridStepSizeY*11/(this.nPitches-1)));
-              //else if (recordedNotes[i].octave === track.octaveScroll.value+1) recordedNotes[i].draw(this.particlesX[this.tempNote.start+1], gridInitY + (this.nPitches-this.tempNote.pitch-1)*(gridStepSizeY*11/(this.nPitches-1)) - gridStepSizeY*11/2-gridStepSizeY/4);
-
-              if (recordedNotes[i].duration === 0) recordedNotes[i].duration = 1;
-              session.activeTab.selectedTrack.ajustNotes(recordedNotes[i]);
-              session.activeTab.selectedTrack.notes.push(recordedNotes[i]);
-              recordedNotes.splice(i, 1);
-              break;
-            }
-          }
-          //session.save();
+        if (session.activeTab.selectedTrack !== null) {
+          session.activeTab.selectedTrack.releaseInputNote(input);
+          if (session.activeTab.selectedTrack.name === "DRUMS") session.resolveRecordedNotes(input,0);
+          else session.resolveRecordedNotes(input,currentOctave);
         }
       }
     }

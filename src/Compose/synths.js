@@ -26,6 +26,7 @@ import lowTomSubtle from '../Assets/audioSamples/lowTom_subtle.wav';
 import highTomSubtle from '../Assets/audioSamples/highTom_subtle.wav';
 import crashSubtle from '../Assets/audioSamples/crash_subtle.wav';
 import { Instrument } from 'tone/build/esm/instrument/Instrument.js';
+import { ConsoleView } from 'react-device-detect';
 
 // ---------------------------------------------------------------
 
@@ -38,6 +39,33 @@ function setSession(s, save) {
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function compareBuffers(buffer1, buffer2) {
+    const audioBuffer1 = buffer1.get();
+    const audioBuffer2 = buffer2.get();
+
+    // Compare basic properties
+    if (audioBuffer1.length !== audioBuffer2.length ||
+        audioBuffer1.sampleRate !== audioBuffer2.sampleRate ||
+        audioBuffer1.numberOfChannels !== audioBuffer2.numberOfChannels) {
+        return false;
+    }
+
+    // Compare the actual audio data
+    for (let channel = 0; channel < audioBuffer1.numberOfChannels; channel++) {
+        const data1 = audioBuffer1.getChannelData(channel);
+        const data2 = audioBuffer2.getChannelData(channel);
+
+        // Compare each sample
+        for (let i = 0; i < data1.length; i++) {
+            if (data1[i] !== data2[i]) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 // ---------------------------------------------------------------
@@ -111,26 +139,32 @@ midi.start().then(() => {
 
 function onDeviceInput({ note, vel }) {
     let n = note-Math.floor(note/12)*12;
-    if (session.activeTab !== null) {
-        if (session.activeTab.selectedTrack !== null) {
-            let s = session.activeTab.selectedTrack.synth;
-            if (session.activeTab.selectedTrack.name === "DRUMS") {
-                if (vel !== 0 && n < theory.drumLabels.length) {
-                    s.parts[n].start(Tone.context.currentTime);
-                    if (n === 2) s.parts[3].stop();
-                }
-            } else {
-                if (vel !== 0) {
-                    s.oscillators[0].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
-                    s.oscillators[1].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
-                }
-                else { 
-                    s.oscillators[0].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
-                    s.oscillators[1].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
-                }
+    //console.log(n);
+    if (session.activeTab !== null && session.activeTab.type === "loop" && session.loopDrawer === false && session.structDrawer === false) {
+
+        let s = session.activeTab.selectedTrack.synth;
+        if (session.activeTab.selectedTrack.name === "DRUMS") {
+            if (vel !== 0 && n < theory.drumLabels.length) {
+                s.parts[n].stop();
+                s.parts[n].start(Tone.context.currentTime);
+                if (n === 2) s.parts[3].stop(Tone.context.currentTime);
+                session.manageRecordedNotes(n,0);
+            } else if (vel === 0 && n < theory.drumLabels.length) {
+                session.resolveRecordedNotes(n,0);
             }
-            saving = true;
+        } else {
+            if (vel !== 0) {
+                s.oscillators[0].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
+                s.oscillators[1].triggerAttack(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
+                session.manageRecordedNotes(n,Math.floor(note/12));
+            }
+            else { 
+                s.oscillators[0].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
+                s.oscillators[1].triggerRelease(theory.freqs[n]*Math.pow(2,Math.floor(note/12)),Tone.context.currentTime);
+                session.resolveRecordedNotes(n,Math.floor(note/12));
+            }
         }
+        saving = true;
     }
 }
 
@@ -576,11 +610,10 @@ Tone.Transport.scheduleRepeat((time) => {
                         tab.sequence[tab.currentLoop].play = false;
                 
                         if (tab.currentLoop === tab.sequence.length-1) tab.currentLoop = 0;
-                        else {
-                            synths.releaseAll(time);
-                            tab.currentLoop++;
-                        }
+                        else tab.currentLoop++;
                         
+                        synths.releaseAll(time);
+
                         tab.sequence[tab.currentLoop].play = true;
                 
                     } else tab.currentRepeat++;
@@ -765,6 +798,6 @@ function releaseAll() {
 // EXPORT DEFAULT
 // ---------------------------------------------------------------
 
-const synths = { setSession, exportLoopAudio, exportStructAudio, synthPresets, drumPresets, melody, harmony, bass, drums, releaseAll, mic, micMeter, recorder };
+const synths = { setSession, exportLoopAudio, exportStructAudio, synthPresets, drumPresets, melody, harmony, bass, drums, releaseAll, mic, micMeter, recorder, compareBuffers };
 
 export default synths;
