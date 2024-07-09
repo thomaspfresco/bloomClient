@@ -5190,8 +5190,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
                   session.activeTab.addTrack(this.lastOption);
                   this.close();
                 } else if (i === 1) {
-                  console.log("AKS TO THE SERVER");
-                  this.close();
+                  this.state = 2;
+                  this.menuOpa = 0;
                 } else {
                   synths.mic.open();
                   session.loops[this.tabId].recordVisual.fill(0);
@@ -5214,8 +5214,124 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
     }
 
     drawSelection() {
+      let gap = p.windowWidth/150;
+      let x = gridStepSizeX*nSteps-gap;
+      let y = gridStepSizeY*11-gap;
+
+      let hover = -1;
+
+      if (p.mouseX > gridInitX && p.mouseX < p.windowWidth - gridInitX && p.mouseY > gridInitY+gridInitY/2.6 && p.mouseY < gridInitY+gridInitY/2.6 + gridStepSizeY*11) {
+        document.body.style.cursor = 'pointer';
+
+        if (p.mouseX < p.windowWidth/2) {
+          if (p.mouseY < gridInitY+gridInitY/2.6 + gridStepSizeY*11/2) hover = 0; //top left: 0
+          else hover = 2; //bottom left: 2
+        } else {
+          if (p.mouseY < gridInitY+gridInitY/2.6 + gridStepSizeY*11/2) hover = 1; //top right: 1
+          else hover = 3; //bottom right: 3
+        }
+
+        if (p.mouseIsPressed) {
+          console.log(hover);
+          p.mouseIsPressed = false;
+        }
+      }
+
+      p.noFill();
+
+      p.push();
+      p.translate(0,0,p.windowHeight/60);
+      if (hover === 0) p.stroke(white[0], white[1], white[2],this.menuOpa/2);
+      else p.stroke(white[0], white[1], white[2],this.menuOpa/4);
+      p.rect(gridInitX,gridInitY+gridInitY/2.6,x/2,y/2,p.windowHeight/200);
+      if (hover === 1) p.stroke(white[0], white[1], white[2],this.menuOpa/2);
+      else p.stroke(white[0], white[1], white[2],this.menuOpa/4);
+      p.rect(gridInitX+x/2+gap,gridInitY+gridInitY/2.6,x/2,y/2,p.windowHeight/200);
+      if (hover === 2) p.stroke(white[0], white[1], white[2],this.menuOpa/2);
+      else p.stroke(white[0], white[1], white[2],this.menuOpa/4);
+      p.rect(gridInitX,gridInitY+y/2+gap+gridInitY/2.6,x/2,y/2,p.windowHeight/200);
+      if (hover === 3) p.stroke(white[0], white[1], white[2],this.menuOpa/2);
+      else p.stroke(white[0], white[1], white[2],this.menuOpa/4);
+      p.rect(gridInitX+x/2+gap,gridInitY+y/2+gap+gridInitY/2.6,x/2,y/2,p.windowHeight/200); 
+      p.pop();
+
       p.textAlign(p.CENTER, p.TOP);
-      p.textFont(fontLight);
+      p.textSize(p.windowHeight / 60);
+      p.noStroke();
+      p.fill(white[0], white[1], white[2], this.menuOpa/2);
+      p.text("Select one of the generated parts or regenerate them", p.windowWidth/2, gridInitY/1.05);
+
+      let auxY = p.windowHeight-gridInitY/1.25;
+      let auxX = (p.windowWidth - gridInitX*2 - p.windowWidth/150*7)/8/2;
+
+      p.textSize(p.windowHeight / 65);
+      p.textAlign(p.CENTER, p.BOTTOM);
+      if (session.loops[this.tabId].click.state) p.fill(white[0], white[1], white[2]);
+      else p.fill(white[0], white[1], white[2], 255/2);
+      p.text("CLICK",gridInitX + auxX*3+p.windowWidth/150*1,auxY+p.windowHeight / 40);
+
+      p.push();
+      p.translate(0,0,p.windowHeight/60);
+      session.loops[this.tabId].tempoScroll.draw(gridInitX + auxX,auxY);
+      session.loops[this.tabId].click.draw(gridInitX + auxX*3+p.windowWidth/150*1,auxY-p.windowHeight / 120);
+      p.pop();
+
+      p.textAlign(p.RIGHT, p.CENTER);
+        
+      p.textSize(p.windowHeight / 50);
+      
+      if (p.mouseX > p.windowWidth - gridInitX*6.6-p.textWidth("CANCEL") && p.mouseX < p.windowWidth - gridInitX*6.6 && p.mouseY > auxY-p.windowHeight / 50 /1.5 && p.mouseY < auxY + p.windowHeight / 50 /1.5) {
+        if (session.loops[this.tabId].play) {
+          document.body.style.cursor = 'not-allowed';
+          p.fill(white[0], white[1], white[2], this.menuOpa/2);
+        } else {
+          document.body.style.cursor = 'pointer';
+          p.fill(white[0], white[1], white[2], this.menuOpa);
+
+          if (p.mouseIsPressed) {
+            this.close();
+            p.mouseIsPressed = false;
+          }
+        }
+
+      } else p.fill(white[0], white[1], white[2], this.menuOpa/2);
+      
+      p.text("CANCEL", p.windowWidth - gridInitX*6.6, auxY);
+
+      p.textSize(p.windowHeight / 40);
+      p.textFont(fontMedium);
+
+      if (p.mouseX > p.windowWidth - gridInitX*1.7-p.textWidth("REGENERATE") && p.mouseX < p.windowWidth - gridInitX*1.7 && p.mouseY > auxY-p.windowHeight / 40 /1.5 && p.mouseY < auxY + p.windowHeight / 40 /1.5) {
+        
+        document.body.style.cursor = 'pointer';
+
+        let c = 0;
+        
+        switch (this.lastOption) {
+          case "BASS":
+            c = 0;
+            break;
+          case "DRUMS":
+            c = 1;
+            break;
+          case "HARMONY":
+            c = 2;
+            break;
+          case "MELODY":
+            c = 3;
+            break;
+        }
+
+        p.fill(colors[c][0], colors[c][1], colors[c][2], this.menuOpa);
+
+        if (p.mouseIsPressed) {
+          p.mouseIsPressed = false;
+        }
+        
+      } else p.fill(white[0], white[1], white[2], this.menuOpa/3);
+
+
+      p.text("REGENERATE", p.windowWidth - gridInitX*1.7, auxY);  
     }
 
     confirmDelete() {
@@ -5401,7 +5517,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         } else p.fill(white[0], white[1], white[2], this.menuOpa/3);
 
 
-        p.text("GENERATE", p.windowWidth - gridInitX*2, auxY);  
+        p.text("GENERATE", p.windowWidth - gridInitX*1.9, auxY);  
       }
     }
 
@@ -5458,7 +5574,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         else if (this.state === 5) this.drawAbout();
 
         //if (p.mouseX < x || p.mouseX > x + this.optionW || p.mouseY < y  -this.optionH*2 - (this.options.length-1) * this.optionH || p.mouseY > y  -this.optionH*2 + this.optionH) {
-        if (p.mouseIsPressed && this.state !== 4) {
+        if (p.mouseIsPressed && this.state !== 4 && this.state !== 2) {
           this.close();
           p.mouseIsPressed = false;
         }
@@ -5632,7 +5748,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         }
       }
 
-      if (p.mouseX > x -this.radius/2 && p.mouseX < x+this.radius/2 && p.mouseY > y -this.radius/2 && p.mouseY < y +this.radius/2  && dragging === false && (menuOpened === false || menuOpened === true && session.activeTab.type === "loop" && session.activeTab.plusMenu.state === 4)) {
+      if (p.mouseX > x -this.radius/2 && p.mouseX < x+this.radius/2 && p.mouseY > y -this.radius/2 && p.mouseY < y +this.radius/2  && dragging === false && (menuOpened === false || menuOpened === true && session.activeTab.type === "loop" && (session.activeTab.plusMenu.state === 2 || session.activeTab.plusMenu.state === 4))) {
         document.body.style.cursor = 'pointer';
 
         this.hover = true;
@@ -5740,7 +5856,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
       p.push();
       if (p.mouseX > x - this.w/2 && p.mouseX < x+this.w/2 && p.mouseY > y -this.h/2 && p.mouseY < y +this.h/2
-        && dragging === false && (menuOpened === false || menuOpened === true && session.activeTab.type === "loop" && session.activeTab.plusMenu.state === 4)) {
+        && dragging === false && (menuOpened === false || menuOpened === true && session.activeTab.type === "loop" && (session.activeTab.plusMenu.state === 2 || session.activeTab.plusMenu.state === 4))) {
 
           if (this.opa + 15 < 255) this.opa += 15;
           else this.opa = 255;
