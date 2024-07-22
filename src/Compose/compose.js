@@ -43,6 +43,9 @@ import petalOBJ2 from '../Assets/petal2.obj';
 import petalOBJ3 from '../Assets/petal3.obj';
 import petalOBJ4 from '../Assets/petal4.obj';
 
+import undoPNG from '../Assets/undo.png';
+import redoPNG from '../Assets/redo.png';
+
 import synths from './synths.js';
 
 //import { stringify } from 'flatted';
@@ -54,6 +57,9 @@ let saveDebounceDelay = 5000;
 let saving = false;
 let sessionToSave = {};
 
+let generatedTracks = [];
+let generatedTracksKeys = [];
+
 let checkMicPermition = false;
 let recorderBlob;
 let recordedTempo = 0;
@@ -61,7 +67,7 @@ let micLevelTune = 0;
 
 let fontLight, fontMedium, fontBold;
 let petal1, petal2, petal3, petal4;
-let loopsIcon, structsIcon, gridIcon, studioIcon, autoIcon, plus, arrowUp, arrowDown, ai, sing, scratch;
+let undoIcon, redoIcon, loopsIcon, structsIcon, gridIcon, studioIcon, autoIcon, plus, arrowUp, arrowDown, ai, sing, scratch;
 let diceIcons = [];
 
 let menuOpened = false;
@@ -137,7 +143,7 @@ let session;
 
 // --------------------------------------------------------------------------------------
 
-const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
+const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi) => (p) => {
 
   //PARTICLES--------------------------------------------------------------------------------------
 
@@ -480,6 +486,20 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       //console.log(arrayBuffer);
     }
 
+    drawHistory() {
+      p.tint(255, 255/2);
+      p.image(undoIcon, gridInitX*2, gridInitY/2, p.windowHeight/35, p.windowHeight/35);
+      p.tint(255, 255/4);
+      p.image(redoIcon, gridInitX*3, gridInitY/2, p.windowHeight/35, p.windowHeight/35);
+
+      if (p.mouseX > gridInitX*2-p.windowHeight/35/2 && p.mouseX < gridInitX*2+p.windowHeight/35/2 && p.mouseY > gridInitY/2-p.windowHeight/35/2 && p.mouseY < gridInitY/2+p.windowHeight/35/2 
+        || p.mouseX > gridInitX*3-p.windowHeight/35/2 && p.mouseX < gridInitX*3+p.windowHeight/35/2 && p.mouseY > gridInitY/2-p.windowHeight/35/2 && p.mouseY < gridInitY/2+p.windowHeight/35/2 
+        && dragging === false && menuOpened === false) {
+        document.body.style.cursor = 'not-allowed';
+        console.log("undo");
+      }
+    }
+
     draw() {
       this.drawersOffsetInc = p.windowWidth / 500;
 
@@ -495,7 +515,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         p.tint(255, 255/4);
         p.image(structsIcon, p.windowWidth - p.windowHeight/30 - p.windowHeight / 35 / 2 + p.windowHeight / 25*2-this.structsOffset*2,  p.windowHeight/2, p.windowHeight / 35, p.windowHeight / 35);
       }
-      else this.activeTab.draw();
+      else {
+        this.activeTab.draw();
+      }
 
       //draw log
       this.drawLog();
@@ -854,6 +876,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
                 //change mouse position to avoid imediate retriggering
                 p.mouseX = p.windowWidth / 2;
+                p.mouseY = 0;
                 //p.mouseIsPressed = false;
               }
               }
@@ -1042,6 +1065,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
   
                   //change mouse position to avoid imediate retriggering
                   p.mouseX = p.windowWidth / 2;
+                  p.mouseY = 0;
                   //p.mouseIsPressed = false;
                 }
               }
@@ -1768,6 +1792,32 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         //session.save();
       }
     }
+
+   async createTracksWithGeneratedNotes(loopId,name) {
+      generatedTracks = [];
+      generatedTracksKeys = [];
+      session.loops[loopId].plusMenu.soloButton.state = true;
+
+      let parts = await generate(name,session.loops[loopId].getInfoJSON());
+
+      for (let part in parts) {
+
+        generatedTracksKeys.push(parts[part][0]);
+
+        let track = new Track(session.loops[loopId].tracks.length, loopId, name, p.windowWidth / 2);
+        for (let n in parts[part][1]) {
+          let note = new Note(parts[part][1][n].pitch, loopId, track.id, parts[part][1][n].start, parts[part][1][n].duration, parts[part][1][n].octave, track.color);
+          track.notes.push(note);
+        }
+        track.octaveScroll.value = parts[part][1][0].octave;
+        generatedTracks.push(track);
+      }
+
+      session.activeTab.click.state = false;
+      session.activeTab.plusMenu.soloButton.color = generatedTracks[0].color;
+
+      synths.setGeneratedTracks(generatedTracks);
+    }
   }
 
   class Structure {
@@ -1846,7 +1896,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.tempoButton = new Button("TEMPO", false, white);
       this.transposeButton = new Button("TRANSPOSE", false, white);
 
-      this.menu = new Menu(this.id, null, "structMenu", ["EXPORT","RENAME","DUPLICATE", "CLOSE TAB", "DELETE"],"DROPDOWN");
+      this.menu = new Menu(this.id, null, "structMenu", ["EXPORT AUDIO", "RENAME","DUPLICATE", "CLOSE TAB", "DELETE"],"DROPDOWN");
     }
 
     createFromLoop(loop) {
@@ -2311,6 +2361,11 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
             
             } else if (p.mouseButton === p.RIGHT) {
               this.menus[i].open();
+              this.play = false;
+              this.sequence[this.currentLoop].play = false;
+              Tone.Transport.stop();
+              Tone.Transport.seconds = 0;
+              synths.releaseAll();
               p.mouseIsPressed = false;
             }
           }
@@ -2501,8 +2556,27 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.x = 0;
       this.y = 0;
 
-      this.menu = new Menu(this.id, null, "loopMenu",["EXPORT","RENAME","DUPLICATE","STRUCT FROM", "CLOSE TAB", "DELETE"],"DROPDOWN");
+      this.menu = new Menu(this.id, null, "loopMenu",["EXPORT AUDIO", "RENAME","DUPLICATE","STRUCT FROM", "CLOSE TAB", "DELETE"],"DROPDOWN");
       this.plusMenu = new Menu(this.id, null, "plusMenu",["MELODY", "HARMONY", "DRUMS", "BASS"],"DROPUP");
+    }
+
+    getInfoJSON() {
+      let json = {};
+
+      for (let t in this.tracks) {
+        let notes = {};
+        for (let n in this.tracks[t].notes) {
+          let note = {};
+          note["start"] = this.tracks[t].notes[n].start;
+          note["duration"] = this.tracks[t].notes[n].duration;
+          note["pitch"] = this.tracks[t].notes[n].pitch;
+          note["octave"] = this.tracks[t].notes[n].octave;
+          notes[n] = note;
+        }
+        if (this.tracks[t].notes.length > 0) json[this.tracks[t].name] = notes;
+      }
+
+      return JSON.stringify(json);
     }
 
     updateIconsPos() {
@@ -2733,8 +2807,11 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           p.line(gridInitX + this.currentStep * gridStepSizeX, gridInitY,gridInitX + this.currentStep * gridStepSizeX, gridInitY+gridStepSizeY*11);
         }
 
-        //timebar
-        if (session.activeTab.selectedTrack !== null) this.drawTimeBar();
+        //timebar e history
+        if (session.activeTab.selectedTrack !== null) {
+          session.drawHistory();
+          this.drawTimeBar();
+        }
 
         //hover plus button
         if (p.mouseX > this.plusX && p.mouseX < this.plusX + iconSize && p.mouseY > this.plusY && p.mouseY < this.plusY + iconSize && dragging === false && menuOpened === false && this.tracks.length < maxTracks) {
@@ -2745,6 +2822,10 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           if (p.mouseIsPressed) {
             if (this.selectedTrack !== null) this.selectedTrack.deselectAllNotes();
             this.plusMenu.open();
+            this.play = false;
+            Tone.Transport.stop();
+            Tone.Transport.seconds = 0;
+            synths.releaseAll();
             p.mouseIsPressed = false;
           }
         } else if (((p.mouseY > gridInitY+11*gridStepSizeY && this.selectedTrack === null || this.selectedTrack !== null) && this.tracks.length < maxTracks || this.tracks.length===0) && menuOpened === false) {
@@ -2924,7 +3005,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         if (this.name === "HARMONY") this.color = colors[2];
       }
 
-      this.menu = new Menu(this.loopId, this.id, "trackMenu",["DELETE","RENAME"],"DROPUP");
+      this.menu = new Menu(this.loopId, this.id, "trackMenu",["DELETE","RENAME","EXPORT MIDI"],"DROPUP");
 
       this.ang = p.random(0, p.TWO_PI);
       this.angInc = p.PI / 20;
@@ -3083,6 +3164,59 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         this.targetYpreview.push(0);
         this.targetXstruct.push(0);
         this.targetYstruct.push(0);
+      }
+    }
+
+    getInfoJSON() {
+      let json = {};
+
+      let notes = {};
+      for (let n in this.notes) {
+        let note = {};
+        note["start"] = this.notes[n].start;
+        note["duration"] = this.notes[n].duration;
+        note["pitch"] = this.notes[n].pitch;
+        note["octave"] = this.notes[n].octave;
+        notes[n] = note;
+      }
+
+      json[this.name] = notes;
+
+      return JSON.stringify(json);
+    }
+
+    drawInGenMenu(x,y,width,height) {
+
+      p.stroke(this.color[0],this.color[1],this.color[2]);
+
+      //let auxY = height / (8 * this.nPitches);
+      //let auxX = width / nSteps;
+
+      //p.line(x, y, x + auxX * nSteps, y);
+      //p.line(x, y + auxY * 8 * this.nPitches, x + auxX * nSteps, y + auxY * 8 * this.nPitches);
+
+      /*for (let n in this.notes) {
+        p.line(x + auxX * this.notes[n].start, y + height - (auxY *(this.notes[n].pitch+this.notes[n].octave*12)), x + auxX * (this.notes[n].start + this.notes[n].duration), y + height - (auxY *(this.notes[n].pitch+this.notes[n].octave*12)));
+      }*/
+      if (this.name === "DRUMS") {
+        let auxY = height / (this.nPitches+1);
+        let auxX = width / (nSteps+1);  
+
+        p.strokeWeight(auxY/5);
+
+        for (let n in this.notes) {
+          p.line(x + auxX + auxX * this.notes[n].start, y + height - (auxY *(this.notes[n].pitch+1)), x + auxX + auxX * (this.notes[n].start + this.notes[n].duration), y + height - (auxY *(this.notes[n].pitch+1)));
+        }
+
+      } else {
+        let auxY = height / (this.nPitches*3);
+        let auxX = width / nSteps;  
+
+        p.strokeWeight(auxY/2);
+
+        for (let n in this.notes) {
+          p.line(x + auxX * this.notes[n].start, y + height - (auxY *(this.notes[n].pitch+this.nPitches)), x + auxX * (this.notes[n].start + this.notes[n].duration), y + height - (auxY *(this.notes[n].pitch+this.nPitches)));
+        }
       }
     }
 
@@ -3290,11 +3424,12 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         document.body.style.cursor = 'grabbing';
 
         for (let n in this.notes) {
-          if (this.notes[n].x > selectX && this.notes[n].x < p.mouseX && this.notes[n].y > selectY && this.notes[n].y < p.mouseY && p.mouseX > selectX && p.mouseY > selectY
+          if ((this.notes[n].x > selectX && this.notes[n].x < p.mouseX && this.notes[n].y > selectY && this.notes[n].y < p.mouseY && p.mouseX > selectX && p.mouseY > selectY
             || this.notes[n].x > selectX && this.notes[n].x < p.mouseX && this.notes[n].y < selectY && this.notes[n].y > p.mouseY && p.mouseX > selectX && p.mouseY < selectY
             || this.notes[n].x < selectX && this.notes[n].x > p.mouseX && this.notes[n].y > selectY && this.notes[n].y < p.mouseY && p.mouseX < selectX && p.mouseY > selectY
-            || this.notes[n].x < selectX && this.notes[n].x > p.mouseX && this.notes[n].y < selectY && this.notes[n].y > p.mouseY && p.mouseX < selectX && p.mouseY < selectY
-          ) {
+            || this.notes[n].x < selectX && this.notes[n].x > p.mouseX && this.notes[n].y < selectY && this.notes[n].y > p.mouseY && p.mouseX < selectX && p.mouseY < selectY) 
+            && (this.notes[n].octave === this.octaveScroll.value || this.notes[n].octave === this.octaveScroll.value+1)) {
+
             if (this.notes[n].selected === false) {
               this.notes[n].playShort();
               this.notes[n].selected = true;
@@ -3991,6 +4126,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
             if (oscInfo[i].oscillator.type !== this.oscKnobs[i][0].output.toLowerCase()) this.synth.oscillators[i].set({oscillator: {type: this.oscKnobs[i][0].output.toLowerCase()}});
             if (oscInfo[i].detune !== this.oscKnobs[i][1].output) this.synth.oscillators[i].set({detune: this.oscKnobs[i][1].output});
             if (oscInfo[i].volume !== p.map(this.oscKnobs[i][2].output,0,1,-50,0)) this.synth.oscillators[i].set({volume: p.map(this.oscKnobs[i][2].output,0,1,-50,0)});
+            if (this.oscKnobs[i][2].output === 0) this.synth.oscillators[i].set({volume: -Infinity});
           }
           else if (oscInfo[i].volume !== -Infinity) this.synth.oscillators[i].set({volume: -Infinity});
 
@@ -4179,6 +4315,10 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           } else if (p.mouseButton === p.RIGHT) {
             if (session.activeTab.type === "loop" && session.activeTab.selectedTrack !== null) session.activeTab.selectedTrack.deselectAllNotes();
             this.menu.open();
+            session.activeTab.play = false;
+            Tone.Transport.stop();
+            Tone.Transport.position = 0;
+            synths.releaseAll();
             this.angInc = p.PI / 15;
           }
 
@@ -4640,6 +4780,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
             this.selected = true;
             this.dragging = true;
             dragging = true;
+            
+            this.playShort();
           }
           
       } else this.hover = false;
@@ -4673,6 +4815,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
           for (let n in session.loops[this.loopId].tracks[this.trackId].notes) {
             let note = session.loops[this.loopId].tracks[this.trackId].notes[n];
+            
+            if (note.selected === false) continue;
             
             //negative -> left
             if (note.start + auxX - initialX < 0) blockMove = true;
@@ -4901,6 +5045,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.label = label;
       this.mode = mode;
 
+      this.trackHover = -1; //for generation selecting preview
+
       this.state = -1; //-1: ckosed, 0: opened, 1: opened and option selected, 2: ai generated selection, 3: confirm delete, 4:basic pitch, 5: about
 
       this.options = options;
@@ -4928,6 +5074,10 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       this.optionsOffset = [];
 
       this.menuOpa = 0;
+
+      //for generated tracks
+      //this.octaveScroll = new Scrollable("OCTAVE",3,0,theory.octaves.length-1,"",1,1);
+      this.soloButton = new Button("SOLO",false,white);
 
       for (let i = 0; i < this.nOptions; i++) {
         this.optionsCheck.push(false);
@@ -5004,13 +5154,17 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
                       else if (this.label === "structMenu") session.duplicateStruct(this.tabId);
                       this.close();
                       break;
-                    case "EXPORT":
+                    case "EXPORT AUDIO":
                       if (this.label === "loopMenu") {
                         synths.exportLoopAudio(p,session.loops[this.tabId], setLoading);
                         setLoading(true);
                       }
                       else if (this.label === "structMenu") {
                         if (session.activeTab.sequence.length > 0) {
+                          if (session.activeTab.play) {
+                            session.activeTab.play = false;
+                            session.activeTab.sequence[session.activeTab.currentLoop].play = false;
+                           }
                           synths.exportStructAudio(p,session.structs[this.tabId], setLoading);
                           setLoading(true);
                         }
@@ -5105,6 +5259,10 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
                     this.state = 1;
                   } else if (this.label === "trackMenu") {
                     switch (this.options[i]) {
+                      case "EXPORT MIDI":
+                        renderMidi(session.loops[this.tabId].tracks[this.trackId].getInfoJSON(),session.activeTab.tempoScroll.value);
+                        this.close();
+                        break;
                       case "DELETE":
                         this.state = 3;
                         this.menuOpa = 0;
@@ -5191,6 +5349,12 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
                   this.close();
                 } else if (i === 1) {
                   this.state = 2;
+                  session.createTracksWithGeneratedNotes(session.activeTab.id,this.lastOption);
+                  
+                  //prevent to play imeadiatly
+                  p.mouseX = p.windowWidth / 2;
+                  p.mouseY = 0;
+
                   this.menuOpa = 0;
                 } else {
                   synths.mic.open();
@@ -5218,42 +5382,127 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       let x = gridStepSizeX*nSteps-gap;
       let y = gridStepSizeY*11-gap;
 
-      let hover = -1;
 
       if (p.mouseX > gridInitX && p.mouseX < p.windowWidth - gridInitX && p.mouseY > gridInitY+gridInitY/2.6 && p.mouseY < gridInitY+gridInitY/2.6 + gridStepSizeY*11) {
         document.body.style.cursor = 'pointer';
 
-        if (p.mouseX < p.windowWidth/2) {
-          if (p.mouseY < gridInitY+gridInitY/2.6 + gridStepSizeY*11/2) hover = 0; //top left: 0
-          else hover = 2; //bottom left: 2
-        } else {
-          if (p.mouseY < gridInitY+gridInitY/2.6 + gridStepSizeY*11/2) hover = 1; //top right: 1
-          else hover = 3; //bottom right: 3
+        let prevHover = this.trackHover;
+
+        if (this.trackHover === -1) {
+          session.activeTab.currentStep = -1;
+          session.activeTab.play = true;
+          Tone.Transport.start();
         }
 
+        if (p.mouseX < p.windowWidth/2) {
+          if (p.mouseY < gridInitY+gridInitY/2.6 + gridStepSizeY*11/2) this.trackHover = 0; //top left: 0
+          else this.trackHover = 2; //bottom left: 2 
+        } else {
+          if (p.mouseY < gridInitY+gridInitY/2.6 + gridStepSizeY*11/2) this.trackHover = 1; //top right: 1
+          else this.trackHover = 3; //bottom right: 3
+        }
+
+        if (prevHover !== this.trackHover) {
+          synths.releaseAll();
+          session.activeTab.currentStep = -1;
+        }
+        
         if (p.mouseIsPressed) {
-          console.log(hover);
+          session.activeTab.tracks.push(generatedTracks[this.trackHover]);
+          generatedTracks = [];
+          synths.setGeneratedTracks([]);
+          synths.releaseAll();
+          this.close();
           p.mouseIsPressed = false;
         }
+      } else {
+        if (session.activeTab.play) {
+          session.activeTab.play = false;
+          Tone.Transport.stop();
+          Tone.Transport.seconds = 0;
+          synths.releaseAll();
+        }
+        this.trackHover = -1;
       }
 
       p.noFill();
 
       p.push();
       p.translate(0,0,p.windowHeight/60);
-      if (hover === 0) p.stroke(white[0], white[1], white[2],this.menuOpa/2);
+      if (this.trackHover === 0) p.stroke(white[0], white[1], white[2],this.menuOpa/2);
       else p.stroke(white[0], white[1], white[2],this.menuOpa/4);
       p.rect(gridInitX,gridInitY+gridInitY/2.6,x/2,y/2,p.windowHeight/200);
-      if (hover === 1) p.stroke(white[0], white[1], white[2],this.menuOpa/2);
+      if (this.trackHover === 1) p.stroke(white[0], white[1], white[2],this.menuOpa/2);
       else p.stroke(white[0], white[1], white[2],this.menuOpa/4);
       p.rect(gridInitX+x/2+gap,gridInitY+gridInitY/2.6,x/2,y/2,p.windowHeight/200);
-      if (hover === 2) p.stroke(white[0], white[1], white[2],this.menuOpa/2);
+      if (this.trackHover === 2) p.stroke(white[0], white[1], white[2],this.menuOpa/2);
       else p.stroke(white[0], white[1], white[2],this.menuOpa/4);
       p.rect(gridInitX,gridInitY+y/2+gap+gridInitY/2.6,x/2,y/2,p.windowHeight/200);
-      if (hover === 3) p.stroke(white[0], white[1], white[2],this.menuOpa/2);
+      if (this.trackHover === 3) p.stroke(white[0], white[1], white[2],this.menuOpa/2);
       else p.stroke(white[0], white[1], white[2],this.menuOpa/4);
       p.rect(gridInitX+x/2+gap,gridInitY+y/2+gap+gridInitY/2.6,x/2,y/2,p.windowHeight/200); 
       p.pop();
+
+      //draw generated tracks
+      if (generatedTracks.length === 4) {
+        p.push();
+        p.translate(0,0,p.windowHeight/60);
+        generatedTracks[0].drawInGenMenu(gridInitX,gridInitY+gridInitY/2.6,x/2,y/2);
+        generatedTracks[1].drawInGenMenu(gridInitX+x/2+gap,gridInitY+gridInitY/2.6,x/2,y/2);
+        generatedTracks[2].drawInGenMenu(gridInitX,gridInitY+y/2+gap+gridInitY/2.6,x/2,y/2);
+        generatedTracks[3].drawInGenMenu(gridInitX+x/2+gap,gridInitY+y/2+gap+gridInitY/2.6,x/2,y/2);
+
+        p.strokeWeight(1);
+        p.stroke(white[0], white[1], white[2],this.menuOpa/8);
+        p.line(gridInitX+((x/2)/2),gridInitY+gridInitY/2.6,gridInitX+((x/2)/2),gridInitY+gridInitY/2.6+y/2);
+        p.line(gridInitX+((x/2)/4),gridInitY+gridInitY/2.6,gridInitX+((x/2)/4),gridInitY+gridInitY/2.6+y/2);
+        p.line(gridInitX+(((x/2)/4)*3),gridInitY+gridInitY/2.6,gridInitX+(((x/2)/4)*3),gridInitY+gridInitY/2.6+y/2);
+
+        p.line(gridInitX+x/2+gap+((x/2)/2),gridInitY+gridInitY/2.6,gridInitX+x/2+gap+((x/2)/2),gridInitY+gridInitY/2.6+y/2);
+        p.line(gridInitX+x/2+gap+((x/2)/4),gridInitY+gridInitY/2.6,gridInitX+x/2+gap+((x/2)/4),gridInitY+gridInitY/2.6+y/2);
+        p.line(gridInitX+x/2+gap+(((x/2)/4)*3),gridInitY+gridInitY/2.6,gridInitX+x/2+gap+(((x/2)/4)*3),gridInitY+gridInitY/2.6+y/2);
+
+        p.line(gridInitX+((x/2)/2),gridInitY+y/2+gap+gridInitY/2.6,gridInitX+((x/2)/2),gridInitY+y/2+gap+gridInitY/2.6+y/2);
+        p.line(gridInitX+((x/2)/4),gridInitY+y/2+gap+gridInitY/2.6,gridInitX+((x/2)/4),gridInitY+y/2+gap+gridInitY/2.6+y/2);
+        p.line(gridInitX+(((x/2)/4)*3),gridInitY+y/2+gap+gridInitY/2.6,gridInitX+(((x/2)/4)*3),gridInitY+y/2+gap+gridInitY/2.6+y/2);
+
+        p.line(gridInitX+x/2+gap+((x/2)/2),gridInitY+y/2+gap+gridInitY/2.6,gridInitX+x/2+gap+((x/2)/2),gridInitY+y/2+gap+gridInitY/2.6+y/2);
+        p.line(gridInitX+x/2+gap+((x/2)/4),gridInitY+y/2+gap+gridInitY/2.6,gridInitX+x/2+gap+((x/2)/4),gridInitY+y/2+gap+gridInitY/2.6+y/2);
+        p.line(gridInitX+x/2+gap+(((x/2)/4)*3),gridInitY+y/2+gap+gridInitY/2.6,gridInitX+x/2+gap+(((x/2)/4)*3),gridInitY+y/2+gap+gridInitY/2.6+y/2);
+
+        p.noStroke();
+        p.textAlign(p.LEFT, p.TOP);
+
+        if (generatedTracks[0].name !== "DRUMS") {
+          p.fill(white[0], white[1], white[2],this.menuOpa/2);
+          p.textSize(p.windowHeight/50);
+          p.text(generatedTracksKeys[0],gridInitX+p.windowHeight/60,gridInitY+gridInitY/2.6+p.windowHeight/60);
+          p.text(generatedTracksKeys[1],gridInitX+x/2+gap+p.windowHeight/60,gridInitY+gridInitY/2.6+p.windowHeight/60);
+          p.text(generatedTracksKeys[2],gridInitX+p.windowHeight/60,gridInitY+y/2+gap+gridInitY/2.6+p.windowHeight/60);
+          p.text(generatedTracksKeys[3],gridInitX+x/2+gap+p.windowHeight/60,gridInitY+y/2+gap+gridInitY/2.6+p.windowHeight/60);
+
+          p.fill(white[0], white[1], white[2],this.menuOpa/3);
+          p.textSize(p.windowHeight / 75);
+          p.text("KEY",gridInitX+p.windowHeight/60,gridInitY+gridInitY/2.6+p.windowHeight/44+p.windowHeight/60);
+          p.text("KEY",gridInitX+x/2+gap+p.windowHeight/60,gridInitY+gridInitY/2.6+p.windowHeight/44+p.windowHeight/60);
+          p.text("KEY",gridInitX+p.windowHeight/60,gridInitY+y/2+gap+gridInitY/2.6+p.windowHeight/44+p.windowHeight/60);
+          p.text("KEY",gridInitX+x/2+gap+p.windowHeight/60,gridInitY+y/2+gap+gridInitY/2.6+p.windowHeight/44+p.windowHeight/60);
+          p.pop();
+        }
+      }
+
+      //draw cursor 
+      if (session.activeTab.currentStep !== -1) {
+        p.strokeWeight(1);
+        p.stroke(white[0], white[1], white[2],this.menuOpa);
+        p.push();
+        p.translate(0,0,p.windowHeight/60);
+        if (this.trackHover === 0) p.line(gridInitX+((x/2)/nSteps)*session.activeTab.currentStep,gridInitY+gridInitY/2.6,gridInitX+((x/2)/nSteps)*session.activeTab.currentStep,gridInitY+gridInitY/2.6+y/2);
+        else if (this.trackHover === 1) p.line(gridInitX+x/2+gap+((x/2)/nSteps)*session.activeTab.currentStep,gridInitY+gridInitY/2.6,gridInitX+x/2+gap+((x/2)/nSteps)*session.activeTab.currentStep,gridInitY+gridInitY/2.6+y/2);
+        else if (this.trackHover === 2) p.line(gridInitX+((x/2)/nSteps)*session.activeTab.currentStep,gridInitY+y/2+gap+gridInitY/2.6,gridInitX+((x/2)/nSteps)*session.activeTab.currentStep,gridInitY+y/2+gap+gridInitY/2.6+y/2);
+        else if (this.trackHover === 3) p.line(gridInitX+x/2+gap+((x/2)/nSteps)*session.activeTab.currentStep,gridInitY+y/2+gap+gridInitY/2.6,gridInitX+x/2+gap+((x/2)/nSteps)*session.activeTab.currentStep,gridInitY+y/2+gap+gridInitY/2.6+y/2);
+        p.pop();
+      }
 
       p.textAlign(p.CENTER, p.TOP);
       p.textSize(p.windowHeight / 60);
@@ -5268,13 +5517,24 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
       p.textAlign(p.CENTER, p.BOTTOM);
       if (session.loops[this.tabId].click.state) p.fill(white[0], white[1], white[2]);
       else p.fill(white[0], white[1], white[2], 255/2);
-      p.text("CLICK",gridInitX + auxX*3+p.windowWidth/150*1,auxY+p.windowHeight / 40);
+      p.text("SOLO",gridInitX + auxX*5+p.windowWidth/150*2,auxY+p.windowHeight / 40);
 
       p.push();
       p.translate(0,0,p.windowHeight/60);
       session.loops[this.tabId].tempoScroll.draw(gridInitX + auxX,auxY);
-      session.loops[this.tabId].click.draw(gridInitX + auxX*3+p.windowWidth/150*1,auxY-p.windowHeight / 120);
+      this.soloButton.draw(gridInitX + auxX*5+p.windowWidth/150*2,auxY-p.windowHeight / 120);
+      if (generatedTracks.length > 0) generatedTracks[0].octaveScroll.draw(gridInitX + auxX*3+p.windowWidth/50,auxY);
       p.pop();
+
+      if (generatedTracks.length > 0) {
+        if (generatedTracks[0].octaveScroll.value !== generatedTracks[1].octaveScroll.value) {
+          for (let i = 0; i < generatedTracks.length; i++) {
+            for (let n in generatedTracks[i].notes) generatedTracks[i].notes[n].octave = generatedTracks[0].octaveScroll.value;
+            generatedTracks[i].octaveScroll.value = generatedTracks[0].octaveScroll.value;
+          }
+          synths.releaseAll();
+        }
+      }
 
       p.textAlign(p.RIGHT, p.CENTER);
         
@@ -5290,6 +5550,8 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
           if (p.mouseIsPressed) {
             this.close();
+            generatedTracks = [];
+            synths.setGeneratedTracks([]);
             p.mouseIsPressed = false;
           }
         }
@@ -5325,6 +5587,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         p.fill(colors[c][0], colors[c][1], colors[c][2], this.menuOpa);
 
         if (p.mouseIsPressed) {
+          generatedTracks = [];
+          synths.setGeneratedTracks([]);
+          session.createTracksWithGeneratedNotes(session.activeTab.id,this.lastOption);
           p.mouseIsPressed = false;
         }
         
@@ -5381,6 +5646,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
           else if (this.label === "sessionMenu") {
             session = new Session();
             synths.setSession(session, saving);
+            synths.setGeneratedTracks(generatedTracks);
           }
           this.close();
           p.mouseIsPressed = false;
@@ -5754,7 +6020,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         this.hover = true;
 
         if (p.mouseIsPressed) {
-          if (this.label !== "CLICK" && this.label !== "RECORD" && this.label !== "TEMPO" && this.label !== "TRANSPOSE") session.activeTab.selectedTrack.presetChanged = true;
+          if (this.label !== "CLICK" && this.label !== "RECORD" && this.label !== "TEMPO" && this.label !== "TRANSPOSE" && this.label !== "SOLO") session.activeTab.selectedTrack.presetChanged = true;
           this.state = !this.state;
           p.mouseIsPressed = false;
           //session.save();
@@ -5843,8 +6109,13 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
         p.text(knob[0] + " - " + knob[1].label, x-this.w/3.2, y-this.h/2);
       }
       else if (this.label === "OCTAVE") {
-        if (session.activeTab.selectedTrack.name === "DRUMS") p.text("KICK-CRASH", x-this.w/3.2, y-this.h/2);
-        else p.text(theory.octaves[this.value], x-this.w/3.2, y-this.h/2);
+        if (session.activeTab.selectedTrack !== null) {
+          if (session.activeTab.selectedTrack.name === "DRUMS") p.text("KICK-CRASH", x-this.w/3.2, y-this.h/2);
+          else p.text(theory.octaves[this.value], x-this.w/3.2, y-this.h/2);
+        } else {
+          if (generatedTracks[0].name === "DRUMS") p.text("KICK-CRASH", x-this.w/3.2, y-this.h/2);
+          else p.text(theory.octaves[this.value], x-this.w/3.2, y-this.h/2);
+        }
         
       }
       else p.text(this.value + " " + this.unit, x-this.w/3.2, y-this.h/2);
@@ -5979,6 +6250,9 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
     petal3 = p.loadModel(petalOBJ3);
     petal4 = p.loadModel(petalOBJ4);
 
+    undoIcon = p.loadImage(undoPNG);
+    redoIcon = p.loadImage(redoPNG);
+
     fontLight = p.loadFont(poppinsLightFont);
     fontMedium = p.loadFont(poppinsMediumFont);
     fontBold = p.loadFont(poppinsBoldFont);
@@ -6005,7 +6279,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
     //protect initial trigger of drawers
     p.mouseX = p.windowWidth / 2;
-    p.mouseY = p.windowHeight / 2;
+    p.mouseY = 0;
 
     //marginX = p.windowWidth / maxSteps;
     marginX = p.windowHeight / 30;
@@ -6041,6 +6315,7 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
 
     //ref session to synth.js
     synths.setSession(session,saving);
+    synths.setGeneratedTracks(generatedTracks);
 
     for (let i = 0; i < particles.length; i++) particles[i] = new Particle();
     for (let i = 0; i < petalParticles.length; i++) petalParticles[i] = new PetalParticle();
@@ -6186,23 +6461,23 @@ const sketch = (saveSession, sesh, setLoading, basicPitch) => (p) => {
     if (session.activeTab !== null && menuOpened === false) {
     if (session.activeTab.type === "loop" && session.activeTab.selectedTrack !== null) {
       if (p.key.toUpperCase() === 'Z') if (currentOctave > minOctave) {
-        session.alertLog("Current keyboard octave: "+currentOctave);
         for (let i = 0; i < inputNotes.length; i++) {
           session.activeTab.selectedTrack.releaseInputNote(inputNotes[i]);
           inputNotes.splice(i, 1);
           i--;
         }
         currentOctave--;
+        session.alertLog("Current keyboard octave: "+currentOctave);
 
       }
       if (p.key.toUpperCase() === 'X') if (currentOctave < maxOctave) {
-        session.alertLog("Current keyboard octave: "+currentOctave);
         for (let i = 0; i < inputNotes.length; i++) {
           session.activeTab.selectedTrack.releaseInputNote(inputNotes[i]);
           inputNotes.splice(i, 1);
           i--;
         }
         currentOctave++;
+        session.alertLog("Current keyboard octave: "+currentOctave);
 
       }
       if (p.keyCode === p.LEFT_ARROW) if (session.activeTab.view > 0) {

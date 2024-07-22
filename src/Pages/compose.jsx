@@ -43,7 +43,7 @@ function Compose() {
     const token = window.localStorage.getItem("token");
 
     try {
-      const response = await axios.post(window.serverLink+'/basicpitch', formData, {
+      const response = await axios.post(window.basicPitchLink +'/basicpitch', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         },
@@ -56,6 +56,65 @@ function Compose() {
       return response.data;
     } catch (error) {
       console.error('Error uploading files:', error);
+    }
+  };
+
+  const generate = async (trackName,loop) => {
+    setLoading(true); 
+
+    const token = window.localStorage.getItem("token");
+
+    try {
+      const response = await axios.post(window.serverLink+'/generate', loop, {
+        params: {
+          token: token,
+          trackName: trackName
+        },
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      setLoading(false); 
+      return response.data;
+    } catch (error) {
+      console.error('Error generating:', error);
+    }
+  };
+
+  const renderMidi = async (track, tempo) => { 
+    setLoading(true); 
+
+    const token = window.localStorage.getItem("token");
+
+    try {
+      const response = await axios.post(window.serverLink+'/renderMidi', track, {
+        params: {
+          token: token,
+          tempo: tempo
+        },
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        responseType: 'blob'
+      });
+      
+      setLoading(false); 
+      
+      // Extract the filename from the custom header
+      console.log(response.headers);
+      const filename = response.headers['filename'] || 'bloom.mid'; // Fallback filename
+
+      // Create a link element to trigger the download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+    } catch (error) {
+      console.error('Error generating:', error);
     }
   };
 
@@ -142,7 +201,7 @@ function Compose() {
   useEffect(() => {
     loadSession().then((sesh) => {
       if (!loading && !p5InstanceRef.current) {
-        p5InstanceRef.current = new p5(sketch(saveSession,sesh,setLoading,basicPitch), p5ContainerRef.current);
+        p5InstanceRef.current = new p5(sketch(generate,saveSession,sesh,setLoading,basicPitch,renderMidi), p5ContainerRef.current);
       }
     }).catch((error) => {
       console.error('Error:', error);

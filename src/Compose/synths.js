@@ -25,16 +25,29 @@ import openedHatSubtle from '../Assets/audioSamples/openedHat_subtle.wav';
 import lowTomSubtle from '../Assets/audioSamples/lowTom_subtle.wav';
 import highTomSubtle from '../Assets/audioSamples/highTom_subtle.wav';
 import crashSubtle from '../Assets/audioSamples/crash_subtle.wav';
+
+import kickElectronic from '../Assets/audioSamples/kick_electronic.wav';
+import snareElectronic from '../Assets/audioSamples/snare_electronic.wav';
+import closedHatElectronic from '../Assets/audioSamples/closedHat_electronic.wav';
+import openedHatElectronic from '../Assets/audioSamples/openedHat_electronic.wav';
+import lowTomElectronic from '../Assets/audioSamples/lowTom_electronic.wav';
+import highTomElectronic from '../Assets/audioSamples/highTom_electronic.wav';
+import crashElectronic from '../Assets/audioSamples/crash_electronic.wav';
+
 import { Instrument } from 'tone/build/esm/instrument/Instrument.js';
 import { ConsoleView } from 'react-device-detect';
 
 // ---------------------------------------------------------------
 
 //ref to p5.js
-let session, saving;
+let session, saving, generatedTracks;
 function setSession(s, save) { 
     session = s; 
     saving = save;
+}
+
+function setGeneratedTracks(tracks) {
+    generatedTracks = tracks;
 }
 
 function sleep(ms) {
@@ -573,24 +586,80 @@ Tone.Transport.scheduleRepeat((time) => {
         if (tab.type === "loop") {
             Tone.Transport.bpm.value = tab.tempoScroll.value;
 
-            if (tab.currentStep === tab.nSteps-1) tab.currentStep = 0;
-            else tab.currentStep++;
+
+
+            if (tab.currentStep === tab.nSteps-1) {
+                tab.currentStep = 0;
+
+                for (let t in tab.tracks) {
+                    if (tab.tracks[t].name !== "DRUMS") {
+                        tab.tracks[t].synth.oscillators[0].releaseAll(time);
+                        tab.tracks[t].synth.oscillators[1].releaseAll(time);
+                    }
+                }
+
+                if (generatedTracks.length > 0) {
+                    if (tab.plusMenu.trackHover !== -1 && generatedTracks[tab.plusMenu.trackHover] !== undefined) {
+                        if (generatedTracks[tab.plusMenu.trackHover].name !== "DRUMS") {
+                            generatedTracks[tab.plusMenu.trackHover].synth.oscillators[0].releaseAll(time);
+                            generatedTracks[tab.plusMenu.trackHover].synth.oscillators[1].releaseAll(time);
+                        }
+                    }
+                }
+            } else tab.currentStep++;
 
             if (tab.click.state && session.loopDrawer === false) {
                 if (tab.currentStep%16 === 0) metronome.click[0].start(time);
                 else if (tab.currentStep%4 === 0) metronome.click[1].start(time);
             }
-        
-            for (let t in tab.tracks) {
-                if (tab.tracks[t].muted === false) {
-                    tab.tracks[t].updateSynthParams();
-                    for (let i=0; i< tab.tracks[t].knobs.length; i++) tab.tracks[t].knobs[i][1].knobAutomate(tab);
 
-                    for (let n in tab.tracks[t].notes) {
-                        if (tab.currentStep === 0 && tab.tracks[t].notes[n].start !== 0 || tab.currentStep === 0 && tab.tracks[t].notes[n].duration === tab.nSteps) tab.tracks[t].notes[n].stop(0,time);
-                        if (tab.tracks[t].notes[n].start === tab.currentStep) tab.tracks[t].notes[n].play(0,time);
-                        if (tab.tracks[t].name !== "DRUMS" && tab.tracks[t].notes[n].start+tab.tracks[t].notes[n].duration === tab.currentStep) tab.tracks[t].notes[n].stop(0,time);
+            let tracks = tab.tracks;
+        
+            if (tab.plusMenu.state === -1 || (tab.plusMenu.state === 2 && tab.plusMenu.soloButton.state === false)) {
+                for (let t in tracks) {
+                    if (tracks[t].muted === false) {
+                        tracks[t].updateSynthParams();
+                        for (let i=0; i< tracks[t].knobs.length; i++) tracks[t].knobs[i][1].knobAutomate(tab);
+
+                        for (let n in tracks[t].notes) {           
+
+                            if (tracks[t].notes[n].start === tab.currentStep) tracks[t].notes[n].play(0,time); 
+                            if (tracks[t].name !== "DRUMS" && tracks[t].notes[n].start+tracks[t].notes[n].duration === tab.currentStep) tracks[t].notes[n].stop(0,time);
+                        }
                     }
+                }
+            }
+
+            if (generatedTracks.length === 4) {
+                if (tab.plusMenu.trackHover !== -1 && generatedTracks[tab.plusMenu.trackHover] !== undefined) {
+                    let track = generatedTracks[tab.plusMenu.trackHover];
+
+                    track.updateSynthParams();
+                    for (let i=0; i< track.knobs.length; i++) track.knobs[i][1].knobAutomate(tab);
+
+                    for (let n in track.notes) {
+                        if (track.name !== "DRUMS") {
+                            if (track.notes[n].start === tab.currentStep) {
+                                track.synth.oscillators[0].triggerAttack(theory.freqs[track.notes[n].pitch]*Math.pow(2,track.notes[n].octave),time);
+                                track.synth.oscillators[1].triggerAttack(theory.freqs[track.notes[n].pitch]*Math.pow(2,track.notes[n].octave),time);
+                            }
+                            if (track.notes[n].start+track.notes[n].duration === tab.currentStep) {
+                                track.synth.oscillators[0].triggerRelease(theory.freqs[track.notes[n].pitch]*Math.pow(2,track.notes[n].octave),time);
+                                track.synth.oscillators[1].triggerRelease(theory.freqs[track.notes[n].pitch]*Math.pow(2,track.notes[n].octave),time);
+                            } 
+                        } else {
+                            if (track.notes[n].start === tab.currentStep) {
+                                track.synth.parts[track.notes[n].pitch].stop(time);
+                                track.synth.parts[track.notes[n].pitch].start(time);
+                                if (track.notes[n].pitch === 2) track.synth.parts[3].stop();
+                            }
+                        }
+
+                    }
+                        //if (tab.currentStep === 0 && track.notes[n].start !== 0 || tab.currentStep === 0 && track.notes[n].duration === tab.nSteps) track.notes[n].stop(0,time);
+                        //if (track.notes[n].start === tab.currentStep) track.notes[n].play(0,time);
+                        //if (track.name !== "DRUMS" && track.notes[n].start+track.notes[n].duration === tab.currentStep) track.notes[n].stop(0,time);
+                    
                 }
             }
 
@@ -630,7 +699,9 @@ Tone.Transport.scheduleRepeat((time) => {
                             let pitchOffset = 0;
                             if (tab.transposeButton.state) pitchOffset = tab.transposeScroll.value;
                             if (tab.sequence[tab.currentLoop].currentStep === 0 && tab.sequence[tab.currentLoop].tracks[t].notes[n].start !== 0 || tab.sequence[tab.currentLoop].currentStep === 0 && tab.sequence[tab.currentLoop].tracks[t].notes[n].duration === tab.sequence[tab.currentLoop].nSteps) tab.sequence[tab.currentLoop].tracks[t].notes[n].stop(pitchOffset,time);
+                            
                             if (tab.sequence[tab.currentLoop].tracks[t].notes[n].start === tab.sequence[tab.currentLoop].currentStep) tab.sequence[tab.currentLoop].tracks[t].notes[n].play(pitchOffset,time);
+                            
                             if (tab.sequence[tab.currentLoop].tracks[t].name !== "DRUMS" && tab.sequence[tab.currentLoop].tracks[t].notes[n].start+tab.sequence[tab.currentLoop].tracks[t].notes[n].duration === tab.sequence[tab.currentLoop].currentStep) tab.sequence[tab.currentLoop].tracks[t].notes[n].stop(pitchOffset,time);
                         }
                     }
@@ -696,6 +767,7 @@ const synthPresets = [
 
 const acoustic = [new Tone.Buffer(kickAcoustic), new Tone.Buffer(snareAcoustic), new Tone.Buffer(closedHatAcoustic), new Tone.Buffer(openedHatAcoustic), new Tone.Buffer(highTomAcoustic), new Tone.Buffer(lowTomAcoustic), new Tone.Buffer(crashAcoustic)];
 const subtle = [new Tone.Buffer(kickSubtle), new Tone.Buffer(snareSubtle), new Tone.Buffer(closedHatSubtle), new Tone.Buffer(openedHatSubtle), new Tone.Buffer(highTomSubtle), new Tone.Buffer(lowTomSubtle), new Tone.Buffer(crashSubtle)];
+const electronic = [new Tone.Buffer(kickElectronic), new Tone.Buffer(snareElectronic), new Tone.Buffer(closedHatElectronic), new Tone.Buffer(openedHatElectronic), new Tone.Buffer(highTomElectronic), new Tone.Buffer(lowTomElectronic), new Tone.Buffer(crashElectronic)];
 
 const drumPresets = [
     {name: "ACOUSTIC",
@@ -712,7 +784,7 @@ const drumPresets = [
     reverbState: false,
     reverb: [0,0]},
 
-    {name: "ELECTRIC SUBTLE",
+    {name: "SUBTLE",
     kit: subtle,
     partState: [true, true, true, true, true, true, true],
     partVol: [1,1,1,1,1,1,1],
@@ -725,6 +797,20 @@ const drumPresets = [
     delay: [0,0,0],
     reverbState: false,
     reverb: [0,0]},
+
+    {name: "ELECTRONIC",
+    kit: electronic,
+    partState: [true, true, true, true, true, true, true],
+    partVol: [1,1,1,1,1,1,1],
+    partPitch: [0.5,0.5,0.5,0.5,0.5,0.5,0.5],
+    filterState: false,
+    filter: 0.5,
+    distortionState: false,
+    distortion: 0.5,
+    delayState: false,
+    delay: [0,0,0],
+    reverbState: false,
+    reverb: [0,0]}
 ];
 
 
@@ -798,6 +884,6 @@ function releaseAll() {
 // EXPORT DEFAULT
 // ---------------------------------------------------------------
 
-const synths = { setSession, exportLoopAudio, exportStructAudio, synthPresets, drumPresets, melody, harmony, bass, drums, releaseAll, mic, micMeter, recorder, compareBuffers };
+const synths = { setSession, setGeneratedTracks, exportLoopAudio, exportStructAudio, synthPresets, drumPresets, melody, harmony, bass, drums, releaseAll, mic, micMeter, recorder, compareBuffers };
 
 export default synths;

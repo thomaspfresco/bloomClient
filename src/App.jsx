@@ -8,8 +8,7 @@ import NoPage from './Pages/noPage'
 import './App.css';
 
 window.serverLink = "http://127.0.0.1:5000"
-window.uploaded = false
-window.trained = false
+window.basicPitchLink = "http://127.0.0.1:5001"
 
 function App() {
   return (
