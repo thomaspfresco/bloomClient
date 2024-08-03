@@ -6,7 +6,7 @@ const octaves = ["C0-B1","C1-B2","C2-B3","C3-B4","C4-B5","C5-B6","C6-B7","C7-B8"
 
 const noteLabels = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
-const drumLabels = ["KICK", "SNARE", "CLOSED HAT", "OPEN HAT", "HIGH TOM", "LOW TOM", "CRASH"];
+const drumLabels = ["KICK", "SNARE", "CLOSED HAT", "OPENED HAT", "HIGH TOM", "LOW TOM", "CRASH"];
 
 //const waveTypes = ["sine", "triangle", "square", "sawtooth", "white", "pink", "brown"];
 const waveTypes = ["sine", "triangle", "square", "sawtooth"];

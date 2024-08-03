@@ -422,7 +422,7 @@ function exportStructAudio(p,struct,setLoading) {
 
     Tone.Offline(({ transport }) => {
 
-        let currentStep = 0;
+        let currentStep = -1;
         let currentLoop = 0;
         let currentRepeat = 1;
 
@@ -449,8 +449,30 @@ function exportStructAudio(p,struct,setLoading) {
                 if (struct.tempoButton.state) transport.bpm.value = struct.tempoScroll.value;
                 else transport.bpm.value = sequenceCopy[currentLoop].tempoScroll.value;
 
-                //console.log(currentLoop,currentStep,currentRepeat);
+                if (currentStep === sequenceCopy[0].nSteps-1) {
+                    currentStep = 0;
 
+                    for (let t in sequenceCopy[currentLoop].tracks) {
+                        if (sequenceCopy[currentLoop].tracks[t].name !== "DRUMS")  {
+                            for (let j in sequenceCopy[currentLoop].tracks[t].synth.oscillators) sequenceCopy[currentLoop].tracks[t].synth.oscillators[j].releaseAll(time);
+                        }
+                    }
+                    
+                    if (currentRepeat >= struct.repeats[currentLoop].value) {
+                        currentRepeat = 1;  
+                
+                        //if (currentLoop = sequenceCopy.length-1) currentLoop = 0;
+                        // else currentLoop++;
+
+                        currentLoop++;
+                
+                    } else currentRepeat++;
+
+                    
+                } else currentStep++;
+
+                //console.log(currentLoop,currentStep,currentRepeat);
+                if (currentLoop < sequenceCopy.length) {
                 for (let t in sequenceCopy[currentLoop].tracks) {
 
                     //automate knobs
@@ -500,25 +522,8 @@ function exportStructAudio(p,struct,setLoading) {
                         }
                     }
                 }
-
-                if (currentStep === sequenceCopy[0].nSteps-1) {
-                    currentStep = -1;
-                    
-                    if (currentRepeat >= struct.repeats[currentLoop].value) {
-                        currentRepeat = 1;  
+            }
                 
-                        //if (currentLoop = sequenceCopy.length-1) currentLoop = 0;
-                        // else currentLoop++;
-                        for (let t in sequenceCopy[currentLoop].tracks) {
-                            if (sequenceCopy[currentLoop].tracks[t].name !== "DRUMS")  {
-                                for (let j in sequenceCopy[currentLoop].tracks[t].synth.oscillators) sequenceCopy[currentLoop].tracks[t].synth.oscillators[j].releaseAll(time);
-                            }
-                        }
-                        currentLoop++;
-                
-                    } else currentRepeat++;
-
-                }
             } else if (currentLoop === sequenceCopy.length) {
                 for (let t in sequenceCopy[currentLoop-1].tracks) {
                     if (sequenceCopy[currentLoop-1].tracks[t].name !== "DRUMS")  {
@@ -529,8 +534,6 @@ function exportStructAudio(p,struct,setLoading) {
                 }
                 if (currentStep > sequenceCopy[currentLoop-1].nSteps+sequenceCopy[currentLoop-1].nSteps/4) transport.stop();
             }
-
-            currentStep++;
           
         }, "16n");
 
@@ -586,8 +589,6 @@ Tone.Transport.scheduleRepeat((time) => {
         if (tab.type === "loop") {
             Tone.Transport.bpm.value = tab.tempoScroll.value;
 
-
-
             if (tab.currentStep === tab.nSteps-1) {
                 tab.currentStep = 0;
 
@@ -630,15 +631,20 @@ Tone.Transport.scheduleRepeat((time) => {
                 }
             }
 
+
             if (generatedTracks.length === 4) {
                 if (tab.plusMenu.trackHover !== -1 && generatedTracks[tab.plusMenu.trackHover] !== undefined) {
                     let track = generatedTracks[tab.plusMenu.trackHover];
 
+                    if(track.name === "DRUMS") track.switchPreset(drumPresets[track.preset]);
+                    else track.switchPreset(synthPresets[track.preset]);
+                    
+                    for (let i=0; i< track.knobs.length; i++) track.knobs[i][1].setOutput();  
                     track.updateSynthParams();
-                    for (let i=0; i< track.knobs.length; i++) track.knobs[i][1].knobAutomate(tab);
-
+                    
                     for (let n in track.notes) {
                         if (track.name !== "DRUMS") {
+
                             if (track.notes[n].start === tab.currentStep) {
                                 track.synth.oscillators[0].triggerAttack(theory.freqs[track.notes[n].pitch]*Math.pow(2,track.notes[n].octave),time);
                                 track.synth.oscillators[1].triggerAttack(theory.freqs[track.notes[n].pitch]*Math.pow(2,track.notes[n].octave),time);
@@ -681,12 +687,10 @@ Tone.Transport.scheduleRepeat((time) => {
                         if (tab.currentLoop === tab.sequence.length-1) tab.currentLoop = 0;
                         else tab.currentLoop++;
                         
-                        synths.releaseAll(time);
-
                         tab.sequence[tab.currentLoop].play = true;
                 
                     } else tab.currentRepeat++;
-
+                    synths.releaseAll(time);
                 }
                 else tab.sequence[tab.currentLoop].currentStep++;
 
@@ -698,10 +702,8 @@ Tone.Transport.scheduleRepeat((time) => {
                         for (let n in tab.sequence[tab.currentLoop].tracks[t].notes) {
                             let pitchOffset = 0;
                             if (tab.transposeButton.state) pitchOffset = tab.transposeScroll.value;
-                            if (tab.sequence[tab.currentLoop].currentStep === 0 && tab.sequence[tab.currentLoop].tracks[t].notes[n].start !== 0 || tab.sequence[tab.currentLoop].currentStep === 0 && tab.sequence[tab.currentLoop].tracks[t].notes[n].duration === tab.sequence[tab.currentLoop].nSteps) tab.sequence[tab.currentLoop].tracks[t].notes[n].stop(pitchOffset,time);
-                            
+                            //if (tab.sequence[tab.currentLoop].currentStep === 0 && tab.sequence[tab.currentLoop].tracks[t].notes[n].start !== 0 || tab.sequence[tab.currentLoop].currentStep === 0 && tab.sequence[tab.currentLoop].tracks[t].notes[n].duration === tab.sequence[tab.currentLoop].nSteps) tab.sequence[tab.currentLoop].tracks[t].notes[n].stop(pitchOffset,time);
                             if (tab.sequence[tab.currentLoop].tracks[t].notes[n].start === tab.sequence[tab.currentLoop].currentStep) tab.sequence[tab.currentLoop].tracks[t].notes[n].play(pitchOffset,time);
-                            
                             if (tab.sequence[tab.currentLoop].tracks[t].name !== "DRUMS" && tab.sequence[tab.currentLoop].tracks[t].notes[n].start+tab.sequence[tab.currentLoop].tracks[t].notes[n].duration === tab.sequence[tab.currentLoop].currentStep) tab.sequence[tab.currentLoop].tracks[t].notes[n].stop(pitchOffset,time);
                         }
                     }
@@ -735,34 +737,105 @@ Tone.Transport.scheduleRepeat((time) => {
 // PRESETS
 // ---------------------------------------------------------------
 
-const synthPresets = [
-    {name: "BLOOM PAD 1",
+const synthPresets = [    
+    {name: "BLOOM PLUCK",
     oscState: [true, true],
-    osc: [[0,0.5,0.5],[0,0.5,0.5]],
+    osc: [[0,0.5,0.5],[0.7,0.5,0.5]],
     envState: [true, true],
-    env: [[0,0.5,0.5,0],[0,0.5,0.5,0]],
+    env: [[0,0.83,0,0.45],[0,0.36,0,0]],
+    filterState: true,
+    filter: 0.5,
+    distortionState: false,
+    distortion: 0.5,
+    delayState: true,
+    delay: [0.57,0.5,0.15],
+    reverbState: true,
+    reverb: [1,0.5]},
+
+    {name: "UGLY BASS",
+    oscState: [true, true],
+    osc: [[0,0.52,0.5],[1,0,0.35]],
+    envState: [true, true],
+    env: [[0,0,1,0],[0,0,1,0]],
+    filterState: true,
+    filter: 0.45,
+    distortionState: true,
+    distortion: 0.75,
+    delayState: true,
+    delay: [0,0.2,0.25],
+    reverbState: false,
+    reverb: [0.5,0.5]},
+
+    {name: "50s BASS",
+    oscState: [true, true],
+    osc: [[1,0.87,0.4],[0.3,0.5,0.6]],
+    envState: [true, true],
+    env: [[0,0.5,0,0],[0,0.7,0,0]],
+    filterState: false,
+    filter: 0.5,
+    distortionState: true,
+    distortion: 0.25,
+    delayState: false,
+    delay: [0.5,0.5,0.5],
+    reverbState: false,
+    reverb: [0.5,0.5]},
+
+    {name: "SUB BASS",
+    oscState: [true, true],
+    osc: [[0,0.5,0.55],[0,0,0.55]],
+    envState: [true, true],
+    env: [[0,0,0.5,0],[0,0,0.5,0]],
+    filterState: false,
+    filter: 0.5,
+    distortionState: true,
+    distortion: 0.15,
+    delayState: false,
+    delay: [0.5,0.5,0.5],
+    reverbState: false,
+    reverb: [0.5,0.5]},
+
+    {name: "SLOW PAD",
+    oscState: [true, true],
+    osc: [[0,0.5,0.5],[1,0.53,0.4]],
+    envState: [true, true],
+    env: [[0.62,0,1,0],[0.62,0,1,0]],
+    filterState: true,
+    filter: 0.5,
+    distortionState: false,
+    distortion: 0.5,
+    delayState: true,
+    delay: [0.8,0.5,0.1],
+    reverbState: true,
+    reverb: [0.75,0.5]},
+
+    {name: "OLD ORGAN",
+    oscState: [true, true],
+    osc: [[0.35,0,0.6],[0.67,0.48,0.35]],
+    envState: [true, true],
+    env: [[0,0.91,0.15,0.44],[0,0.9,0,0.44]],
+    filterState: true,
+    filter: 0.35,
+    distortionState: false,
+    distortion: 0.5,
+    delayState: false,
+    delay: [0.5,0.5,0.5],
+    reverbState: true,
+    reverb: [0.97,0.35]},
+
+    {name: "ANALOG PAD",
+    oscState: [true, true],
+    osc: [[0.2,0,0.6],[1,0.5,0.45]],
+    envState: [true, true],
+    env: [[0.13,0.77,0.5,0.13],[0.13,0.77,0.5,0.13]],
     filterState: false,
     filter: 0.5,
     distortionState: false,
     distortion: 0.5,
     delayState: false,
-    delay: [0,0,0],
-    reverbState: false,
-    reverb: [0,0]},
+    delay: [0.5,0.5,0.5],
+    reverbState: true,
+    reverb: [1,0.5]},
     
-    {name: "BLOOM BASS 2",
-    oscState: [true, false],
-    osc: [[1,0,0.5],[0,0.5,0.5]],
-    envState: [true, false],
-    env: [[0,0.5,0.5,0],[0,0.5,0.5,0]],
-    filterState: false,
-    filter: 0.5,
-    distortionState: false,
-    distortion: 0.5,
-    delayState: true,
-    delay: [0.25,0.5,0.3],
-    reverbState: false,
-    reverb: [0,0]},
 ];
 
 const acoustic = [new Tone.Buffer(kickAcoustic), new Tone.Buffer(snareAcoustic), new Tone.Buffer(closedHatAcoustic), new Tone.Buffer(openedHatAcoustic), new Tone.Buffer(highTomAcoustic), new Tone.Buffer(lowTomAcoustic), new Tone.Buffer(crashAcoustic)];
@@ -770,6 +843,20 @@ const subtle = [new Tone.Buffer(kickSubtle), new Tone.Buffer(snareSubtle), new T
 const electronic = [new Tone.Buffer(kickElectronic), new Tone.Buffer(snareElectronic), new Tone.Buffer(closedHatElectronic), new Tone.Buffer(openedHatElectronic), new Tone.Buffer(highTomElectronic), new Tone.Buffer(lowTomElectronic), new Tone.Buffer(crashElectronic)];
 
 const drumPresets = [
+    {name: "SUBTLE",
+        kit: subtle,
+        partState: [true, true, true, true, true, true, true],
+        partVol: [1,1,1,1,1,1,1],
+        partPitch: [0.5,0.22,0.5,0.5,0.5,0.5,0.5],
+        filterState: false,
+        filter: 0.5,
+        distortionState: false,
+        distortion: 0.5,
+        delayState: false,
+        delay: [0.5,0.5,0.5],
+        reverbState: false,
+        reverb: [0.5,0.5]},
+
     {name: "ACOUSTIC",
     kit: acoustic,
     partState: [true, true, true, true, true, true, true],
@@ -780,23 +867,9 @@ const drumPresets = [
     distortionState: false,
     distortion: 0.5,
     delayState: false,
-    delay: [0,0,0],
+    delay: [0.5,0.5,0.5],
     reverbState: false,
-    reverb: [0,0]},
-
-    {name: "SUBTLE",
-    kit: subtle,
-    partState: [true, true, true, true, true, true, true],
-    partVol: [1,1,1,1,1,1,1],
-    partPitch: [0.5,0.5,0.5,0.5,0.5,0.5,0.5],
-    filterState: false,
-    filter: 0.5,
-    distortionState: false,
-    distortion: 0.5,
-    delayState: false,
-    delay: [0,0,0],
-    reverbState: false,
-    reverb: [0,0]},
+    reverb: [0.5,0.5]},
 
     {name: "ELECTRONIC",
     kit: electronic,
@@ -808,9 +881,9 @@ const drumPresets = [
     distortionState: false,
     distortion: 0.5,
     delayState: false,
-    delay: [0,0,0],
+    delay: [0.5,0.5,0.5],
     reverbState: false,
-    reverb: [0,0]}
+    reverb: [0.5,0.5]}
 ];
 
 
@@ -829,7 +902,7 @@ class FxChain {
         this.left = new Tone.Meter();
         this.right = new Tone.Meter();
 
-        this.filter = new Tone.Filter().chain(this.distortion, this.delay, this.reverb, this.limiter, this.gain, this.splitter);
+        this.filter = new Tone.Filter().chain(this.distortion, this.delay, this.reverb, this.gain, this.limiter, this.splitter);
 
         this.splitter.connect(this.left, 0, 0);
         this.splitter.connect(this.right, 1, 0);

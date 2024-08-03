@@ -395,7 +395,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       this.drawersOpaInc = 15;
       this.drawersOpaMax = 255;
 
-      this.menu = new Menu(null, null, "sessionMenu", ["ABOUT","CLEAR SESSION"], "DROPDOWN");
+      this.menu = new Menu(null, null, "sessionMenu", ["ABOUT","TUTORIAL","CLEAR SESSION"], "DROPDOWN");
     }
 
     alertLog(message) {
@@ -1762,7 +1762,13 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
             break;
           }  
         }
-        if (check === false) recordedNotes.push(new Note(input, session.activeTab.id, session.activeTab.selectedTrack.id, session.activeTab.currentStep, 1, octave, session.activeTab.selectedTrack.color)); 
+        if (check === false) {
+          recordedNotes.push(new Note(input, session.activeTab.id, session.activeTab.selectedTrack.id, session.activeTab.currentStep, 1, octave, session.activeTab.selectedTrack.color)); 
+          if (session.activeTab.selectedTrack.octaveScroll.value !== octave && session.activeTab.selectedTrack.octaveScroll.value+1 !== octave) {
+            if (octave > 7) session.activeTab.selectedTrack.octaveScroll.value = 7;
+            else session.activeTab.selectedTrack.octaveScroll.value = octave;
+          }
+        }
       }
     }
 
@@ -1796,7 +1802,6 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
    async createTracksWithGeneratedNotes(loopId,name) {
       generatedTracks = [];
       generatedTracksKeys = [];
-      session.loops[loopId].plusMenu.soloButton.state = true;
 
       let parts = await generate(name,session.loops[loopId].getInfoJSON());
 
@@ -1810,6 +1815,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
           track.notes.push(note);
         }
         track.octaveScroll.value = parts[part][1][0].octave;
+
         generatedTracks.push(track);
       }
 
@@ -1918,11 +1924,14 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
             check = true;
             let loopCopy = session.copyLoop(session.loops[l]);
             for (let t in this.sequence[i].tracks) {
-              loopCopy.tracks[t].particlesStructX = this.sequence[i].tracks[t].particlesStructX.concat();
-              loopCopy.tracks[t].particlesStructY = this.sequence[i].tracks[t].particlesStructY.concat();
-              for (let n in this.sequence[i].tracks[t].notes){  
-                if (loopCopy.tracks[t].notes[n] !== undefined) loopCopy.tracks[t].notes[n].ang = this.sequence[i].tracks[t].notes[n].ang;
-              } 
+              if (loopCopy.tracks[t] !== undefined) {
+                loopCopy.tracks[t].particlesStructX = this.sequence[i].tracks[t].particlesStructX.concat();
+                loopCopy.tracks[t].particlesStructY = this.sequence[i].tracks[t].particlesStructY.concat();
+                
+                for (let n in this.sequence[i].tracks[t].notes){  
+                  if (loopCopy.tracks[t].notes[n] !== undefined) loopCopy.tracks[t].notes[n].ang = this.sequence[i].tracks[t].notes[n].ang;
+                } 
+              }
             }
             this.sequence[i] = loopCopy;
             break;
@@ -3005,7 +3014,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
         if (this.name === "HARMONY") this.color = colors[2];
       }
 
-      this.menu = new Menu(this.loopId, this.id, "trackMenu",["DELETE","RENAME","EXPORT MIDI"],"DROPUP");
+      this.menu = new Menu(this.loopId, this.id, "trackMenu",["DELETE","RENAME","(UN)MUTE","EXPORT MIDI"],"DROPUP");
 
       this.ang = p.random(0, p.TWO_PI);
       this.angInc = p.PI / 20;
@@ -3066,7 +3075,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       if (this.name === "BASS") {
         this.petal = petal1;
         this.synth = synths.bass;
-        this.preset = 0;
+        this.preset = 3;
       }
       
       if (this.name === "MELODY") {
@@ -3078,7 +3087,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       if (this.name === "HARMONY") {
         this.petal = petal4;
         this.synth = synths.harmony;
-        this.preset = 0;
+        this.preset = 5;
       }
 
       //different sinthesis for drums tracks
@@ -4064,7 +4073,6 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       if (this.name === "DRUMS") {
         
         for (let i=0; i<this.synth.parts.length; i++) {
-          //console.log(preset);
           this.synth.parts[i].buffer = preset.kit[i];
           this.drumButtons[i].state = preset.partState[i];
           this.drumKnobs[i][0].value = preset.partVol[i];
@@ -5267,6 +5275,10 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
                         this.state = 3;
                         this.menuOpa = 0;
                         break;
+                      case "(UN)MUTE":
+                        session.loops[this.tabId].tracks[this.trackId].muted = !session.loops[this.tabId].tracks[this.trackId].muted;
+                        this.close();
+                        break;
                     }
                   }
                 }
@@ -5339,23 +5351,33 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
 
 
             if (p.mouseX > width-p.windowHeight/7 && p.mouseX < width + p.windowHeight/7 && p.mouseY > p.windowHeight/2 - this.optionH*2 - p.windowHeight/7 && p.mouseY < p.windowHeight/2 - this.optionH*2 + p.windowHeight/7) {
-              document.body.style.cursor = 'pointer';
-              p.fill(white[0], white[1], white[2], this.menuOpa);
-              p.tint(255, this.menuOpa);
+
+              if (this.lastOption === "MELODY" && i === 1) {
+                document.body.style.cursor = 'not-allowed';
+                p.fill(white[0], white[1], white[2], this.menuOpa/3);
+                p.tint(255, this.menuOpa/4);
+              } else { 
+                document.body.style.cursor = 'pointer';
+                p.fill(white[0], white[1], white[2], this.menuOpa);
+                p.tint(255, this.menuOpa);
+              }
 
               if (p.mouseIsPressed) {
                 if (i === 0) {
                   session.activeTab.addTrack(this.lastOption);
                   this.close();
                 } else if (i === 1) {
-                  this.state = 2;
-                  session.createTracksWithGeneratedNotes(session.activeTab.id,this.lastOption);
-                  
-                  //prevent to play imeadiatly
-                  p.mouseX = p.windowWidth / 2;
-                  p.mouseY = 0;
+                  if (this.lastOption !== "MELODY") {
+                    this.state = 2;
+                    this.soloButton.state = true;
+                    session.createTracksWithGeneratedNotes(session.activeTab.id,this.lastOption);
+                    //prevent to play imeadiatly
+                    p.mouseX = p.windowWidth / 2;
+                    p.mouseY = 0;
 
-                  this.menuOpa = 0;
+                    this.menuOpa = 0;
+                  }
+                  
                 } else {
                   synths.mic.open();
                   session.loops[this.tabId].recordVisual.fill(0);
@@ -5881,6 +5903,13 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       }
     }
 
+    setOutput() {
+      if (this.automating === false) { 
+        if (typeof this.output === "string") this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))].toUpperCase();
+        else this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))];
+      }
+    }
+
     findKnob() {
       for(let i=0;i<session.activeTab.selectedTrack.knobs.length;i++) {
         if (session.activeTab.selectedTrack.knobs[i][1] === this) return i;
@@ -5890,10 +5919,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
     draw(x,y,opa) {
       this.radius = p.windowHeight / 15;
     
-      if (this.automating === false) { 
-        if (typeof this.output === "string") this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))].toUpperCase();
-        else this.output = this.options[p.round(p.map(this.value,0,1,0,this.options.length-1))];
-      }
+      this.setOutput();
 
       p.fill(white[0], white[1], white[2],opa);
       p.noStroke();
@@ -5904,6 +5930,8 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       p.textSize(p.windowHeight/55);
       if (this.label === "PITCH") p.text((this.output/100)+this.unit,x,y+this.radius/1.7);
       else p.text(this.output+this.unit,x,y+this.radius/1.7);
+      p.text(this.value,x,y+this.radius/1.2);
+      
 
       if (this.automating) p.fill(session.activeTab.selectedTrack.color[0], session.activeTab.selectedTrack.color[1], session.activeTab.selectedTrack.color[2],opa/2);
       else p.noFill();
@@ -6410,12 +6438,12 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
           synths.releaseAll();
           if (synths.recorder.state !== "stopped") session.resolveRecording();
         } else {
+          micLevelTune = 0;
           session.activeTab.currentStep = -17;
           session.activeTab.play = true;
           Tone.Transport.start();
         }
       }
-
     }
 
     if (p.keyCode === p.BACKSPACE) {
