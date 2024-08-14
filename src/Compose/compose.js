@@ -398,8 +398,12 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       this.menu = new Menu(null, null, "sessionMenu", ["ABOUT","TUTORIAL","CLEAR SESSION"], "DROPDOWN");
     }
 
-    alertLog(message) {
-      this.logInstant = p.millis();
+    alertLog(message,delay) {
+      if (message !== this.logMessage) {
+        this.logInstant = p.millis();
+        this.logOpa = 0;
+        this.logDelay = delay;
+      }
       this.logMessage = message;
       this.showLog = true;
     }
@@ -407,9 +411,9 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
     drawLog() {
       if (this.showLog) {
         //reset log timer
-        if (this.logOpa === 0) this.logInstant = p.millis();
+        //if (this.logOpa === 0) this.logInstant = p.millis();
 
-        if (this.logOpa + 10 > 255/2) this.logOpa = 255/2;
+        if (this.logOpa + 10 > 255/1.5) this.logOpa = 255/1.5;
         else this.logOpa += 10;
       } else {
         if (this.logOpa - 10 < 0) this.logOpa = 0;
@@ -419,9 +423,9 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       p.fill(white[0], white[1], white[2], this.logOpa);
       p.noStroke();
       p.textAlign(p.RIGHT, p.CENTER);
-      p.textSize(p.windowHeight / 60);
+      p.textSize(p.windowHeight / 68);
       p.textFont(fontLight);
-      p.text(this.logMessage, p.windowWidth - gridInitX*1.2, gridInitY/2);
+      p.text(this.logMessage, p.windowWidth - gridInitX*1.1, gridInitY/2);
 
       if (p.millis() - this.logInstant > this.logDelay) this.showLog = false;
     }
@@ -510,9 +514,9 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
         this.showSuggestions();
 
         //loop and struct drawers icons
-        p.tint(255, 255/4);
+        p.tint(255, 255/2);
         p.image(loopsIcon, p.windowHeight/30 + p.windowHeight / 35 / 2 - p.windowHeight / 25*2+this.loopsOffset*2, p.windowHeight/2, p.windowHeight / 35, p.windowHeight / 35);
-        p.tint(255, 255/4);
+        p.tint(255, 255/2);
         p.image(structsIcon, p.windowWidth - p.windowHeight/30 - p.windowHeight / 35 / 2 + p.windowHeight / 25*2-this.structsOffset*2,  p.windowHeight/2, p.windowHeight / 35, p.windowHeight / 35);
       }
       else {
@@ -589,7 +593,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       p.textAlign(p.RIGHT, p.TOP);
 
       p.fill(white[0], white[1], white[2], this.structsOpa);
-      p.text("STRUCTS", p.windowWidth - p.windowHeight / 30 - p.windowHeight / 45*1.7 + this.structsOffset, p.windowHeight / 30);
+      p.text("STRUCTURES", p.windowWidth - p.windowHeight / 30 - p.windowHeight / 45*1.7 + this.structsOffset, p.windowHeight / 30);
       p.tint(255, this.structsOpa);
       p.image(structsIcon,  p.windowWidth - p.windowHeight / 30 - p.windowHeight / 45 / 2 + this.structsOffset, p.windowHeight / 30 + p.windowHeight / 40 / 2 + p.windowHeight / 30 / 7, p.windowHeight / 45, p.windowHeight / 45);
 
@@ -908,7 +912,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
           p.textAlign(p.RIGHT, p.CENTER);
           p.textSize(p.windowHeight / 50);
           p.fill(white[0], white[1], white[2], this.structsOpa/3);
-          p.text('Click "+" to create a Struct', p.windowWidth-p.windowHeight / 30 + this.structsOffset, p.windowHeight / 2);
+          p.text('Click "+" to create a Structure', p.windowWidth-p.windowHeight / 30 + this.structsOffset, p.windowHeight / 2);
         }
         else {
   
@@ -1746,7 +1750,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
         let minutes = p.minute();
         if (minutes < 10) minutes = "0"+minutes;
         if (hours < 10) hours = "0"+hours;
-        this.alertLog("Session saved at "+hours+":"+minutes+".");
+        this.alertLog("Session saved at "+hours+":"+minutes+".",3000);
         console.log("saving");
         sessionToSave = s;
         saveSession(s);
@@ -1819,7 +1823,6 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
         generatedTracks.push(track);
       }
 
-      session.activeTab.click.state = false;
       session.activeTab.plusMenu.soloButton.color = generatedTracks[0].color;
 
       synths.setGeneratedTracks(generatedTracks);
@@ -2296,7 +2299,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
         p.textAlign(p.CENTER, p.CENTER);
         p.textSize(p.windowHeight / 50);
         p.fill(white[0], white[1], white[2],255/3);
-        p.text('Drop Loop or Struct here', p.windowWidth / 2, p.windowHeight / 2);
+        p.text('Drop Loop or Structure here', p.windowWidth / 2, p.windowHeight / 2);
       }
 
       for (let i = 0; i < this.sequence.length; i++) {
@@ -2437,11 +2440,11 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       
       if (this.tempoButton.state) p.fill(white[0], white[1], white[2]);
       else p.fill(white[0], white[1], white[2], 255/2);
-      p.text("OVERRIDE",p.windowWidth/4+auxX*1.5,auxY+p.windowHeight / 40);
+      p.text("APPLY",p.windowWidth/4+auxX*1.5,auxY+p.windowHeight / 40);
       
       if (this.transposeButton.state) p.fill(white[0], white[1], white[2]);
       else p.fill(white[0], white[1], white[2], 255/2);
-      p.text("OVERRIDE",p.windowWidth-p.windowWidth/4,auxY+p.windowHeight / 40);
+      p.text("APPLY",p.windowWidth-p.windowWidth/4,auxY+p.windowHeight / 40);
       
       this.tempoScroll.draw(p.windowWidth/4,auxY);
       this.transposeScroll.draw(p.windowWidth-p.windowWidth/4-auxX*1.4,auxY);
@@ -2620,6 +2623,12 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       }
 
       this.tracks.push(new Track(this.tracks.length, this.id, name, anchorRight - iconSize));
+      
+      if (this.tracks[this.tracks.length-1].name === "DRUMS") this.tracks[this.tracks.length-1].switchPreset(synths.drumPresets[this.tracks[this.tracks.length-1].preset]);
+      else this.tracks[this.tracks.length-1].switchPreset(synths.synthPresets[this.tracks[this.tracks.length-1].preset]);
+      this.tracks[this.tracks.length-1].updateSynthParams();
+      for (let k in this.tracks[this.tracks.length-1].knobs) this.tracks[this.tracks.length-1].knobs[k][1].setOutput();
+
       if (this.selectedTrack !== null) this.selectedTrack = this.tracks[this.tracks.length - 1];
 
       this.plusTargetX = anchorRight + iconSize / 4;
@@ -2906,6 +2915,9 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
                   this.view = 2-i;
                   this.blackOpa2 = 255;
                   this.blackOpa3 = 255;
+                  if (this.view === 0) session.alertLog(this.selectedTrack.name +" — Grid View.",1500);
+                  else if (this.view === 1) session.alertLog(this.selectedTrack.name +" — Studio View.",1500);
+                  else session.alertLog(this.selectedTrack.name +" — Automation View.",1500);
                 }
                 p.mouseIsPressed = false;
               }
@@ -3037,6 +3049,8 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       this.lastGridY = 0;
       this.tempNote = null;
 
+      this.gridHover = false;
+
       this.opaInfoAutomation = 0;
 
       this.opaLine = 255;
@@ -3135,8 +3149,6 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       this.knobs.push(["REVERB",this.revKnobs[0]]);
       this.knobs.push(["REVERB",this.revKnobs[1]]);
       this.automationScroll = new Scrollable("PARAMETER",this.param,0,this.knobs.length-1,"",1,1);
-
-      //console.log(this.knobs);
 
       this.particlesX = [];
       this.particlesY = [];
@@ -3365,8 +3377,20 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
         else auxY = this.nPitches-p.round((p.mouseY - gridInitY) / ((gridStepSizeY*11)/(this.nPitches-1)))-1;
 
         if (p.mouseY > gridInitY-gridStepSizeY/4 && p.mouseY < gridInitY+(gridStepSizeY*11)+gridStepSizeY/4 && auxX >= 0 && auxX < nSteps && auxY >= 0 && auxY < this.nPitches && dragging === false && menuOpened === false && session.loopDrawer === false && session.structDrawer === false) {
+          
+          
+          if (this.gridHover === false) {
+            this.gridHover = true;
+            let count = 0;
+            for (let n in this.notes) if (this.notes[n].selected) count++;
+            if (count === 0) session.alertLog("Right Click drag to add Note.\nLeft Click drag to select Notes.",5000);
+            else if (count === 1) session.alertLog("Scroll to change Note's duration.\nDrag to change its position.",5000);
+            else session.alertLog("Scroll to change Notes' duration.\nDrag one to move all the selected.",5000);
+          }
+          
+          
           if (this.isNote(auxX, auxY) === false) document.body.style.cursor = 'pointer';
-
+          
           if (p.mouseIsPressed && this.draggingGrid === false && this.draggingSelect === false && this.isNote(auxX, auxY) === false) {
             dragging = true;
 
@@ -3394,6 +3418,8 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
               selectY = p.mouseY;
             }
           }   
+        } else {
+          this.gridHover = false;
         }
           
       if (p.mouseIsPressed === false && this.draggingGrid) {
@@ -4318,6 +4344,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
               session.loops[this.loopId].blackOpa2 = 255;
               session.loops[this.loopId].blackOpa3 = 255;
               session.activeTab.selectedTrack = this;
+              session.alertLog(this.name +" — Grid View.",1500);
               this.angInc = p.PI / 15;
             } else this.muted = !this.muted;
           } else if (p.mouseButton === p.RIGHT) {
@@ -5370,6 +5397,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
                   if (this.lastOption !== "MELODY") {
                     this.state = 2;
                     this.soloButton.state = true;
+                    session.activeTab.click.state = false;
                     session.createTracksWithGeneratedNotes(session.activeTab.id,this.lastOption);
                     //prevent to play imeadiatly
                     p.mouseX = p.windowWidth / 2;
@@ -5815,7 +5843,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       p.textSize(p.windowHeight / 50);
       p.fill(white[0], white[1], white[2], this.menuOpa);
 
-      p.text("Made with (too much) love by Thomas Fresco.", p.windowWidth/2, p.windowHeight/2);
+      p.text("BLOOM (2023-2024)\n\nMade with (too much) love by Thomas Fresco.\n\nDissertation project in the context of the Master in Design and Multimedia.\n Department of Informatics Engineering of the Facultyof Sciences\n and Technology of the University of Coimbra.", p.windowWidth/2, p.windowHeight/2);
     }
 
     draw(x,y) {
@@ -5930,8 +5958,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       p.textSize(p.windowHeight/55);
       if (this.label === "PITCH") p.text((this.output/100)+this.unit,x,y+this.radius/1.7);
       else p.text(this.output+this.unit,x,y+this.radius/1.7);
-      p.text(this.value,x,y+this.radius/1.2);
-      
+      //p.text(this.value,x,y+this.radius/1.2);
 
       if (this.automating) p.fill(session.activeTab.selectedTrack.color[0], session.activeTab.selectedTrack.color[1], session.activeTab.selectedTrack.color[2],opa/2);
       else p.noFill();
@@ -5959,7 +5986,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
             session.activeTab.selectedTrack.presetChanged = true;
 
             if (this.automating) {
-              session.alertLog('Automation "'+this.label+'" disabled.');
+              session.alertLog('Automation "'+this.label+'" disabled.',2000);
               this.automating = false;
             }
             session.activeTab.selectedTrack.automationScroll.value = this.findKnob();
@@ -6495,7 +6522,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
           i--;
         }
         currentOctave--;
-        session.alertLog("Current keyboard octave: "+currentOctave);
+        session.alertLog("Current keyboard octave: "+currentOctave,1500);
 
       }
       if (p.key.toUpperCase() === 'X') if (currentOctave < maxOctave) {
@@ -6505,7 +6532,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
           i--;
         }
         currentOctave++;
-        session.alertLog("Current keyboard octave: "+currentOctave);
+        session.alertLog("Current keyboard octave: "+currentOctave,1500);
 
       }
       if (p.keyCode === p.LEFT_ARROW) if (session.activeTab.view > 0) {
