@@ -7,7 +7,7 @@ https://dev.to/nyxtom/flow-fields-and-noise-algorithms-with-p5-js-5g67
 License CreativeCommons Attribution: https://creativecommons.org/licenses/by-sa/3.0
 
 “Wandering Particles” by celine: :http://openprocessing.org/sketch/989847
-License CreativeCommons Attribution:ehttps://creativecommons.org/licenses/by-sa/3.0
+License CreativeCommons Attribution: https://creativecommons.org/licenses/by-sa/3.0
 */
 
 import audioBufferToWav from 'audiobuffer-to-wav';
@@ -213,7 +213,7 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
         p.rotate(this.r);
         p.translate(this.drawDist()+p.windowHeight/50*p.sin(this.ang/4), p.windowHeight/50*p.sin(this.ang/2),-p.windowWidth / this.o / 5);
         p.fill(this.color[0],this.color[1],this.color[2],p.min(this.l, 255));
-        p.scale(p.windowWidth / this.o / 5 / petalModelSize);
+        p.scale(p.windowWidth / this.o / 4 / petalModelSize);
         p.rotateX(this.ang);
         p.rotateY(this.ang);
         p.model(this.petal);
@@ -3728,12 +3728,13 @@ const sketch = (generate, saveSession, sesh, setLoading, basicPitch, renderMidi)
       
       p.fill(white[0], white[1], white[2]);
       
-      let gainTodB = p.map(this.gain,0,1,-48,0);
+      //let gainTodB = p.map(this.gain,0,1,-48,0);
+      let gainTodB = Tone.gainToDb(this.gain);
       gainTodB = Math.round(gainTodB*10)/10;
 
       p.textSize(p.windowHeight/55);
       p.textAlign(p.CENTER,p.TOP);
-      if (gainTodB === -48) p.text("-Inf",gridInitX+p.windowWidth/9/2,gridInitY+studioGap*2.7+auxY*2+auxY/2+p.windowHeight/15/1.7);
+      if (gainTodB <= -48) p.text("-Inf",gridInitX+p.windowWidth/9/2,gridInitY+studioGap*2.7+auxY*2+auxY/2+p.windowHeight/15/1.7);
       else if (gainTodB%1 === 0) p.text(gainTodB+".0dB",gridInitX+p.windowWidth/9/2,gridInitY+studioGap*2.7+auxY*2+auxY/2+p.windowHeight/15/1.7);
       else p.text(gainTodB+"dB",gridInitX+p.windowWidth/9/2,gridInitY+studioGap*2.7+auxY*2+auxY/2+p.windowHeight/15/1.7);
       
